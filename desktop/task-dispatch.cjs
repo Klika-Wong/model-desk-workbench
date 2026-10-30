@@ -60,7 +60,9 @@ function buildTaskRequest({ prompt, kind = 'chat', modelId, title = '', project 
     files: [],
     timeout: normalizeTimeout(timeout),
     request_output_tokens: null,
-    routing: { category, complexity, input_tokens: 32, output_tokens: 64, expected_calls: 1 },
+    // 交给服务端基于真实 prompt 和任务类型估计，不能用固定占位覆盖它。
+    // 估计不是用量实测，也不改变模型的单次输出上限。
+    routing: { category, complexity },
   };
 }
 
@@ -119,7 +121,7 @@ async function dispatchTask({ baseUrl = 'http://127.0.0.1:18765', payload, dryRu
       url: `http://127.0.0.1:${port}/api/tasks`,
       headers: { 'X-Panel-Token': '<运行期会话令牌，不打印>', 'X-Model-Desk-View': projectHeader(payload.project) },
       body: payload,
-      note: '未发出任何网络请求，也没有调用模型。',
+      note: '未发出任何网络请求，也没有调用模型。Token 与调用次数由服务端按内容和任务类型估计，不是实际用量或费用承诺。',
     };
   }
   const realToken = token || await sessionToken(port);

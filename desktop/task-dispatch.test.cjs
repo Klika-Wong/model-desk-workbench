@@ -20,7 +20,9 @@ test('请求体按面板约定生成，默认走手动路由与模型默认执�
   assert.equal('engine' in body, false, '不指定执行器，交给模型默认');
   assert.equal(body.routing.category, 'other');
   assert.equal(body.routing.complexity, 'simple');
-  assert.equal(body.routing.expected_calls, 1);
+  for (const field of ['input_tokens', 'output_tokens', 'expected_calls']) {
+    assert.equal(Object.hasOwn(body.routing, field), false, '不能用占位覆盖服务端估计');
+  }
 });
 
 test('类别与复杂度必须是面板认可的枚举值', () => {

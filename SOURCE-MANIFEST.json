@@ -1071,8 +1071,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "7b5cfa80a0dc9f498fb51510f7ef17f7aef30c9bd960f316e4f2ff8e402b8992",
-      "bytes": 758
+      "sha256": "00e4c2165bfde5db8c9681db05072f6919b917302dd126ee40bd0d34ae5026af",
+      "bytes": 1499
     },
     {
       "path": "LICENSE",
@@ -1081,8 +1081,8 @@
     },
     {
       "path": "README.md",
-      "sha256": "48b6437c207b8e4bf138d18dee6dee7fccc4ca84a0b060c08443c5de272bcef7",
-      "bytes": 3959
+      "sha256": "373014fe62c21e5fd547ed88e612bfc1efbc7924426e4ea6c429a4bf441b5f58",
+      "bytes": 4006
     },
     {
       "path": "THIRD_PARTY.md",
@@ -1141,8 +1141,8 @@
     },
     {
       "path": "desktop/command.css",
-      "sha256": "db09b0fee126570f16b79b9142ca566b9ce29056786a2146efbb223c7fa3755f",
-      "bytes": 9976
+      "sha256": "c7b276f18afe6812a7b4121d013477d7cf0be915501616ac00e70998dc5c9316",
+      "bytes": 10227
     },
     {
       "path": "desktop/conn.css",
@@ -1170,9 +1170,24 @@
       "bytes": 23836
     },
     {
+      "path": "desktop/dispatch-state.js",
+      "sha256": "20d4079cbeb9166811503c2a349f3846ac3f50f4037d84f5049f0c3265002f4a",
+      "bytes": 3278
+    },
+    {
+      "path": "desktop/dispatch-state.test.cjs",
+      "sha256": "4df81d0e2331c5b2173f4b2950bc1a08cec59289bdc586b47cdaa59d9648525d",
+      "bytes": 5006
+    },
+    {
       "path": "desktop/dispatch-ui.js",
-      "sha256": "1a62e676b99ecd10379ad8f73b10a013858bb4bbe997dad502d5c4019552815f",
-      "bytes": 9159
+      "sha256": "8fe0cc817e0e79515634f210e9707831679afd6fefb7ed36f2eb02d8b7c2d4ce",
+      "bytes": 11626
+    },
+    {
+      "path": "desktop/dispatch-ui.test.cjs",
+      "sha256": "e850b1ce5008bf1c322c20ccdb79135c3c49c553f4b0f3f5a903a6690db42b64",
+      "bytes": 7459
     },
     {
       "path": "desktop/fixtures/empty-project/.keep",
@@ -1181,8 +1196,8 @@
     },
     {
       "path": "desktop/index.html",
-      "sha256": "79df06d4766ad489c09fa5a59dbaece010b9bcbf63e2812801735ae8ca8d2943",
-      "bytes": 26888
+      "sha256": "6ea69e7c4b1787e2440e6278266b2eb41580b2d8b4bd01bcc4a27e226885dfb0",
+      "bytes": 26929
     },
     {
       "path": "desktop/main.cjs",
@@ -1346,13 +1361,13 @@
     },
     {
       "path": "desktop/task-dispatch.cjs",
-      "sha256": "536672ab22be561f978faa995225be64a881c1d994013e613826c76c22eb3af1",
-      "bytes": 12452
+      "sha256": "b4108bdc6a13ed834101132916623a0f0017f05d7a7d0506b7caed5cb9e88794",
+      "bytes": 12677
     },
     {
       "path": "desktop/task-dispatch.test.cjs",
-      "sha256": "c3f7ca964828ff67b43819f994893d2a52196773dd7c4777cd5d2be365765450",
-      "bytes": 6490
+      "sha256": "4d0343a291a778a55f6ca5169567f3d5bc2cb7955c56e843aae53633302fece3",
+      "bytes": 6626
     },
     {
       "path": "desktop/task-feed.css",
@@ -1386,8 +1401,13 @@
     },
     {
       "path": "desktop/ui-verify.cjs",
-      "sha256": "4840fb53729c60fa0f7e574658ded3ada8790ad77507f44a8461eebbee938d46",
-      "bytes": 31354
+      "sha256": "f14a14ca8c9f01cfba484cca69fcad8190c0823575f3db360d80ca487eff57b5",
+      "bytes": 31951
+    },
+    {
+      "path": "desktop/verify-routing.cjs",
+      "sha256": "a82eb3dcaf95fabbf2c405bcd4857985d1cd1f771756d6381f4aa59000c48063",
+      "bytes": 2350
     },
     {
       "path": "desktop/wallpaper.css",
@@ -1486,8 +1506,8 @@
     },
     {
       "path": "docs/ROADMAP.md",
-      "sha256": "dd58f698776c256bae40edea2c231c67df3bd7352cd74b59c5254eff9addcffa",
-      "bytes": 1762
+      "sha256": "5b593cb795e78085048ce554b5c01cb388a17753487dbcca255cde4c91f3fc01",
+      "bytes": 1825
     },
     {
       "path": "docs/SHELL_GUARD.md",
@@ -1501,8 +1521,8 @@
     },
     {
       "path": "docs/VALIDATION.md",
-      "sha256": "b47c589c8145e9731864b5d45c49685acb2fe1b6569ef382385ca1b82b0f985e",
-      "bytes": 2033
+      "sha256": "0141ff2400b1db99a0071ae9b8a937fea86ebaa86dbb386f4de3c50687e80977",
+      "bytes": 3222
     },
     {
       "path": "docs/WORKBUDDY_EXECUTOR.md",
@@ -1584,5 +1604,6 @@
       "sha256": "c4d9785488bf5ed81037ec4f1fddd2eac089490dfa860cc782269948d1ce1184",
       "bytes": 1658
     }
-  ]
+  ],
+  "revision_note": "2026-10-30 dispatch recovery and prompt-dependent routing increment"
 }

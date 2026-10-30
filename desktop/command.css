@@ -81,6 +81,9 @@ mark.palette-mark { background: color-mix(in srgb, var(--accent) 26%, transparen
 .dispatch-card textarea { width: 100%; }
 .dispatch-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
 .dispatch-preview { margin: 12px 0 0; padding: 10px 12px; max-height: 220px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2); font-size: 11px; }
+.dispatch-preview p { margin: 0 0 6px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; }
+.dispatch-preview summary { cursor: pointer; color: var(--muted); }
+.dispatch-preview pre { white-space: pre-wrap; overflow-wrap: anywhere; }
 .dispatch-result { margin-top: 12px; padding: 12px 14px; border: 1px solid var(--accent-line); border-radius: 9px; background: var(--accent-soft); }
 .dispatch-answer-head { margin: 0 0 6px; font-size: 12px; font-weight: 650; color: var(--accent); }
 .dispatch-answer { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; background: transparent; border: 0; padding: 0; }

@@ -123,17 +123,23 @@ async function main() {
     await new Promise(r => setTimeout(r, 400));
     const calls = window.__stubCalls.all().filter(c => c.api === 'dispatchPreview');
     const previewProject = calls.length ? calls[calls.length - 1].input.project : null;
+    const previewBox = document.querySelector('#dispatch-preview-body');
+    const summaryLines = [...previewBox.querySelectorAll(':scope > p')].map(p => p.textContent);
+    const technicalDetails = previewBox.querySelector('details');
+    const compactPreview = summaryLines.length === 4 && summaryLines[0].includes('模型：') && technicalDetails && !technicalDetails.open;
     document.querySelector('#dispatch-send').click();
     await new Promise(r => setTimeout(r, 500));
-    return { project: previewProject,
+    return { project: previewProject, compactPreview: Boolean(compactPreview),
       status: document.querySelector('#dispatch-status').textContent,
       sendDisabledWhileRunning: document.querySelector('#dispatch-send').disabled,
       cancelVisible: !document.querySelector('#dispatch-cancel').hidden };
   })()`);
   if (dispatch.project !== PROJECT) throw new Error(`派发预览用了错误项目：${dispatch.project}`);
+  if (!dispatch.compactPreview) throw new Error('派发预览应先展示可读摘要，技术详情默认折叠');
   if (!dispatch.sendDisabledWhileRunning) throw new Error('任务在跟跑时派发按钮仍可点：会覆盖前一个任务的跟踪');
   if (!dispatch.cancelVisible) throw new Error('派发后没有出现取消入口');
   result.checks.push('dispatch-preview-uses-absolute-project');
+  result.checks.push('dispatch-preview-human-readable');
   result.checks.push('dispatch-no-double-send');
 
   // 4) 嵌入失败时不锁滚动（不能把外壳滚动条永久关掉）

@@ -1,5 +1,20 @@
 # 本次发布验证
 
+## 2026-10-30 派发体验增量
+
+在实际开发源码修复前，新增4项回归测试分别复现查询断线后停止、窗口显示后不恢复、慢查询叠加和终态错误文案。修复后增加预览失效/确认变更等测试。
+
+- `node --test dispatch-ui.test.cjs task-dispatch.test.cjs dispatch-state.test.cjs`：28项通过。
+- `node ui-verify-run.cjs`：18项通过，包括可读预览与默认折叠的技术详情。
+- `node verify-routing.cjs`：4项跨语言契约检查通过；真实桌面构造的请求交给Python服务源码 `requirements` 处理，无服务派发、无模型调用。短提示词估计4096，测试用长中文提示词估计32048；这些是算法估计，不是实测用量。
+- 原有预算开关、总时限和单请求输出上限保持原值。
+
+契约检查需要服务的Python依赖。默认使用仓库根目录 `.local-worker/venv/Scripts/python.exe`；分开安装时可设置 `MODEL_DESK_SERVICE_ROOT` 和 `MODEL_DESK_PYTHON`。这些变量不是密钥，示例应使用自己的安装路径。
+
+下文保留首次发布的验证结果，未重新宣称全量服务或全新机器安装已经通过。
+
+## 首次源码发布
+
 日期：2026-10-30。验证对象是脱敏发布目录中的源码，Windows 本机执行；复用了现有 Python、Node、Electron 和 Playwright 依赖，没有在一台干净机器重新安装全部依赖。
 
 | 检查 | 结果 | 边界 |
