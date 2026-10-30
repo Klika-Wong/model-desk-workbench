@@ -1,0 +1,15 @@
+.conn-graph { display: grid; gap: 10px; margin: 14px 0 4px; padding: 14px; min-width: 0; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); }
+.conn-node { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; min-width: 0; padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink-2); font-size: 12px; }
+.conn-hub { width: fit-content; max-width: 100%; color: var(--ink); font-weight: 650; }
+.conn-level { flex: none; color: var(--accent); background: var(--accent-soft); border: 1px solid var(--accent-line); border-radius: 5px; padding: 2px 5px; font-size: 10px; font-weight: 700; }
+.conn-name { min-width: 0; flex: 1; overflow-wrap: anywhere; }
+.conn-project { margin: 0; color: var(--muted); font-size: 11px; overflow-wrap: anywhere; }
+.conn-project-list { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.conn-project-chip { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-2); background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 3px 8px; font-size: 11px; }
+.conn-execs { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 8px; }
+.conn-health { width: 100%; color: var(--muted); }
+.conn-dot { width: 8px; height: 8px; flex: none; border-radius: 50%; background: var(--line-strong); }
+.conn-node[data-status="running"] .conn-dot { background: var(--accent); animation: connpulse 1.4s ease-in-out infinite; }
+.conn-node[data-status="error"] .conn-dot { background: var(--danger); }
+@keyframes connpulse { 0%,100% { opacity: .45; transform: scale(.8); } 50% { opacity: 1; transform: scale(1.15); } }
+@media (prefers-reduced-motion: reduce) { .conn-node[data-status="running"] .conn-dot { animation: none; } }

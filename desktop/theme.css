@@ -1,0 +1,140 @@
+/* Theme layer: one variable set per skin. Component CSS reads these variables.
+   Skins: light (默认新版) | dark (黑夜) | classic (原版工作台外观)
+   Switched from the sidebar quick bar or 设置 → 外观, persisted in localStorage('theme'). */
+
+:root,
+html[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f6f7f5;
+  --surface: #ffffff;
+  --surface-2: #f2f4f1;
+  --surface-3: #e9ece7;
+  --sidebar-bg: #eef1ec;
+  --ink: #1d2420;
+  --ink-2: #3b4742;
+  --muted: #6b7873;
+  --faint: #8b968f;
+  --line: #dde3dd;
+  --line-strong: #c7d1c9;
+  --accent: #1f6f57;
+  --accent-hover: #175744;
+  --accent-soft: #e4efe7;
+  --accent-line: #86a894;
+  --on-accent: #ffffff;
+  --hover: #e9efe8;
+  --nav-active-bg: #d9e6da;
+  --nav-active-ink: #1a5340;
+  --input-bg: #ffffff;
+  --danger: #a64132;
+  --ok-bg: #e3efe2;
+  --ok-ink: #2f6a3c;
+  --warn-bg: #f7efda;
+  --warn-ink: #8f6c28;
+  --neutral-bg: #eef0ee;
+  --neutral-ink: #707d77;
+  --canvas-bg: #f3f6f2;
+  --canvas-dot: #ccd6cb;
+  --edge: #9cb0aa;
+  --backdrop: #182b244d;
+  --shadow-1: 0 3px 12px #26473408;
+  --shadow-2: 0 24px 100px #172d2838;
+  --focus: #94bfa6;
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0f1315;
+  --surface: #171d20;
+  --surface-2: #1b2226;
+  --surface-3: #212a2e;
+  --sidebar-bg: #131a1d;
+  --ink: #e6ece8;
+  --ink-2: #c2ccc7;
+  --muted: #92a09a;
+  --faint: #7c8a85;
+  --line: #273235;
+  --line-strong: #354245;
+  --accent: #4fbf9a;
+  --accent-hover: #3fae8a;
+  --accent-soft: #1b2a26;
+  --accent-line: #2f4a42;
+  --on-accent: #08130f;
+  --hover: #202b28;
+  --nav-active-bg: #1d2f29;
+  --nav-active-ink: #bfe9d8;
+  --input-bg: #10171a;
+  --danger: #f08a7a;
+  --ok-bg: #1f3a2c;
+  --ok-ink: #86d6a9;
+  --warn-bg: #3a3320;
+  --warn-ink: #e2c579;
+  --neutral-bg: #262d31;
+  --neutral-ink: #9aa7a2;
+  --canvas-bg: #141a1e;
+  --canvas-dot: #263135;
+  --edge: #46564f;
+  --backdrop: #00000099;
+  --shadow-1: 0 3px 12px #00000055;
+  --shadow-2: 0 24px 100px #000000aa;
+  --focus: #4fbf9a;
+}
+
+/* 原版外观：沿用原工作台面板的黑白灰 + 墨绿状态色。 */
+html[data-theme="classic"] {
+  color-scheme: light;
+  --bg: #f7f7f5;
+  --surface: #ffffff;
+  --surface-2: #f2f2ef;
+  --surface-3: #eaeae4;
+  --sidebar-bg: #f2f2ef;
+  --ink: #202020;
+  --ink-2: #3b3b39;
+  --muted: #656565;
+  --faint: #85857d;
+  --line: #e3e3df;
+  --line-strong: #cfcfc9;
+  --accent: #262624;
+  --accent-hover: #000000;
+  --accent-soft: #f0f0ed;
+  --accent-line: #cfcfc9;
+  --on-accent: #ffffff;
+  --hover: #f2f2ef;
+  --nav-active-bg: #e6e6e1;
+  --nav-active-ink: #202020;
+  --input-bg: #fbfbf9;
+  --danger: #c15361;
+  --ok-bg: #eaf7f1;
+  --ok-ink: #1a765d;
+  --warn-bg: #fff4e4;
+  --warn-ink: #8e5a14;
+  --neutral-bg: #eeeee9;
+  --neutral-ink: #656565;
+  --canvas-bg: #f7f7f5;
+  --canvas-dot: #dcdcd6;
+  --edge: #a9a9a3;
+  --backdrop: rgba(32, 32, 32, .42);
+  --shadow-1: 0 1px 2px rgba(24, 24, 24, .05);
+  --shadow-2: 0 18px 48px rgba(24, 24, 24, .16);
+  --focus: #6b6b66;
+}
+
+html { background: var(--bg); color: var(--ink); }
+body { background: var(--bg); color: var(--ink); }
+
+/* Scrollbars follow the skin so dark mode has no bright rails. */
+html[data-theme="dark"] ::-webkit-scrollbar { width: 10px; height: 10px; }
+html[data-theme="dark"] ::-webkit-scrollbar-track { background: #0f1315; }
+html[data-theme="dark"] ::-webkit-scrollbar-thumb { background: #2c3733; border-radius: 6px; }
+html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: #3a4a44; }
+
+/* ---- quick switch bar (sidebar) ---- */
+.quick-bar { display: grid; gap: 5px; margin: 10px 0 2px; }
+.seg { display: flex; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; background: var(--surface); }
+.seg button {
+  flex: 1; min-width: 0; border: 0; border-radius: 0; padding: 5px 3px; font-size: 11px;
+  background: transparent; color: var(--muted); white-space: nowrap; cursor: pointer;
+}
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button:hover:not(:disabled) { background: var(--hover); }
+.seg button[aria-pressed="true"] { background: var(--nav-active-bg); color: var(--nav-active-ink); font-weight: 650; }
+.seg-label { font-size: 10px; letter-spacing: .08em; color: var(--faint); padding: 2px 2px 0; }

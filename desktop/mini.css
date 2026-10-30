@@ -1,0 +1,39 @@
+/* 任务观察小窗：跟随系统深浅色，内容区自己滚动，长标题换行不撑破窗口。 */
+:root { color-scheme: light dark; }
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  display: flex;
+  flex-direction: column;
+  font: 13px/1.5 system-ui, "Microsoft YaHei", sans-serif;
+  background: #f5f6f2;
+  color: #253432;
+  padding: 12px 12px 6px;
+}
+h2 { margin: 0 0 2px; font-size: 15px; }
+.sub { margin: 0 0 10px; color: #707d77; font-size: 11px; }
+#tasks { flex: 1; min-height: 0; overflow: auto; }
+.task {
+  padding: 9px 10px;
+  margin: 0 0 8px;
+  border: 1px solid #dfe5dd;
+  border-radius: 8px;
+  background: #fff;
+  overflow-wrap: anywhere;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.task-state { flex: none; font-size: 11px; color: #6b7a74; }
+.task-state[data-status="running"] { color: #2f7d5b; }
+.task-state[data-status="completed"] { color: #4b5b55; }
+.task-state[data-status="failed"], .task-state[data-status="cancelled"] { color: #b4453a; }
+.empty { color: #707d77; font-size: 12px; }
+.foot { margin: 6px 0 0; color: #8b968f; font-size: 10px; }
+
+@media (prefers-color-scheme: dark) {
+  body { background: #171d20; color: #e6ece8; }
+  .sub, .task-state, .empty { color: #9aa8a1; }
+  .task { background: #1f272b; border-color: #2e3a3f; }
+  .foot { color: #7d8a84; }
+}

@@ -1,0 +1,29 @@
+.real-tasks { display: grid; gap: 12px; min-width: 0; }
+.feed-caption { margin: 0 0 4px; color: var(--muted); font-size: 12px; }
+.feed-item { display: grid; grid-template-columns: 34px minmax(0, 1fr); align-items: start; gap: 10px; min-width: 0; }
+.feed-avatar { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 11px; background: var(--accent-soft); color: var(--accent); font-size: 14px; font-weight: 700; }
+.feed-body { min-width: 0; max-width: 720px; }
+.feed-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 12px; margin: 0 0 5px; font-size: 12px; }
+.feed-head strong { color: var(--ink); overflow-wrap: anywhere; }
+.feed-status { color: var(--muted); }
+.feed-project { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 11px; }
+.feed-item[data-status="running"] .feed-status,
+.feed-item[data-status="in_progress"] .feed-status { color: var(--accent); }
+.feed-item[data-status="failed"] .feed-status,
+.feed-item[data-status="blocked"] .feed-status { color: var(--danger); }
+.feed-bubble { padding: 11px 14px; border: 1px solid var(--line); border-radius: 4px 14px 14px; background: var(--surface-2); color: var(--ink); box-shadow: var(--shadow-1); min-width: 0; }
+.feed-bubble p { margin: 0; overflow-wrap: anywhere; line-height: 1.5; font-size: 13px; }
+.feed-details { margin-top: 8px; border-top: 1px solid var(--line); padding-top: 7px; }
+.feed-details summary { width: max-content; max-width: 100%; cursor: pointer; color: var(--accent); font-size: 12px; }
+.feed-details summary:hover { text-decoration: underline; }
+.feed-details summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+.feed-details dl { display: grid; gap: 5px; margin: 10px 0 0; }
+.feed-field { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 10px; font-size: 12px; }
+.feed-field dt { color: var(--muted); }
+.feed-field dd { margin: 0; color: var(--ink-2); overflow-wrap: anywhere; }
+@media (max-width: 700px) {
+  .feed-item { grid-template-columns: 28px minmax(0, 1fr); gap: 7px; }
+  .feed-avatar { width: 28px; height: 28px; border-radius: 8px; font-size: 12px; }
+  .feed-bubble { padding: 9px 10px; }
+  .feed-field { grid-template-columns: 65px minmax(0, 1fr); }
+}

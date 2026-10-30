@@ -1,0 +1,66 @@
+/* Compact desktop navigation and layouts shared by both color themes. */
+html, body { min-width: 0; }
+main.workspace { min-width: 0; overflow-x: hidden; }
+.sidebar { min-width: 0; }
+.sidebar .brand { margin-bottom: 10px; }
+.sidebar-section-head { gap: 4px; }
+.sidebar-section-head .icon-button { width: 25px; height: 25px; padding: 0; font-size: 18px; line-height: 23px; }
+.nav-button { color: var(--ink-2); border-radius: 7px; }
+.nav-button:hover:not(.active) { background: var(--hover); }
+.sidebar-search { width: 100%; display: flex; align-items: center; gap: 7px; margin: 11px 0 2px; padding: 8px 9px; text-align: left; color: var(--muted); background: var(--input-bg); border: 1px solid var(--line); border-radius: 7px; font-size: 11px; }
+.sidebar-search span { min-width: 0; flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.sidebar-search kbd { flex: none; border: 1px solid var(--line); border-radius: 4px; padding: 1px 3px; font-size: 10px; }
+.sidebar-bottom { display: flex; flex-direction: column; gap: 5px; }
+.page-header { align-items: start; flex-wrap: wrap; }
+.page-header > div:first-child { min-width: 0; flex: 1 1 360px; }
+.header-actions { min-width: 0; flex-wrap: wrap; white-space: normal; }
+.project-summary { margin-top: 18px; padding: 14px 18px; }
+.project-summary .path { color: var(--ink); font-size: 16px; font-weight: 650; }
+.project-summary .eyebrow { margin-bottom: 5px; }
+.project-summary #project-path { margin: 2px 0 0; font-size: 11px; }
+#tasks-page { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(330px, .8fr); column-gap: 16px; align-items: start; }
+#tasks-page > .page-header, #tasks-page > .project-summary, #tasks-page > .connection-card, #tasks-page > .demo-details { grid-column: 1 / -1; }
+#tasks-page > .task-feed-card { grid-column: 1; }
+#tasks-page > .dispatch-card { grid-column: 2; }
+.demo-details { color: var(--ink); }
+.demo-details summary { cursor: pointer; font-weight: 650; }
+.demo-details > label { display: flex; flex-direction: column; align-items: start; gap: 5px; margin-top: 14px; }
+.demo-details select { max-width: 100%; }
+#tasks-page .card { margin-top: 16px; }
+#tasks-page .dispatch-card { padding: 18px; }
+#tasks-page .dispatch-card textarea { min-height: 72px; }
+#tasks-page .row { flex-wrap: wrap; gap: 10px; }
+#tasks-page .row > div:first-child { min-width: 0; flex: 1 1 290px; }
+#tasks-page button { white-space: normal; }
+.all-projects-toggle { display: inline-flex; align-items: center; gap: 5px; color: var(--ink-2); font-size: 12px; white-space: nowrap; }
+.all-projects-toggle input { margin: 0; }
+#settings-dialog label:has(> input[type="checkbox"]) { flex-direction: row; align-items: center; }
+@media (max-width: 1000px) {
+  #tasks-page { grid-template-columns: minmax(0, 1fr); }
+  #tasks-page > .task-feed-card, #tasks-page > .dispatch-card { grid-column: 1; }
+  .sidebar { width: min(var(--sidebar-width, 226px), 230px); }
+  .sidebar-toggle { left: calc(min(var(--sidebar-width, 226px), 230px) - 34px); }
+  main.workspace { margin-left: min(var(--sidebar-width, 226px), 230px); width: calc(100% - min(var(--sidebar-width, 226px), 230px)); }
+  .sidebar-right main.workspace { margin-left: 0; margin-right: min(var(--sidebar-width, 226px), 230px); }
+  .sidebar-right .sidebar-toggle { right: 10px; left: auto; }
+  .sidebar-hidden main.workspace { margin: 0; width: 100%; }
+  .sidebar-hidden .sidebar-toggle { left: 8px; }
+  main.workspace { padding: 18px; }
+  .card, .architecture-card, .memory-content { padding: 16px; }
+  .overview-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .quota-card { grid-column: 1 / -1; }
+  .search-controls { flex-wrap: wrap; }
+  .info-strip { flex-wrap: wrap; gap: 8px 16px; }
+}
+@media (max-width: 760px) {
+  .sidebar { width: min(var(--sidebar-width, 226px), 42vw, 210px); }
+  .sidebar-toggle { left: calc(min(var(--sidebar-width, 226px), 42vw, 210px) - 34px); }
+  main.workspace { margin-left: min(var(--sidebar-width, 226px), 42vw, 210px); width: calc(100% - min(var(--sidebar-width, 226px), 42vw, 210px)); padding: 14px; }
+  .sidebar-right main.workspace { margin-left: 0; margin-right: min(var(--sidebar-width, 226px), 42vw, 210px); }
+  .sidebar-hidden main.workspace { margin: 0; width: 100%; }
+  .sidebar-search kbd { display: none; }
+  .overview-grid { grid-template-columns: 1fr; }
+  .quota-card { grid-column: auto; }
+  .page-header h1 { font-size: 23px; }
+  .card, .architecture-card, .memory-content { padding: 13px; }
+}

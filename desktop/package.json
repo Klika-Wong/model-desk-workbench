@@ -1,0 +1,16 @@
+{
+  "name": "model-desk-desktop-shell-prototype",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Windows desktop preview for project-scoped model collaboration and local memory management.",
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test *.test.cjs",
+    "smoke": "node smoke-runner.cjs",
+    "verify:ui": "node ui-verify-run.cjs"
+  },
+  "devDependencies": {
+    "electron": "45.0.0"
+  }
+}
