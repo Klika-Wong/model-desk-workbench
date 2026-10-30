@@ -1,0 +1,34 @@
+#models-page { min-width: 0; }
+#models-page .page-header { align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+#models-page h1 { font-size: clamp(24px, 3vw, 32px); }
+#models-page .intro { max-width: 65ch; }
+#models-page .header-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.models-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 18px 0; }
+.models-tools input { flex: 1 1 220px; min-width: 0; }
+.models-tools select { max-width: 100%; }
+.model-list { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--surface); }
+.model-row { display: flex; align-items: center; gap: 16px; padding: 16px; border-bottom: 1px solid var(--line); }
+.model-row:last-child { border-bottom: 0; }
+.model-info { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.model-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+#models-page h3 { margin: 0; color: var(--ink); font-size: 16px; }
+.model-badge { color: var(--ink); background: var(--surface-2); border: 1px solid var(--line); border-radius: 6px; padding: 2px 7px; font-size: 12px; }
+#models-page .model-meta { color: var(--muted); margin: 5px 0 0; font-size: 13px; line-height: 1.65; overflow-wrap: anywhere; }
+.model-row > button { flex-shrink: 0; }
+.model-capability { margin-top: 8px; color: var(--ink); font-size: 13px; }
+.model-capability summary { cursor: pointer; color: var(--muted); }
+.model-capability p { white-space: pre-wrap; }
+.model-accounts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 12px; }
+.model-account { padding: 16px; min-width: 0; border: 1px solid var(--line); background: var(--surface); border-radius: 12px; }
+.account-state { display: block; color: var(--ink); margin: 10px 0; font-size: 14px; }
+.account-window { margin: 12px 0 4px; font-size: 13px; color: var(--ink); }
+.model-account progress { width: 100%; height: 7px; accent-color: var(--accent); }
+.models-empty { padding: 18px; color: var(--muted); }
+.models-quota-heading { margin-top: 28px; }
+#models-status { min-height: 24px; overflow-wrap: anywhere; }
+#models-page button:focus-visible, #models-page summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+@media (max-width: 600px) {
+  .model-row { flex-wrap: wrap; gap: 10px; padding: 12px; }
+  .model-info { flex-basis: 100%; }
+  #models-page .header-actions { flex-wrap: wrap; }
+}

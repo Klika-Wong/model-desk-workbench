@@ -52,6 +52,7 @@
       const designer = document.getElementById('designer-page');
       const memory = document.getElementById('memory-page');
       if (panelShown) { showPanelEmbedded(); return; }
+      if (!document.getElementById('models-page')?.hidden) { window.__modelsUi?.refresh(); return; }
       if (designer && !designer.hidden) { const b = document.getElementById('designer-reload'); if (b) b.click(); return; }
       if (memory && !memory.hidden) { const b = document.getElementById('reload-memory'); if (b) b.click(); return; }
       const chat = document.getElementById('chat-page');
@@ -181,6 +182,7 @@
       syncViewUi('new');
       root.classList.remove('panel-embedded');
       setConnStatus(`嵌入失败：${(reply && reply.error) || '未发现运行中的工作台'}`);
+      window.__modelsUi?.status(`高级设置未打开：${reply?.error || '未发现运行中的工作台'}`, true);
     }
   }
   function hidePanelEmbedded() {
@@ -192,10 +194,10 @@
     const nav = document.getElementById('nav-panel'); if (nav) nav.classList.remove('active');
   }
   function showNewView() { hidePanelEmbedded(); setNavActive('nav-memory'); const b = document.getElementById('nav-memory'); if (b) b.click(); }
-  function toggleView() { if (panelShown) showNewView(); else showPanelEmbedded(); }
+  function toggleView() { if (panelShown) window.__modelsUi?.show(); else showPanelEmbedded(); }
 
   const navPanel = document.getElementById('nav-panel');
-  if (navPanel) navPanel.addEventListener('click', () => showPanelEmbedded());
+  if (navPanel) navPanel.addEventListener('click', () => window.__modelsUi?.show());
   for (const id of ['nav-memory', 'nav-tasks', 'nav-designer', 'nav-chat']) {
     const b = document.getElementById(id);
     if (b) b.addEventListener('click', () => hidePanelEmbedded());
@@ -206,7 +208,7 @@
     if (b.dataset.view === 'original') showPanelEmbedded(); else showNewView();
   });
   const openReal = document.getElementById('open-real-panel');
-  if (openReal) openReal.addEventListener('click', () => showPanelEmbedded());
+  if (openReal) openReal.addEventListener('click', () => window.__modelsUi?.show());
   // 嵌入视图尺寸跟随宿主区域：窗口缩放、侧栏拖宽、左右停靠都会触发。
   const workspaceEl = document.querySelector('main.workspace');
   if (workspaceEl && typeof ResizeObserver !== 'undefined') {
@@ -247,8 +249,9 @@
     panelShown = false;
     root.classList.remove('panel-embedded');
     syncViewUi('new');
-    const nav = document.getElementById('nav-panel'); if (nav) nav.classList.remove('active');
-    setConnStatus(`完整工作台已断开：${reason}。可点「⟳」或重新点「模型与额度」再试。`, true);
+    const nav = document.getElementById('nav-panel'); if (nav) nav.classList.toggle('active', !document.getElementById('models-page')?.hidden);
+    setConnStatus(`高级设置已断开：${reason}。可从「模型与额度」重新打开高级设置。`, true);
+    window.__modelsUi?.status(`高级设置已断开：${reason}`, true);
   }
-  window.__workbenchShell = { setTheme, getTheme: () => root.getAttribute('data-theme'), toggleView, isPanelShown: () => panelShown, onPanelGone };
+  window.__workbenchShell = { setTheme, getTheme: () => root.getAttribute('data-theme'), toggleView, openAdvanced: showPanelEmbedded, hideAdvanced: hidePanelEmbedded, isPanelShown: () => panelShown, onPanelGone };
 })();

@@ -45,6 +45,8 @@
     $('memory-message').classList.toggle('error', error);
   }
   function page(name) {
+    window.__modelsUi?.hide();
+    window.__workbenchShell?.hideAdvanced();
     $('designer-page').hidden = true;
     $('nav-designer').classList.remove('active');
     // 对话页由 chat-ui 自己管理：切走时必须让它一起收起，避免页面叠加。

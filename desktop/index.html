@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Model Desk — Desktop Shell Prototype</title>
 <link rel="stylesheet" href="designer.css"><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="memory.css"><link rel="stylesheet" href="theme.css"><link rel="stylesheet" href="conn.css"><link rel="stylesheet" href="task-feed.css"><link rel="stylesheet" href="command.css"><link rel="stylesheet" href="wallpaper.css"><link rel="stylesheet" href="shell-overrides.css">
+<link rel="stylesheet" href="model-cards.css">
 </head><body>
 <button id="toggle-sidebar" class="sidebar-toggle" aria-label="隐藏或显示侧栏" title="切换侧栏（Ctrl+B）">◧</button><aside class="sidebar">
   <div class="brand"><span class="brand-mark">M</span><div><strong>模型工作台</strong><small>你的项目 · 各自有序</small></div></div>
@@ -17,6 +18,14 @@
   <button id="open-settings" type="button">设置</button><button id="open-performance" type="button">性能监测</button><div class="sidebar-bottom">● 本机保存<small>关闭窗口后驻留托盘</small></div>
 <div id="sidebar-resizer" role="separator" tabindex="0" aria-label="调整侧栏宽度" aria-orientation="vertical"></div></aside>
 <main class="workspace">
+<div id="models-page" hidden>
+  <header class="page-header"><div><p class="eyebrow">模型 / 账户</p><h1>模型与额度</h1><p class="intro">选择合适的模型，查看连接和账户状态。模型配置与账号额度跨项目共享。</p></div><div class="header-actions"><button id="models-refresh" type="button">刷新</button><button id="models-advanced" type="button">高级设置</button></div></header>
+  <p id="models-status" class="message" role="status" aria-live="polite">选择模型不会自动调用或更改全局默认。</p>
+  <div class="models-tools"><input id="models-search" type="search" placeholder="搜索模型、来源或执行端" aria-label="搜索模型"><select id="models-filter" aria-label="筛选模型"><option value="all">全部模型</option><option value="local">本地模型</option><option value="cloud">云端模型</option><option value="enabled">已启用</option></select><span id="models-count" class="hint"></span></div>
+  <section id="models-list" class="model-list" aria-label="模型列表"></section>
+  <h2 class="models-quota-heading">账户与额度</h2><p class="hint">不同账户和额度窗口分别展示，不合计。未取得数据时保留为未知。</p>
+  <section id="models-accounts" class="model-accounts" aria-label="账户额度"></section>
+</div>
 <div id="designer-page" hidden>
 <header class="page-header"><div><p class="eyebrow">记忆 / 可编辑设计副本</p><h1>搭建你的记忆结构</h1><p class="intro">参考你的架构说明；只包含层级，不含私人记忆正文。</p></div><div class="header-actions"><select id="designer-space" aria-label="选择记忆空间架构"></select><span id="designer-version"></span></div></header>
 <div class="designer-toolbar"><div class="toolbar-main"><button id="designer-tool-select" class="tool active" aria-pressed="true" title="选择 / 移动（V）">▣ 选择</button><button id="designer-tool-hand" class="tool" aria-pressed="false" title="抓手平移（H 或按住空格）">✥ 抓手</button><button id="designer-add">＋ 节点</button><div class="zoom-group" role="group" aria-label="缩放"><button id="designer-zoom-out" aria-label="缩小画布" title="缩小画布">−</button><button id="designer-zoom-reset" aria-label="重置缩放" title="重置缩放">100%</button><button id="designer-zoom-in" aria-label="放大画布" title="放大画布">＋</button></div><button id="designer-save" class="primary">预览并保存</button></div><details class="toolbar-group"><summary>编辑工具</summary><div class="toolbar-group-items"><button id="designer-undo">撤销</button><button id="designer-redo">重做</button><button id="designer-arrange" title="把节点整理成分散网格">整理</button><button id="designer-fit" title="适配视图，显示全部节点">适配</button></div></details><details class="toolbar-group"><summary>试运行 · AI · 历史</summary><div class="toolbar-group-items"><button id="designer-trial">▷ 试运行</button><button id="designer-ai">AI 建议</button><select id="designer-history-select" aria-label="历史版本"></select><button id="designer-history">载入历史</button><button id="designer-reload">重新读取</button></div></details></div>
@@ -71,7 +80,7 @@
 <dialog id="chat-source-dialog"><div class="dialog-heading"><h2 id="chat-source-title">记忆原文</h2><button type="button" data-close="chat-source-dialog" aria-label="关闭">×</button></div><p id="chat-source-meta" class="hint"></p><pre id="chat-source-body" class="chat-source-body"></pre><footer><button type="button" data-close="chat-source-dialog">关闭</button></footer></dialog>
 <div id="palette" class="palette" hidden><div class="palette-box" role="dialog" aria-modal="true" aria-label="命令面板"><input id="palette-input" type="text" placeholder="搜索命令、空间或记忆…" autocomplete="off" aria-controls="palette-list" aria-autocomplete="list"><ul id="palette-list" role="listbox" aria-label="命令结果"></ul><p class="palette-foot"><kbd>Ctrl</kbd>+<kbd>K</kbd> 打开 · <kbd>↑</kbd><kbd>↓</kbd> 选择 · <kbd>Enter</kbd> 执行 · <kbd>Esc</kbd> 关闭 · <kbd>Ctrl</kbd>+<kbd>/</kbd> 全部快捷键</p></div></div>
 <dialog id="shortcuts-dialog"><div class="dialog-heading"><h2>快捷键与高效操作</h2><button id="close-shortcuts" type="button">关闭</button></div><div id="shortcuts-body" class="shortcuts"></div></dialog>
-<script src="designer.js"></script><script src="performance-ui.js"></script><script src="workspace-layout.js"></script><script src="renderer.js"></script><script src="memory-ui.js"></script><script src="task-feed.js"></script><script src="connection-view.js"></script><script src="chat-prompt.js"></script><script src="dispatch-state.js"></script><script src="dispatch-ui.js"></script><script src="chat-ui.js"></script><script src="shell.js"></script><script src="wallpaper.js"></script><script src="command-palette.js"></script>
+<script src="designer.js"></script><script src="performance-ui.js"></script><script src="workspace-layout.js"></script><script src="renderer.js"></script><script src="memory-ui.js"></script><script src="task-feed.js"></script><script src="connection-view.js"></script><script src="chat-prompt.js"></script><script src="dispatch-state.js"></script><script src="dispatch-ui.js"></script><script src="chat-ui.js"></script><script src="model-cards.js"></script><script src="models-ui.js"></script><script src="shell.js"></script><script src="wallpaper.js"></script><script src="command-palette.js"></script>
 </body></html>
 
 

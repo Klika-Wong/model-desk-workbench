@@ -7,6 +7,7 @@
 
 const http = require('node:http');
 const path = require('node:path');
+const { normalizeOverview } = require('./model-overview.cjs');
 function projectKey(value) { return typeof value === 'string' && path.win32.isAbsolute(value) ? path.win32.normalize(value).replace(/[\\/]+$/, '').toLowerCase() : null; }
 // 发给面板的路径必须先规范化：`E://a` 这类写法面板会直接 400，报错又难懂。
 // 保留原始大小写，只折叠重复分隔符与尾部分隔符。
@@ -119,6 +120,7 @@ async function probePanel(baseUrl = DEFAULT_BASE, project = null, scope = 'proje
     message: '已连接本机工作台',
     hub: hubLabel(data),
     executors: normalizeExecutors(data),
+    overview: normalizeOverview(data),
     tasks: tasksRaw.length,
     projects,
     runningTasks: tasksRaw.filter(t => t.status === 'running').map(t => ({status:'running',engine:typeof t.engine === 'string' ? t.engine : '',modelId:String(t.model_id || ''),model:String(t.model_name || t.model_id || ''),project:t.project})),

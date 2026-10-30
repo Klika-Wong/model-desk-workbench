@@ -21,6 +21,55 @@ async function main() {
   await wait(700);
   const js = (code) => win.webContents.executeJavaScript(code);
 
+  // The native overview is the default entry; selecting a model must never send.
+  const models = await js(`(async () => {
+    window.__stubCalls.enablePanelFixture();
+    document.getElementById('nav-panel').click();
+    await new Promise(r => setTimeout(r, 200));
+    const visible = !document.getElementById('models-page').hidden;
+    const rows = document.querySelectorAll('.model-row').length;
+    const bars = [...document.querySelectorAll('#models-accounts progress')].map(p => p.value);
+    const disabled = document.querySelectorAll('.model-row button')[1]?.disabled;
+    window.__stubCalls.disablePanelFixture();
+    await window.__modelsUi.refresh();
+    const stale = document.getElementById('models-count').textContent.includes('上次数据') && [...document.querySelectorAll('.model-row button')].every(b=>b.disabled);
+    window.__stubCalls.enablePanelFixture();
+    await window.__modelsUi.refresh();
+    window.__stubCalls.holdNextPanel();
+    const delayed = window.__modelsUi.refresh();
+    document.getElementById('nav-chat').click();
+    document.getElementById('nav-panel').click();
+    const waiting = document.getElementById('models-status').textContent.includes('等待上一轮');
+    window.__stubCalls.releasePanel();
+    await delayed;
+    await new Promise(r=>setTimeout(r,100));
+    const recovered = !document.querySelector('.model-row button').disabled;
+    const input = document.getElementById('models-search'); input.value = '云端'; input.dispatchEvent(new Event('input'));
+    const filtered = document.querySelectorAll('.model-row').length;
+    input.value = ''; input.dispatchEvent(new Event('input'));
+    document.getElementById('chat-consent').checked = true;
+    document.querySelector('.model-row button').click();
+    await new Promise(r => setTimeout(r, 100));
+    const selected = document.getElementById('chat-model').value;
+    const consent = document.getElementById('chat-consent').checked;
+    const sent = window.__stubCalls.all().filter(c => c.api === 'dispatchSend').length;
+    const chatVisible = !document.getElementById('chat-page').hidden && document.getElementById('models-page').hidden;
+    const missing = await window.__chatUi.selectModel('removed-model');
+    const missingSelection = document.getElementById('chat-model').value;
+    document.getElementById('nav-panel').click();
+    window.__memoryUi.page('memory');
+    const hidden = document.getElementById('models-page').hidden;
+    window.__stubCalls.disablePanelFixture();
+    return {visible, rows, bars, disabled, stale, waiting, recovered, filtered, selected, consent, sent, chatVisible, missing, missingSelection, hidden};
+  })()`);
+  if (!models.visible || models.rows !== 2 || !models.disabled || models.filtered !== 1) throw new Error('模型总览或筛选异常：' + JSON.stringify(models));
+  if (JSON.stringify(models.bars) !== '[0]') throw new Error('未知额度被错误画成数值');
+  if (!models.stale || !models.waiting || !models.recovered) throw new Error('模型页断线或延迟响应处理异常：' + JSON.stringify(models));
+  if (models.selected !== 'm-local' || models.consent || models.sent || !models.chatVisible || !models.hidden || models.missing !== false || models.missingSelection) throw new Error('模型选择/导航/同意状态异常：' + JSON.stringify(models));
+  result.checks.push('models-native-overview-search-quota-zero');
+  result.checks.push('models-selection-no-send-consent-reset');
+  result.checks.push('models-offline-readonly-and-delayed-refresh');
+
   // 1) 页面互斥：对话页 → 记忆页（模拟命令面板跳转，不走导航点击）
   const pages = await js(`(async () => {
     document.querySelector('#nav-chat').click();
@@ -145,6 +194,7 @@ async function main() {
   // 4) 嵌入失败时不锁滚动（不能把外壳滚动条永久关掉）
   const embed = await js(`(async () => {
     document.querySelector('#nav-panel').click();
+    document.querySelector('#models-advanced').click();
     await new Promise(r => setTimeout(r, 500));
     return { locked: document.documentElement.classList.contains('panel-embedded'), status: (document.querySelector('#conn-status')||{}).textContent, actives: [...document.querySelectorAll('.nav-button.active')].map(b => b.id) };
   })()`);

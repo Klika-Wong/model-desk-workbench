@@ -10,7 +10,16 @@ let holdNextPanel = false;
 let heldPanelReply = null;
 function panelStatus() {
   if (!panelFixture) return Promise.resolve({ ok: false, error: '验证模式：未连接面板' });
-  const reply = { ok: true, data: { state: 'connected', project: selectedProject, tasks: 1, executors: [], taskList: [{ id: selectedProject, title: selectedProject, project: selectedProject, status: 'running' }] } };
+  const reply = { ok: true, data: { state: 'connected', project: selectedProject, tasks: 1, executors: [], taskList: [{ id: selectedProject, title: selectedProject, project: selectedProject, status: 'running' }],
+    overview: {models: [
+      {id: 'm-local', name: '本地示例模型', local: true, providerLabel: '本地模型', executorLabel: 'DeepSeek Harness', enabled: true, executorReady: true, checkLabel: '上次调用成功', capability: '短文本分类；能力边界待实测'},
+      {id: 'm-cloud', name: '云端示例模型', local: false, providerLabel: 'WorkBuddy', executorLabel: 'WorkBuddy', enabled: true, executorReady: false, checkLabel: '尚无调用验证'},
+    ], accounts: [
+      {id: 'codex', label: 'Codex / ChatGPT', stateLabel: '上次数据 · 待更新', detail: '账户额度跨项目共享', windows: [{label: '5 小时', remaining: 0}, {label: '每周', remaining: null}]},
+      {id: 'workbuddy', label: 'WorkBuddy', stateLabel: '额度未接入', detail: '连接状态不代表剩余额度', windows: []},
+      {id: 'local', label: '本地模型', stateLabel: '不适用云端额度', detail: '仍会使用 CPU、GPU 和内存', windows: []},
+    ]},
+  } };
   if (!holdNextPanel) return Promise.resolve(reply);
   holdNextPanel = false;
   return new Promise(resolve => { heldPanelReply = () => { resolve(reply); heldPanelReply = null; }; });
@@ -93,6 +102,7 @@ contextBridge.exposeInMainWorld('__stubCalls', { all: () => calls.slice(), setSe
   logCalls: () => logCalls,
   setProject: value => { selectedProject = value; },
   enablePanelFixture: () => { panelFixture = true; },
+  disablePanelFixture: () => { panelFixture = false; },
   holdNextPanel: () => { holdNextPanel = true; },
   hasHeldPanel: () => Boolean(heldPanelReply),
   releasePanel: () => { if (heldPanelReply) heldPanelReply(); },

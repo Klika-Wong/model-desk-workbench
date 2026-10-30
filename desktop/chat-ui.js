@@ -115,11 +115,18 @@
     for (const message of messages) bubble(message.role, message.text, message.meta);
   }
 
+  let modelRequest = 0;
   async function loadModels() {
+    if (pendingTask) return false;
+    const request = ++modelRequest;
+    consent.checked = false;
+    consent.disabled = true;
+    refresh();
     $('chat-models').disabled = true;
     say('正在读取工作台模型…');
     try {
       const reply = await window.workbench.dispatchModels();
+      if (request !== modelRequest) return false;
       if (!reply.ok) throw new Error(reply.error);
       const { models, defaultModel } = reply.data;
       modelSelect.replaceChildren();
@@ -132,12 +139,15 @@
       if (defaultModel && models.some((m) => m.id === defaultModel)) modelSelect.value = defaultModel;
       consent.disabled = models.length === 0;
       say(`已读取 ${models.length} 个模型`);
+      return true;
     } catch (error) {
+      if (request !== modelRequest) return false;
+      modelSelect.replaceChildren();
       say(`读取模型失败：${error.message}`, true);
       consent.disabled = true;
+      return false;
     } finally {
-      $('chat-models').disabled = false;
-      refresh();
+      if (request === modelRequest) { $('chat-models').disabled = false; refresh(); }
     }
   }
 
@@ -374,8 +384,9 @@
   }
 
   // 导航：切到对话时隐藏其他页，切走时隐藏自己。
-  const PAGES = ['memory-page', 'tasks-page', 'designer-page', 'chat-page'];
+  const PAGES = ['memory-page', 'tasks-page', 'designer-page', 'chat-page', 'models-page'];
   function showChat() {
+    window.__modelsUi?.hide();
     for (const id of PAGES) { const el = $(id); if (el) el.hidden = id !== 'chat-page'; }
     for (const b of document.querySelectorAll('.nav-button')) b.classList.toggle('active', b.id === 'nav-chat');
     refresh();
@@ -397,7 +408,7 @@
   consent.addEventListener('change', refresh);
   useMemory.addEventListener('change', refresh);
   if (useHistory) useHistory.addEventListener('change', refresh);
-  modelSelect.addEventListener('change', refresh);
+  modelSelect.addEventListener('change', () => { consent.checked = false; refresh(); });
   input.addEventListener('input', refresh);
   input.addEventListener('keydown', (event) => {
     if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) { event.preventDefault(); send(); }
@@ -429,5 +440,16 @@
     refresh();
   })();
   syncProject().then(refresh);
-  window.__chatUi = { send, hidePage: hideChat, state: () => ({ messages: messages.length, pendingTask }) };
+  async function selectModel(id) {
+    if (pendingTask) { say('当前对话任务仍在执行，结束后再切换模型。', true); return false; }
+    if (!await loadModels()) return false;
+    if (![...modelSelect.options].some(option => option.value === id)) {
+      modelSelect.value = ''; consent.checked = false; refresh();
+      say('该模型已停用或不可用，请重新选择。', true); return false;
+    }
+    modelSelect.value = id; consent.checked = false; refresh();
+    say('已选择模型。确认发送范围后再发送消息。');
+    return true;
+  }
+  window.__chatUi = { send, selectModel, hidePage: hideChat, state: () => ({ messages: messages.length, pendingTask }) };
 })();

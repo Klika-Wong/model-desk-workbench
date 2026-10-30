@@ -34,6 +34,7 @@ test('正常面板 → connected，并解析执行端状态与任务数', async 
       res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify({
         agent: { name: 'Dsh' },
+        models: [{id: 'local-fixture', name: 'Local', provider: 'local', secret: 'secret-fixture-do-not-forward'}],
         tasks: [{ id: 'a', project:'E:/x', status:'running',engine:'dsh',model_id:'7b',model_name:'本地模型' }, { id: 'b', project:'E:/x' }, {id:'foreign',project:'E:/other',title:'禁止混入'}],
         execution: '任务按顺序执行',
         workspace: 'E:/x',
@@ -51,6 +52,8 @@ test('正常面板 → connected，并解析执行端状态与任务数', async 
   try {
     const r = await probePanel(`http://127.0.0.1:${port}`, 'E:/x');
     assert.equal(r.state, 'connected');
+    assert.equal(r.overview.models[0].name, 'Local');
+    assert.doesNotMatch(JSON.stringify(r.overview), /secret-fixture-do-not-forward/);
     assert.equal(r.taskList.some(t=>t.id==='foreign'),false);
     const unbound=await probePanel(`http://127.0.0.1:${port}`);
     assert.equal(unbound.tasks,0);

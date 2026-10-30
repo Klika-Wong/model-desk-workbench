@@ -299,6 +299,7 @@
   act('designer-redo', () => { if (!redo.length) return; undo.push({ nodes: clone(nodes), edges: clone(edges) }); const s = redo.pop(); nodes = s.nodes; edges = s.edges; render(); });
 
   act('nav-designer', async () => {
+    window.__modelsUi?.hide();
     // 先把画布页切出来：加载失败时错误信息写在 #designer-message 里，
     // 页面若还藏着，用户只会看到"点了没反应"。
     $('memory-page').hidden = true; $('tasks-page').hidden = true; $('designer-page').hidden = false;
