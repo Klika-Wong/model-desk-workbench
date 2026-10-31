@@ -8,6 +8,14 @@ let selectedProject = 'E:\\model-desk-fixture';
 let panelFixture = false;
 let holdNextPanel = false;
 let heldPanelReply = null;
+let holdState = false;
+let stateReplies = [];
+let holdEmbed = false;
+let embedReplies = [];
+function getState() {
+  const reply = { health: 'healthy', project: selectedProject, workspace: 'desktop-shell-prototype' };
+  return holdState ? new Promise(resolve => stateReplies.push(() => resolve(reply))) : Promise.resolve(reply);
+}
 function panelStatus() {
   if (!panelFixture) return Promise.resolve({ ok: false, error: '验证模式：未连接面板' });
   const reply = { ok: true, data: { state: 'connected', project: selectedProject, tasks: 1, executors: [], taskList: [{ id: selectedProject, title: selectedProject, project: selectedProject, status: 'running' }],
@@ -43,7 +51,7 @@ const snapshot = {
 };
 
 contextBridge.exposeInMainWorld('workbench', {
-  getState: async () => ({ health: 'healthy', project: selectedProject, workspace: 'desktop-shell-prototype' }),
+  getState,
   chooseProject: async () => ({ health: 'healthy', project: selectedProject, workspace: 'desktop-shell-prototype' }),
   getTasks: async () => ({ tasks: [] }),
   startDemoTasks: async () => ({ tasks: [] }),
@@ -67,8 +75,8 @@ contextBridge.exposeInMainWorld('workbench', {
   panelStatus,
   panelStatusAll: async () => ({ ok: false, error: '验证模式：未连接面板' }),
   panelOpen: async () => ({ ok: false, error: '验证模式：未连接面板' }),
-  panelEmbed: async () => ({ ok: false, error: '验证模式：不嵌入面板' }),
-  panelEmbedHide: async () => ({ ok: true }),
+  panelEmbed: () => { calls.push({api:'panelEmbed'}); return holdEmbed ? new Promise(resolve => embedReplies.push(resolve)) : Promise.resolve({ok:false,error:'验证模式：不嵌入面板'}); },
+  panelEmbedHide: async () => { calls.push({api:'panelEmbedHide'}); return {ok:true}; },
   panelEmbedBounds: async () => ({ ok: true }),
   panelTheme: async () => ({ ok: true }),
   chatLoad: async () => ({ ok: true, data: { messages: [{ role: 'user', text: '上次的第一句' }], dropped: 0, corrupted: false } }),
@@ -106,4 +114,8 @@ contextBridge.exposeInMainWorld('__stubCalls', { all: () => calls.slice(), setSe
   holdNextPanel: () => { holdNextPanel = true; },
   hasHeldPanel: () => Boolean(heldPanelReply),
   releasePanel: () => { if (heldPanelReply) heldPanelReply(); },
+  holdState: () => { holdState = true; },
+  releaseStates: () => { holdState = false; const replies = stateReplies; stateReplies = []; replies.forEach(resolve => resolve()); },
+  holdEmbed: () => { holdEmbed = true; },
+  releaseEmbeds: () => { holdEmbed = false; const replies = embedReplies; embedReplies = []; replies.forEach(resolve => resolve({ok:true,data:{url:'http://127.0.0.1:8765'}})); },
 });

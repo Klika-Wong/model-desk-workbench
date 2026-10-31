@@ -42,7 +42,7 @@ function normalizeOverview(data = {}) {
   const accounts = [{
     id: 'codex', label: 'Codex / ChatGPT',
     stateLabel: stale && windows.length ? '上次数据 · 待更新' : usage.status === 'error' ? '同步失败 · 额度未知' : usage.status === 'ready' && windows.length ? '账户快照' : '额度未知',
-    detail: '账号额度跨项目共享。刷新此页只读取缓存；额度同步和账户配置在高级设置中。',
+    detail: '账号额度跨项目共享。此处展示服务返回的快照；账户配置与额度同步入口在高级设置中。',
     updatedAt: date(usage.updated_at), windows,
   }];
   for (const endpoint of endpoints.filter(e => ['workbuddy', 'zcode'].includes(e.id))) {

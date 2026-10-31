@@ -24,6 +24,8 @@
 
   const messages = []; // {role:'user'|'assistant', text, meta?}
   let pendingTask = null;
+  let sending = false;
+  let sendRevision = 0;
   let timer = null;
   let logTimer = null;
   // 输出节奏：有新增内容时快，连续几次没变化就退避，避免空转抢 CPU。
@@ -68,8 +70,9 @@
   };
 
   function refresh() {
-    const canSend = Boolean(consent.checked && modelSelect.value && input.value.trim() && projectPath && !pendingTask);
+    const canSend = Boolean(consent.checked && !consent.disabled && modelSelect.value && input.value.trim() && projectPath && !pendingTask && !sending);
     sendButton.disabled = !canSend;
+    $('chat-clear').disabled = Boolean(sending || pendingTask);
     if (useMemory) {
       useMemory.disabled = !spaceId();
       if (!spaceId()) memoryHint.textContent = '（还没有加载记忆空间）';
@@ -117,7 +120,7 @@
 
   let modelRequest = 0;
   async function loadModels() {
-    if (pendingTask) return false;
+    if (pendingTask || sending) return false;
     const request = ++modelRequest;
     consent.checked = false;
     consent.disabled = true;
@@ -333,23 +336,39 @@
 
   async function send() {
     const text = input.value.trim();
-    if (!text || !consent.checked || !modelSelect.value || pendingTask) return;
-    await syncProject();
-    if (!projectPath) { say('还没有选择项目：请先点「选择项目」绑定文件夹，消息不会发到别的项目。', true); refresh(); return; }
-    // 历史必须在把当前这句塞进 messages 之前算，否则会把自己也算成“此前对话”。
-    const history = (useHistory && useHistory.checked)
-      ? window.__chatPrompt.buildHistory(messages, window.__chatPrompt.DEFAULT_HISTORY_CHARS)
-      : { text: '', included: 0, omitted: 0 };
-    input.value = '';
+    if (!text || !consent.checked || consent.disabled || !modelSelect.value || pendingTask || sending) return;
+    sending = true; // Lock before the first await, not after obtaining a task ID.
+    const revision = sendRevision;
+    const modelId = modelSelect.value;
+    const project = projectPath;
+    const memorySpace = spaceId();
+    const memoryEnabled = useMemory.checked;
+    const historyEnabled = Boolean(useHistory?.checked);
+    const validate = () => {
+      if (revision !== sendRevision || !consent.checked || modelSelect.value !== modelId ||
+          projectPath !== project || (memoryEnabled && spaceId() !== memorySpace) ||
+          useMemory.checked !== memoryEnabled || Boolean(useHistory?.checked) !== historyEnabled) {
+        throw new Error('发送范围或确认已改变，请重新确认后发送。');
+      }
+    };
+    let node = null;
     refresh();
-    messages.push({ role: 'user', text });
-    persist();
-    bubble('user', text);
-
-    const node = bubble('assistant', '正在派发…', '');
-    say('正在派发…');
     try {
+      await syncProject();
+      if (!project) throw new Error('请先选择项目文件夹。');
+      validate();
+      const history = historyEnabled
+        ? window.__chatPrompt.buildHistory(messages, window.__chatPrompt.DEFAULT_HISTORY_CHARS)
+        : { text: '', included: 0, omitted: 0 };
       const { prompt, injected } = await composePrompt(text, history);
+      await syncProject();
+      validate();
+      input.value = '';
+      messages.push({ role: 'user', text });
+      persist();
+      bubble('user', text);
+      node = bubble('assistant', '正在派发…', '');
+      say('正在派发…');
       if (history.included > 0) {
         const historyNote = document.createElement('div');
         historyNote.className = 'chat-meta';
@@ -360,7 +379,7 @@
         node.insertBefore(buildInjectionNote(injected), node.querySelector('.chat-text'));
       }
       if (injected && injected.count === 0) say('记忆里没有相关条目，本次只发你的问题。');
-      const reply = await window.workbench.dispatchSend({ prompt, modelId: modelSelect.value, kind: 'chat', project: projectPath });
+      const reply = await window.workbench.dispatchSend({ prompt, modelId, kind: 'chat', project });
       if (!reply.ok) throw new Error(reply.error);
       pendingTask = reply.data.id;
       say(`已派发：${pendingTask}（${reply.data.status || 'queued'}）`);
@@ -372,13 +391,17 @@
       pullLog(pendingTask, node);
       poll(pendingTask, node);
     } catch (error) {
-      node.querySelector('.chat-text').textContent = '没有发出去。';
-      const meta = document.createElement('div');
-      meta.className = 'chat-meta is-error';
-      meta.textContent = error.message;
-      node.append(meta);
+      if (node) {
+        node.querySelector('.chat-text').textContent = '派发未确认，请先检查任务记录再决定是否重试。';
+        const meta = document.createElement('div');
+        meta.className = 'chat-meta is-error';
+        meta.textContent = error.message;
+        node.append(meta);
+      }
       say(`发送失败：${error.message}`, true);
       pendingTask = null;
+    } finally {
+      sending = false;
       refresh();
     }
   }
@@ -405,16 +428,21 @@
     if (choose) choose.click();
     setTimeout(async () => { await syncProject(); refresh(); }, 800);
   });
-  consent.addEventListener('change', refresh);
-  useMemory.addEventListener('change', refresh);
-  if (useHistory) useHistory.addEventListener('change', refresh);
-  modelSelect.addEventListener('change', () => { consent.checked = false; refresh(); });
-  input.addEventListener('input', refresh);
+  function invalidateSend() { sendRevision++; refresh(); }
+  consent.addEventListener('change', invalidateSend);
+  useMemory.addEventListener('change', () => { consent.checked = false; invalidateSend(); });
+  if (useHistory) useHistory.addEventListener('change', () => { consent.checked = false; invalidateSend(); });
+  modelSelect.addEventListener('change', () => { consent.checked = false; invalidateSend(); });
+  input.addEventListener('input', invalidateSend);
+  window.addEventListener('workbench-project-changed', () => {
+    consent.checked = false; invalidateSend(); syncProject().then(refresh);
+  });
   input.addEventListener('keydown', (event) => {
     if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) { event.preventDefault(); send(); }
   });
   sendButton.addEventListener('click', send);
   $('chat-clear').addEventListener('click', () => {
+    if (sending || pendingTask) return;
     messages.length = 0;
     log.replaceChildren();
     stopPolling();
@@ -441,7 +469,7 @@
   })();
   syncProject().then(refresh);
   async function selectModel(id) {
-    if (pendingTask) { say('当前对话任务仍在执行，结束后再切换模型。', true); return false; }
+    if (pendingTask || sending) { say('当前对话任务正在准备或执行，结束后再切换模型。', true); return false; }
     if (!await loadModels()) return false;
     if (![...modelSelect.options].some(option => option.value === id)) {
       modelSelect.value = ''; consent.checked = false; refresh();

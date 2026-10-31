@@ -111,6 +111,9 @@ async function main() {
     const useMemory = document.querySelector('#chat-use-memory');
     useMemory.checked = true;
     useMemory.dispatchEvent(new Event('change'));
+    if (document.querySelector('#chat-consent').checked) throw new Error('改变记忆发送范围后未撤销旧确认');
+    document.querySelector('#chat-consent').checked = true;
+    document.querySelector('#chat-consent').dispatchEvent(new Event('change'));
     const sendEnabled = !document.querySelector('#chat-send').disabled;
     window.__stubCalls.setSendOk(true);
     document.querySelector('#chat-send').click();

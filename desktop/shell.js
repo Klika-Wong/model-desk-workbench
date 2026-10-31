@@ -5,6 +5,9 @@
   const viewSeg = document.getElementById('view-seg');
   const THEMES = ['light', 'dark'];
   let panelShown = false;
+  let panelOpening = null;
+  let panelWanted = false;
+  let panelRevision = 0;
 
   // ---------- theme ----------
   function normalizeTheme(value) { return THEMES.includes(value) ? value : 'light'; }
@@ -71,7 +74,22 @@
     el.classList.toggle('is-error', Boolean(isError));
   }
   function chipIcon(label) { return (String(label || '?').trim().slice(0, 1) || '?').toUpperCase(); }
-  function idleChips() { const graph = document.getElementById('conn-graph'); if (graph) for (const el of graph.querySelectorAll('.conn-node')) { el.dataset.status = 'idle'; const health=el.querySelector('.conn-health'); if(health) health.textContent='未连接'; } }
+  function idleChips() {
+    const graph = document.getElementById('conn-graph');
+    if (!graph) return;
+    const nodes = graph.querySelectorAll('.conn-node');
+    if (!nodes.length) {
+      const message = document.createElement('p');
+      message.className = 'conn-empty';
+      message.textContent = '尚未连接工作台服务，执行端状态未知。';
+      graph.replaceChildren(message);
+    }
+    for (const el of nodes) {
+      el.dataset.status = 'idle';
+      const health = el.querySelector('.conn-health');
+      if (health) health.textContent = '未连接 · 上次数据';
+    }
+  }
   function renderExecs(hub, executors, tasks, project, projects) {
     const graph = document.getElementById('conn-graph');
     if (window.renderConnectionGraph) window.renderConnectionGraph(graph, hub, executors, tasks, project, projects);
@@ -166,7 +184,21 @@
     if (!width || !height) return null;
     return { x: Math.round(left), y: Math.round(top), width: Math.round(width), height: Math.round(height) };
   }
-  async function showPanelEmbedded() {
+  function showPanelEmbedded() {
+    panelWanted = true;
+    if (panelOpening) return panelOpening;
+    const revision = ++panelRevision;
+    panelOpening = openPanel(revision).finally(() => {
+      panelOpening = null;
+      if (panelWanted && revision !== panelRevision) return showPanelEmbedded();
+    });
+    return panelOpening;
+  }
+  async function closePanelTransport() {
+    try { await window.workbench.panelEmbedHide(); }
+    catch { window.__modelsUi?.status('高级设置关闭状态未确认，请重试。', true); }
+  }
+  async function openPanel(revision) {
     // 顺序很重要：先锁外壳滚动（会改变可用宽度），再量尺寸，否则视图右边会留一条缝。
     root.classList.add('panel-embedded');
     window.scrollTo(0, 0);
@@ -174,6 +206,10 @@
     if (!rect) { root.classList.remove('panel-embedded'); return; }
     setConnStatus('正在把完整工作台嵌入本窗口…');
     let reply; try { reply = await window.workbench.panelEmbed(rect); } catch (e) { reply = { ok: false, error: e.message }; }
+    if (revision !== panelRevision || !panelWanted) {
+      if (reply?.ok) await closePanelTransport();
+      return;
+    }
     if (reply && reply.ok) {
       panelShown = true; setNavActive('nav-panel'); syncViewUi('original');
       pushThemeToPanel(root.getAttribute('data-theme'));
@@ -186,11 +222,13 @@
     }
   }
   function hidePanelEmbedded() {
+    panelWanted = false;
+    panelRevision += 1;
     syncViewUi('new');
     root.classList.remove('panel-embedded');
-    if (!panelShown) return;
+    if (!panelShown && !panelOpening) return;
     panelShown = false;
-    try { window.workbench.panelEmbedHide(); } catch {}
+    closePanelTransport();
     const nav = document.getElementById('nav-panel'); if (nav) nav.classList.remove('active');
   }
   function showNewView() { hidePanelEmbedded(); setNavActive('nav-memory'); const b = document.getElementById('nav-memory'); if (b) b.click(); }
@@ -246,6 +284,8 @@
   // expose for smoke/automation without touching globals at large
   // 主进程在嵌入视图崩溃/加载失败时回调这里：把状态改回"未嵌入"，并说明原因。
   function onPanelGone(reason) {
+    panelWanted = false;
+    panelRevision += 1;
     panelShown = false;
     root.classList.remove('panel-embedded');
     syncViewUi('new');
