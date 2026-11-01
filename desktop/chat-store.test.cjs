@@ -8,6 +8,28 @@ const path = require('node:path');
 
 const store = require('./chat-store.cjs');
 
+test('项目对话路径隔离；Windows大小写、分隔符和尾斜杠等价', () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'chat-projects-'));
+  const a = store.projectFile(directory, 'E:\\Project-A');
+  const b = store.projectFile(directory, 'E:\\Project-B');
+  assert.equal(a, store.projectFile(directory, 'e:/project-a/'));
+  assert.notEqual(a, b);
+  store.save(a, [{role:'user', text:'A only'}]);
+  assert.deepEqual(store.load(b).messages, []);
+  store.save(b, [{role:'user', text:'B only'}]);
+  store.clear(a);
+  assert.equal(store.load(b).messages[0].text, 'B only');
+  assert.throws(() => store.projectFile(directory, '../project'));
+  assert.throws(() => store.projectFile(directory, ''));
+  assert.equal(path.dirname(a), directory);
+});
+
+test('清空失败必须报告，不能把未删除的记录宣称已删除', () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'chat-clear-'));
+  assert.throws(() => store.clear(directory));
+  assert.equal(fs.existsSync(directory), true);
+});
+
 function tempFile() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'chat-store-'));
   return path.join(dir, 'chat.json');

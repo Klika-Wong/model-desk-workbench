@@ -41,9 +41,11 @@
     const add = (group, label, hint, run, key) => items.push({ group, label, hint, run, key: key || `${group}|${label}` });
 
     add('导航', '记忆空间', '空间列表 / 记忆条目 / 检索', () => click('nav-memory'));
+    add('导航', '对话', '当前项目的模型对话', () => click('nav-chat'));
     add('导航', '运行与连接', '执行端与任务', () => click('nav-tasks'));
     add('导航', '架构画布', '无限画布 / 节点 / 连线', () => click('nav-designer'));
-    add('导航', '完整工作台（原版）', '全部原有功能 · 同窗口嵌入', () => click('nav-panel'));
+    add('导航', '模型与额度', '模型连接 / 执行软件 / 账户状态', () => click('nav-panel'));
+    add('动作', '高级设置', '执行端 / 原生账户 / 预算与权限', () => shell()?.openAdvanced(), 'act.advanced');
 
     const api = mem();
     for (const space of api?.spaces?.() || []) {
@@ -74,9 +76,6 @@
 
     add('外观', `浅色（当前：${themeLabel()}）`, 'Ctrl+Shift+1', () => shell()?.setTheme('light'), 'theme.light');
     add('外观', '黑夜模式', 'Ctrl+Shift+2', () => shell()?.setTheme('dark'), 'theme.dark');
-
-    add('视图', '新版界面', '记忆 / 画布', () => { const b = document.querySelector('#view-seg button[data-view="new"]'); if (b) b.click(); }, 'view.new');
-    add('视图', '原版工作台', 'Ctrl+Shift+W · 全部原有功能', () => { const api = window.__workbenchShell; if (api && api.toggleView) api.toggleView(); }, 'view.original');
 
     add('帮助', '快捷键总览', 'Ctrl+/', () => openShortcuts(), 'help.keys');
     return items;
@@ -266,7 +265,7 @@
     ['Ctrl + K', '命令面板（搜命令、空间、记忆标题与正文）'],
     ['Ctrl + /', '打开这份快捷键总览'],
     ['Ctrl + Shift + 1 / 2', '切换 浅色 / 黑夜'],
-    ['Ctrl + Shift + W', '在新版界面与原版工作台之间快速切换'],
+    ['Ctrl + Shift + W', '打开 / 收起高级设置'],
     ['Ctrl + B', '隐藏 / 显示侧栏'],
     ['V / H', '架构画布：选择工具 / 抓手工具'],
     ['按住空格', '架构画布：临时平移'],

@@ -1,7 +1,7 @@
 /* 本地对话页（CHAT-01）：
    - 消息真的发给工作台模型（走 dispatch 那条已验证的路径）
    - 可选把「当前空间的已发布记忆」一起发过去，并如实显示注入了哪几条
-   - 会话只存在内存里，不落盘；没有"自动记住"这种悄悄发生的事 */
+   - 对话按项目保存在本机；旧的无归属记录不自动载入任何项目 */
 (() => {
   const $ = (id) => document.getElementById(id);
   // 面板给的是英文状态码，界面上不该直接甩给用户。
@@ -37,14 +37,21 @@
   let liveDelay = LIVE_FAST_MS;
   let idleStreak = 0;
   let taskStartedAt = 0;
-  let saveTimer = null;
-  // 对话变更后 500ms 落盘；不存失败的回答，也不在保存失败时打断对话。
+  let conversationRevision = 0;
+  let historyReady = false;
+  let clearing = false;
+  let cancelling = false;
+  // 冻结归属和消息，不能在异步写入时改用后来选中的项目。
   function persist() {
-    if (saveTimer) clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => {
-      saveTimer = null;
-      try { window.workbench.chatSave(messages); } catch {}
-    }, 500);
+    if (!projectPath || !historyReady) return;
+    const project = projectPath;
+    const revision = conversationRevision;
+    const snapshot = messages.map(message => ({ ...message }));
+    Promise.resolve().then(() => window.workbench.chatSave(snapshot, project)).then(reply => {
+      if (!reply?.ok) throw new Error('save failed');
+    }).catch(() => {
+      if (revision === conversationRevision) say('本机对话保存失败；当前窗口仍保留内容，请先复制备份。', true);
+    });
   }
 
   const say = (text, isError = false) => {
@@ -54,25 +61,61 @@
   };
   // #project 只显示文件夹名，绝对路径在 #project-path；以主进程 selectedProject 为准。
   let projectPath = '';
+  let projectReadRevision = 0;
   async function syncProject() {
+    const request = ++projectReadRevision;
+    let nextProject = '';
     try {
       const state = await window.workbench.getState();
-      projectPath = (state && state.project) || '';
-    } catch {
-      projectPath = '';
-    }
+      nextProject = (state && state.project) || '';
+    } catch {}
+    if (request !== projectReadRevision) return projectPath;
+    if (nextProject !== projectPath || (!historyReady && !projectPath)) await switchConversation(nextProject);
     const name = $('chat-project-name');
     if (name) name.textContent = projectPath ? (projectPath.split(/[\\/]/).filter(Boolean).pop() || projectPath) : '未选择';
     return projectPath;
+  }
+  async function switchConversation(project) {
+    const hadTask = Boolean(pendingTask || sending);
+    const revision = ++conversationRevision;
+    ++sendRevision;
+    stopPolling();
+    pendingTask = null;
+    sending = false;
+    clearing = false;
+    cancelling = false;
+    historyReady = false;
+    projectPath = project;
+    messages.length = 0;
+    input.value = '';
+    consent.checked = false;
+    useMemory.checked = false;
+    if (useHistory) useHistory.checked = false;
+    renderAll(); renderEmpty(); refresh();
+    if (!project) { say('请先选择项目，再打开该项目的对话。'); return; }
+    say(hadTask ? '已切换项目；原任务继续执行，可在原项目的运行页查看。' : '正在读取该项目的对话…');
+    try {
+      const reply = await window.workbench.chatLoad(project);
+      if (revision !== conversationRevision) return;
+      if (!reply?.ok || !reply.data || reply.data.corrupted) throw new Error('load failed');
+      messages.push(...(reply.data.messages || []));
+      historyReady = true;
+      renderAll(); renderEmpty();
+      say(hadTask ? '已切换项目；原任务继续执行，可在原项目的运行页查看。' : `已载入当前项目的 ${messages.length} 条对话。`);
+    } catch {
+      if (revision === conversationRevision) say('该项目对话读取失败或记录损坏，已暂停发送以免覆盖原记录；请重新进入对话页重试。', true);
+    } finally { if (revision === conversationRevision) refresh(); }
   }
   const spaceId = () => {
     try { return window.__memoryUi?.currentSpaceId?.() || null; } catch { return null; }
   };
 
   function refresh() {
-    const canSend = Boolean(consent.checked && !consent.disabled && modelSelect.value && input.value.trim() && projectPath && !pendingTask && !sending);
+    const canSend = Boolean(historyReady && !clearing && consent.checked && !consent.disabled && modelSelect.value && input.value.trim() && projectPath && !pendingTask && !sending);
     sendButton.disabled = !canSend;
-    $('chat-clear').disabled = Boolean(sending || pendingTask);
+    $('chat-clear').disabled = Boolean(!historyReady || clearing || sending || pendingTask);
+    $('chat-cancel').hidden = !pendingTask;
+    $('chat-cancel').disabled = cancelling;
     if (useMemory) {
       useMemory.disabled = !spaceId();
       if (!spaceId()) memoryHint.textContent = '（还没有加载记忆空间）';
@@ -236,6 +279,7 @@
     if (!pendingTask || pendingTask !== taskId || document.hidden) return;
     try {
       const reply = await window.workbench.dispatchLog(taskId);
+      if (pendingTask !== taskId || !node.isConnected) return;
       if (!reply.ok) return;
       const text = String(reply.data.answer || '').trim();
       if (!text) {
@@ -273,9 +317,14 @@
     if (logTimer) { clearTimeout(logTimer); logTimer = null; }
   }
 
+  let polling = false;
   async function poll(taskId, node) {
+    if (polling || pendingTask !== taskId || document.hidden) return;
+    polling = true;
+    const revision = conversationRevision;
     try {
       const reply = await window.workbench.dispatchStatus(taskId);
+      if (revision !== conversationRevision || pendingTask !== taskId) return;
       if (!reply.ok) throw new Error(reply.error);
       const task = reply.data.task;
       if (!task) { say(`任务 ${taskId} 还没出现在项目视图里…`); return; }
@@ -287,7 +336,7 @@
         ? ` · 已运行 ${Math.round(runningFor / 1000)} 秒仍无正文（状态未明，可继续等待或取消）`
         : '';
       say(`任务 ${taskId} · ${statusText(state)}${queue && queue.ahead > 0 ? ` · 排队第 ${queue.position} 位` : ''}${noOutput}`);
-      if (!['completed', 'failed', 'cancelled', 'accepted'].includes(state)) {
+      if (!['completed', 'failed', 'cancelled', 'accepted', 'blocked'].includes(state)) {
         // 还在跑：把日志里已经产出的正文先显示出来，末尾带光标；
         // 这只是"目前拿到的部分"，不等于最终回答。
         const partial = String(reply.data.answer || '').trim();
@@ -310,13 +359,13 @@
         body.textContent = reply.data.answer || '（本次没有有效回答）';
         meta.textContent = `执行器异常退出（exit code ${reply.data.exitCode}），结果无效${tokens}`;
         meta.classList.add('is-error');
-      } else if (state !== 'completed') {
+      } else if (!['completed', 'accepted'].includes(state)) {
         body.textContent = reply.data.answer || '（没有内容）';
-        meta.textContent = `任务${state === 'cancelled' ? '已取消' : '失败'}：${task.error || '没有更多信息'}${tokens}`;
+        meta.textContent = `任务${statusText(state)}：${task.error || '没有更多信息'}${tokens}`;
         meta.classList.add('is-error');
       } else {
         body.textContent = reply.data.answer || '（日志里没有可读文本）';
-        meta.textContent = `已完成 · ${task.model_name || task.model_id || ''}${tokens}`;
+        meta.textContent = `${statusText(state)} · ${task.model_name || task.model_id || ''}${tokens}`;
         // 只有成功且非空才进历史，失败的回答不能污染下一轮。
         if (reply.data.answer && reply.data.answer.trim()) {
           messages.push({ role: 'assistant', text: reply.data.answer.trim() });
@@ -326,19 +375,19 @@
       node.append(meta);
       log.scrollTop = log.scrollHeight;
     } catch (error) {
-      stopPolling();
-      pendingTask = null;
-      say(`查询失败：${error.message}`, true);
+      if (revision === conversationRevision && pendingTask === taskId) say('查询暂时失败，保留原任务并继续查询；不会重新派发。', true);
     } finally {
+      polling = false;
       refresh();
     }
   }
 
   async function send() {
     const text = input.value.trim();
-    if (!text || !consent.checked || consent.disabled || !modelSelect.value || pendingTask || sending) return;
+    if (!historyReady || clearing || !text || !consent.checked || consent.disabled || !modelSelect.value || pendingTask || sending) return;
     sending = true; // Lock before the first await, not after obtaining a task ID.
     const revision = sendRevision;
+    const conversation = conversationRevision;
     const modelId = modelSelect.value;
     const project = projectPath;
     const memorySpace = spaceId();
@@ -380,6 +429,7 @@
       }
       if (injected && injected.count === 0) say('记忆里没有相关条目，本次只发你的问题。');
       const reply = await window.workbench.dispatchSend({ prompt, modelId, kind: 'chat', project });
+      if (conversation !== conversationRevision) return;
       if (!reply.ok) throw new Error(reply.error);
       pendingTask = reply.data.id;
       say(`已派发：${pendingTask}（${reply.data.status || 'queued'}）`);
@@ -391,6 +441,7 @@
       pullLog(pendingTask, node);
       poll(pendingTask, node);
     } catch (error) {
+      if (conversation !== conversationRevision) return;
       if (node) {
         node.querySelector('.chat-text').textContent = '派发未确认，请先检查任务记录再决定是否重试。';
         const meta = document.createElement('div');
@@ -401,14 +452,14 @@
       say(`发送失败：${error.message}`, true);
       pendingTask = null;
     } finally {
-      sending = false;
-      refresh();
+      if (conversation === conversationRevision) { sending = false; refresh(); }
     }
   }
 
   // 导航：切到对话时隐藏其他页，切走时隐藏自己。
   const PAGES = ['memory-page', 'tasks-page', 'designer-page', 'chat-page', 'models-page'];
   function showChat() {
+    syncProject().then(() => { if (projectPath && !historyReady) switchConversation(projectPath); });
     window.__modelsUi?.hide();
     for (const id of PAGES) { const el = $(id); if (el) el.hidden = id !== 'chat-page'; }
     for (const b of document.querySelectorAll('.nav-button')) b.classList.toggle('active', b.id === 'nav-chat');
@@ -441,32 +492,39 @@
     if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) { event.preventDefault(); send(); }
   });
   sendButton.addEventListener('click', send);
-  $('chat-clear').addEventListener('click', () => {
-    if (sending || pendingTask) return;
-    messages.length = 0;
-    log.replaceChildren();
-    stopPolling();
-    pendingTask = null;
-    say('对话已清空（本机记录也已删除；任务记录不受影响）。');
-    if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
-    try { window.workbench.chatClear(); } catch {}
-    renderEmpty();
-    refresh();
+  $('chat-cancel').addEventListener('click', async () => {
+    if (!pendingTask || cancelling) return;
+    const id = pendingTask, revision = conversationRevision;
+    cancelling = true; refresh();
+    try {
+      await syncProject();
+      if (revision !== conversationRevision || pendingTask !== id) return;
+      const reply = await window.workbench.dispatchCancel(id);
+      if (revision !== conversationRevision || pendingTask !== id) return;
+      if (!reply?.ok) throw new Error('cancel failed');
+      say('已请求停止；继续查询原任务，等待执行器确认结束。');
+    } catch {
+      if (revision === conversationRevision) say('停止请求未确认，原任务仍保留；请查看任务状态后再操作。', true);
+    } finally { if (revision === conversationRevision) { cancelling = false; refresh(); } }
+  });
+  $('chat-clear').addEventListener('click', async () => {
+    if (!historyReady || clearing || sending || pendingTask) return;
+    const revision = conversationRevision;
+    clearing = true; refresh();
+    try {
+      const reply = await window.workbench.chatClear(projectPath);
+      if (revision !== conversationRevision) return;
+      if (!reply?.ok) throw new Error('clear failed');
+      messages.length = 0;
+      log.replaceChildren();
+      stopPolling();
+      pendingTask = null;
+      say('对话已清空（本机记录也已删除；任务记录不受影响）。');
+      renderEmpty();
+    } catch { if (revision === conversationRevision) say('清空失败，保留当前对话，请稍后重试。', true); }
+    finally { if (revision === conversationRevision) { clearing = false; refresh(); } }
   });
 
-  (async () => {
-    try {
-      const reply = await window.workbench.chatLoad();
-      if (reply && reply.ok && reply.data) {
-        for (const message of reply.data.messages || []) messages.push(message);
-        if (reply.data.corrupted) say('上次的对话记录损坏，已按空对话打开。', true);
-        else if (reply.data.dropped) say(`上次有 ${reply.data.dropped} 条过早的对话没有保留。`);
-        if (messages.length) renderAll();
-      }
-    } catch {}
-    renderEmpty();
-    refresh();
-  })();
   syncProject().then(refresh);
   async function selectModel(id) {
     if (pendingTask || sending) { say('当前对话任务正在准备或执行，结束后再切换模型。', true); return false; }

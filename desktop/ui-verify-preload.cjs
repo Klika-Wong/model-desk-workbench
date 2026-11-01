@@ -3,6 +3,10 @@ const { contextBridge } = require('electron');
 const calls = [];
 let sendOk = false;
 let statusCalls = 0;
+let statusFailures = 0;
+let terminalStatus = 'completed';
+let chatClearFails = false;
+let holdPerformance = false, performanceReplies = [];
 let logCalls = 0;
 let selectedProject = 'E:\\model-desk-fixture';
 let panelFixture = false;
@@ -71,7 +75,11 @@ contextBridge.exposeInMainWorld('workbench', {
   architectureTrial: async () => ({ ok: true, data: { issues: [], summary: '结构检查通过' } }),
   architectureSave: async () => ({ ok: true, data: {} }),
   architectureCopy: async () => ({ ok: true, data: {} }),
-  performanceSample: async () => ({ ok: true, data: {} }),
+  performanceSample: async () => {
+    calls.push({api:'performanceSample'});
+    if (holdPerformance) await new Promise(resolve=>performanceReplies.push(resolve));
+    return {cpuPercent:12.5,usedBytes:2**30,totalBytes:8*2**30,gpus:[],sampledAt:Date.now(),modelAttribution:'unknown'};
+  },
   appearanceApply: async () => ({ ok: true, data: {} }),
   openMini: async () => ({ ok: true }),
   panelStatus,
@@ -81,9 +89,9 @@ contextBridge.exposeInMainWorld('workbench', {
   panelEmbedHide: async () => { calls.push({api:'panelEmbedHide'}); return {ok:true}; },
   panelEmbedBounds: async () => ({ ok: true }),
   panelTheme: async () => ({ ok: true }),
-  chatLoad: async () => ({ ok: true, data: { messages: [{ role: 'user', text: '上次的第一句' }], dropped: 0, corrupted: false } }),
-  chatSave: async (messages) => { calls.push({ api: 'chatSave', input: messages }); return { ok: true, data: { saved: (messages || []).length } }; },
-  chatClear: async () => { calls.push({ api: 'chatClear' }); return { ok: true, data: { cleared: true } }; },
+  chatLoad: async (project) => ({ ok: true, data: { messages: project?.includes('different-fixture') ? [] : [{ role: 'user', text: '上次的第一句' }], dropped: 0, corrupted: false } }),
+  chatSave: async (messages, project) => { calls.push({ api: 'chatSave', input: messages, project }); return { ok: true, data: { saved: (messages || []).length } }; },
+  chatClear: async (project) => { calls.push({ api: 'chatClear', project }); return { ok: !chatClearFails, data: { cleared: !chatClearFails } }; },
   dispatchModels: async () => ({ ok: true, data: { baseUrl: 'http://127.0.0.1:18765', defaultModel: 'm-local', models: [{ id: 'm-local', name: '本地示例模型', provider: 'local', local: true }] } }),
   modelSettingsSave: (base, operation) => {
     const safe=JSON.parse(JSON.stringify(operation));
@@ -100,23 +108,29 @@ contextBridge.exposeInMainWorld('workbench', {
     return { ok: true, data: { id: 'task-1', status: 'queued' } };
   },
   dispatchStatus: async () => {
+    if (statusFailures > 0) { statusFailures--; return {ok:false,error:'temporary fixture disconnect'}; }
     if (!sendOk) return { ok: false, error: '验证模式：没有任务' };
     statusCalls += 1;
     if (statusCalls === 1) {
       return { ok: true, data: { task: { id: 'task-1', status: 'running', usage: null }, answer: '正在输出第一段', queue: null, exitCode: null } };
     }
-    return { ok: true, data: { task: { id: 'task-1', status: 'completed', model_name: '本地示例模型', usage: { total_tokens: 42 } }, answer: '正在输出第一段，最终回答', queue: null, exitCode: null } };
+    return { ok: true, data: { task: { id: 'task-1', status: terminalStatus, model_name: '本地示例模型', usage: { total_tokens: 42 } }, answer: '正在输出第一段，最终回答', queue: null, exitCode: null } };
   },
   dispatchLog: async () => {
     if (!sendOk) return { ok: false, error: '验证模式：没有任务' };
     logCalls += 1;
     return { ok: true, data: { answer: '正在输出' + '。'.repeat(Math.min(logCalls, 3)), exitCode: null } };
   },
-  dispatchCancel: async () => ({ ok: false, error: '验证模式：没有任务' }),
+  dispatchCancel: async (id) => { calls.push({api:'dispatchCancel',id}); return {ok:sendOk}; },
 });
 
 contextBridge.exposeInMainWorld('__stubCalls', { all: () => calls.slice(), setSendOk: (value) => { sendOk = value === true; logCalls = 0; },
   logCalls: () => logCalls,
+  failStatus: count => { statusFailures=count; },
+  terminalStatus: value => { terminalStatus=value; },
+  failChatClear: value => { chatClearFails=value; },
+  holdPerformance: () => {holdPerformance=true;},
+  releasePerformance: () => {holdPerformance=false;const replies=performanceReplies;performanceReplies=[];replies.forEach(resolve=>resolve());},
   setProject: value => { selectedProject = value; },
   enablePanelFixture: () => { panelFixture = true; },
   disablePanelFixture: () => { panelFixture = false; },

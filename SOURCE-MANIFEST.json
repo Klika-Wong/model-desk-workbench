@@ -1071,8 +1071,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "8419ff55e902da62f09ac95277cba8c0e4f50c725051b587811bcf2c868178a0",
-      "bytes": 2653
+      "sha256": "0a945294e6bca7d46b56c9f18528924a2e41aa1c815b96a28bc3264aaeb9a477",
+      "bytes": 3199
     },
     {
       "path": "LICENSE",
@@ -1081,8 +1081,8 @@
     },
     {
       "path": "README.md",
-      "sha256": "5e59e9c94c27bb4d1d027de5ed94ecedb3d1f62f0dff055add2330bc07d1de66",
-      "bytes": 4157
+      "sha256": "6409e76f8ff32e97bd8c5150387a3d1dee3bf683e7c3d712fb74f033a9aae932",
+      "bytes": 4217
     },
     {
       "path": "THIRD_PARTY.md",
@@ -1111,8 +1111,13 @@
     },
     {
       "path": "desktop/async-defects-verify.cjs",
-      "sha256": "1637c4c3b29a7849f163df51aab870e658d0c1b53235c066febb74e1adb8fad9",
-      "bytes": 5093
+      "sha256": "b12a3544724f971e68ab5dc895c51c1009108365e03433eb718b928f7312c696",
+      "bytes": 10656
+    },
+    {
+      "path": "desktop/chat-ipc.test.cjs",
+      "sha256": "61a59dfb84bd6a60091bd9867837d57cc26c3941afa8af91f0c09bc4635df80d",
+      "bytes": 2562
     },
     {
       "path": "desktop/chat-prompt.js",
@@ -1126,23 +1131,23 @@
     },
     {
       "path": "desktop/chat-store.cjs",
-      "sha256": "d4babda5e0d0e157a397a3320d953226813cd6706a8372b9a0d1262ec8d76c20",
-      "bytes": 2598
+      "sha256": "b6afe36ca09db53db62e1e9015c083fbe30c38e947348bf6a3d80622ac8ec180",
+      "bytes": 3033
     },
     {
       "path": "desktop/chat-store.test.cjs",
-      "sha256": "cddd90a85f331b886f1878c572b738a2a9e3427dedc9b7cf8d3f0ef781a6ed98",
-      "bytes": 2581
+      "sha256": "84999b2f050a5898ccdc8f0f023ec56948945340d58ce998b68e428f126a1754",
+      "bytes": 3636
     },
     {
       "path": "desktop/chat-ui.js",
-      "sha256": "4cf921ae8eaee554e9a6ce7d2a747013e6e451251e66b0d957dc78c5af7d51a2",
-      "bytes": 21372
+      "sha256": "d03c770104379c9c540fb3a01b0e76a7e521c80e0e2a7387e5ecd12898b3481c",
+      "bytes": 25160
     },
     {
       "path": "desktop/command-palette.js",
-      "sha256": "5c3bd0132eb9cd8c9a81ebada153f04e15de8c73ad5b208d4ec3f3c2709f1a64",
-      "bytes": 14216
+      "sha256": "70b77ccb8548225843e8354647149ee9a1cd478268bd44a6c725ef085ba8a932",
+      "bytes": 14044
     },
     {
       "path": "desktop/command.css",
@@ -1206,13 +1211,13 @@
     },
     {
       "path": "desktop/index.html",
-      "sha256": "566c61239f223284e741ce34586cdb4bfd2865efbaf160b6ea5923e54534200b",
-      "bytes": 30925
+      "sha256": "7d77f2a05356ba1b5cfb5baaab1e653e228f5d9b61ef96522c4de76e679937a1",
+      "bytes": 31210
     },
     {
       "path": "desktop/main.cjs",
-      "sha256": "fa532ffc4622e7f159f3d43b20f1825067c890cdb6e57aa19bbd50f605db26e8",
-      "bytes": 59862
+      "sha256": "df15400eefc415f8cdcfd8a4f0649768b7b88ea98bc577e0781ca14027ff617d",
+      "bytes": 60466
     },
     {
       "path": "desktop/memory-bootstrap.cjs",
@@ -1381,8 +1386,8 @@
     },
     {
       "path": "desktop/performance-ui.js",
-      "sha256": "a2f9d70acf2f20b85040fe5cb702d393cee571ff2c37136026fdeaad694e1ac0",
-      "bytes": 1337
+      "sha256": "f0d292f4bd5f1a08626f4efe6b8613d566d3e29c0ba6c3aaff3dbb9422780bf1",
+      "bytes": 2303
     },
     {
       "path": "desktop/performance.cjs",
@@ -1391,8 +1396,8 @@
     },
     {
       "path": "desktop/preload.cjs",
-      "sha256": "64fb9a266505ee9f9c4e6d95b68afc0a8128f10b51c12eb017bdcb8e71f8833f",
-      "bytes": 2917
+      "sha256": "078fa38e74f97ced11cf57f0e5b5dcebf0a83820ba3ef317b6cdd6c53a7f4335",
+      "bytes": 2967
     },
     {
       "path": "desktop/renderer.js",
@@ -1451,8 +1456,8 @@
     },
     {
       "path": "desktop/ui-verify-preload.cjs",
-      "sha256": "697f7d7c43b08b329ee4407649c500e8eaae89445bb6f1b3838a63b4e35b8164",
-      "bytes": 8428
+      "sha256": "5b4cd8c0d92ffd3daced02bfc0087fad33043cdda03afeff311fe18667018abd",
+      "bytes": 9395
     },
     {
       "path": "desktop/ui-verify-run.cjs",
@@ -1588,6 +1593,11 @@
       "path": "docs/SHELL_GUARD.md",
       "sha256": "ca9a885392d86ec47f371489c978534dfca123481d00a0da8cab3a6719b02e35",
       "bytes": 2489
+    },
+    {
+      "path": "docs/UI_FUNCTION_AUDIT.md",
+      "sha256": "2957af4f9626bd798c3741f9ded05add7713bb15e80550a9d94d849e2884121f",
+      "bytes": 7997
     },
     {
       "path": "docs/USAGE.md",

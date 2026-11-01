@@ -57,6 +57,8 @@
     <div id="chat-log" class="chat-log" aria-live="polite"></div>
     <label class="consent"><input id="chat-consent" type="checkbox" disabled> 我确认这些消息会真的调用模型</label>
     <div class="chat-input-row"><textarea id="chat-input" rows="2" maxlength="4000" placeholder="例如：当前项目的下一步是什么？（Ctrl+Enter 发送）"></textarea><button id="chat-send" type="button" class="primary" disabled>发送</button></div>
+    <button id="chat-cancel" type="button" hidden>停止当前任务</button>
+    <p class="hint">对话按项目保存在本机；切换项目会清空未发送草稿，并重置历史和记忆的发送选项。旧版未区分项目的记录保留在本机，不自动载入。</p>
     <p id="chat-status" class="hint" aria-live="polite"></p>
   </section>
 </div>

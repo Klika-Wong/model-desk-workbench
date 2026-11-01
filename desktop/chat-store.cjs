@@ -1,10 +1,19 @@
 'use strict';
 
-// 对话记录的本机持久化：单会话、纯文本、限长。
+// 对话记录的本机持久化：每项目一份、纯文本、限长。
 // 只保存对话本身（谁说了什么），不保存任务 ID 之外的任何系统信息，也不碰记忆库。
 
 const fs = require('node:fs');
 const path = require('node:path');
+const { createHash } = require('node:crypto');
+
+function projectFile(directory, project) {
+  if (typeof project !== 'string' || !path.win32.isAbsolute(project) || project.includes('\0')) {
+    throw new Error('对话记录需要明确的项目绝对路径。');
+  }
+  const identity = path.win32.resolve(project).toLowerCase();
+  return path.join(directory, `${createHash('sha256').update(identity).digest('hex')}.json`);
+}
 
 const MAX_MESSAGES = 60;
 const MAX_CHARS = 200000;
@@ -59,8 +68,8 @@ function save(file, messages) {
 }
 
 function clear(file) {
-  try { fs.rmSync(file, { force: true }); } catch {}
+  fs.rmSync(file, { force: true });
   return true;
 }
 
-module.exports = { trim, load, save, clear, MAX_MESSAGES, MAX_CHARS };
+module.exports = { projectFile, trim, load, save, clear, MAX_MESSAGES, MAX_CHARS };

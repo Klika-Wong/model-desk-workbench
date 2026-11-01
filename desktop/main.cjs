@@ -1023,23 +1023,31 @@ async function miniTasksPayload() {
   return payload;
 }
 
-// ---- 对话记录持久化（单会话，本机 JSON） ----
-function chatFile() {
-  return smokeMode
-    ? `${process.env.MODEL_DESK_SMOKE_RESULT}.chat.json`
-    : path.join(app.getPath('userData'), 'chat.json');
+// 项目各自保存；无归属的旧 chat.json 保留但不自动注入任何项目。
+const openedChatProjects = new Set();
+function chatFile(project) {
+  const directory = smokeMode ? `${process.env.MODEL_DESK_SMOKE_RESULT}.chats` : path.join(app.getPath('userData'), 'chats');
+  const file = chatStore.projectFile(directory, project);
+  if (!openedChatProjects.has(file)) throw new Error('请先打开该项目的对话。');
+  return file;
 }
-ipcMain.handle('chat:load', event => {
+ipcMain.handle('chat:load', (event, project) => {
   assertTrustedSender(event);
-  return asyncReply(async () => chatStore.load(chatFile()));
+  return asyncReply(async () => {
+    if (!project) throw new Error('请先选择项目。');
+    requireSelectedProject(project);
+    const directory = smokeMode ? `${process.env.MODEL_DESK_SMOKE_RESULT}.chats` : path.join(app.getPath('userData'), 'chats');
+    openedChatProjects.add(chatStore.projectFile(directory, project));
+    return chatStore.load(chatFile(project));
+  });
 });
-ipcMain.handle('chat:save', (event, messages) => {
+ipcMain.handle('chat:save', (event, messages, project) => {
   assertTrustedSender(event);
-  return asyncReply(async () => chatStore.save(chatFile(), messages));
+  return asyncReply(async () => chatStore.save(chatFile(project), messages));
 });
-ipcMain.handle('chat:clear', event => {
+ipcMain.handle('chat:clear', (event, project) => {
   assertTrustedSender(event);
-  return asyncReply(async () => ({ cleared: chatStore.clear(chatFile()) }));
+  return asyncReply(async () => ({ cleared: chatStore.clear(chatFile(project)) }));
 });
 
 ipcMain.handle('mini:tasks', event => {

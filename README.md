@@ -97,4 +97,4 @@ npm run verify:ui
 ## 进一步阅读
 
 [安装与配置](docs/INSTALL.md) · [隐私](docs/PRIVACY.md) · [架构](docs/ARCHITECTURE.md) ·
-[路线图](docs/ROADMAP.md) · [验证](docs/VALIDATION.md)
+[路线图](docs/ROADMAP.md) · [验证](docs/VALIDATION.md) · [功能入口与缺陷核对](docs/UI_FUNCTION_AUDIT.md)
