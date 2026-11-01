@@ -32,6 +32,7 @@ contextBridge.exposeInMainWorld('workbench', Object.freeze({
   chatSave: (messages) => ipcRenderer.invoke('chat:save', messages),
   chatClear: () => ipcRenderer.invoke('chat:clear'),
   dispatchModels: () => ipcRenderer.invoke('dispatch:models'),
+  modelSettingsSave: (baseUrl, operation) => ipcRenderer.invoke('models:settings-save', baseUrl, operation),
   dispatchPreview: (input) => ipcRenderer.invoke('dispatch:preview', input),
   dispatchSend: (input) => ipcRenderer.invoke('dispatch:send', input),
   dispatchStatus: (taskId) => ipcRenderer.invoke('dispatch:status', taskId),

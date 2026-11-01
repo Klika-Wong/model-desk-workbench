@@ -29,7 +29,7 @@ async function main() {
     const visible = !document.getElementById('models-page').hidden;
     const rows = document.querySelectorAll('.model-row').length;
     const bars = [...document.querySelectorAll('#models-accounts progress')].map(p => p.value);
-    const disabled = document.querySelectorAll('.model-row button')[1]?.disabled;
+    const disabled = document.querySelector('.model-row:nth-child(2) button')?.disabled;
     window.__stubCalls.disablePanelFixture();
     await window.__modelsUi.refresh();
     const stale = document.getElementById('models-count').textContent.includes('上次数据') && [...document.querySelectorAll('.model-row button')].every(b=>b.disabled);

@@ -8,6 +8,7 @@ const { pathToFileURL } = require('node:url');
 const { createPermission, verifyPermission, hashText } = require('./memory-send-permission.cjs');
 const { probePanel, discoverPanel } = require('./panel-connector.cjs');
 const taskDispatch = require('./task-dispatch.cjs');
+const {saveModelSettings} = require('./model-settings.cjs');
 const { composeMiniPayload } = require('./mini-tasks.cjs');
 const chatStore = require('./chat-store.cjs');
 
@@ -908,6 +909,10 @@ ipcMain.handle('dispatch:models', (event) => {
     const list = await taskDispatch.listModels({ baseUrl });
     return { ...list, baseUrl };
   });
+});
+ipcMain.handle('models:settings-save', (event, baseUrl, operation) => {
+  assertTrustedSender(event);
+  return asyncReply(() => saveModelSettings(baseUrl, operation));
 });
 ipcMain.handle('dispatch:preview', (event, input) => {
   assertTrustedSender(event);

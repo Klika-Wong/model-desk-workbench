@@ -1071,8 +1071,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "4df05956dfc0ee387c64a5b59a5db9db5664de884348e28c6567efe464c52288",
-      "bytes": 2002
+      "sha256": "8419ff55e902da62f09ac95277cba8c0e4f50c725051b587811bcf2c868178a0",
+      "bytes": 2653
     },
     {
       "path": "LICENSE",
@@ -1206,13 +1206,13 @@
     },
     {
       "path": "desktop/index.html",
-      "sha256": "df61b589847654ba955ea23f74eb17b076558e9dd699ec37b8cd0348b18538fc",
-      "bytes": 28382
+      "sha256": "566c61239f223284e741ce34586cdb4bfd2865efbaf160b6ea5923e54534200b",
+      "bytes": 30925
     },
     {
       "path": "desktop/main.cjs",
-      "sha256": "d30e4da44aa690ccbebabda57856e5454f8aecf33b2509fb14c137598ed5d1c0",
-      "bytes": 59624
+      "sha256": "fa532ffc4622e7f159f3d43b20f1825067c890cdb6e57aa19bbd50f605db26e8",
+      "bytes": 59862
     },
     {
       "path": "desktop/memory-bootstrap.cjs",
@@ -1311,13 +1311,13 @@
     },
     {
       "path": "desktop/model-cards.css",
-      "sha256": "ec206743cb90677165cadaa296c99f584f8a19dd8b8ce0fd21a860f21eb7f52a",
-      "bytes": 2434
+      "sha256": "c8e933ae4d3597d7c8b63726a648ede3d1d2e95fd6eb8b8d27c27a3e9e0b75c0",
+      "bytes": 3411
     },
     {
       "path": "desktop/model-cards.js",
-      "sha256": "d436a0c1fe4eccb41cd50d9602235c8eea1d7966523fde44a9daaf9db03b9c35",
-      "bytes": 3375
+      "sha256": "1ae7c86013e8b062459530716fc7320d106c9de62cab1246a1a7a8cb764560ff",
+      "bytes": 3842
     },
     {
       "path": "desktop/model-overview-ui-verify.cjs",
@@ -1326,8 +1326,8 @@
     },
     {
       "path": "desktop/model-overview.cjs",
-      "sha256": "00e3424080603eecddb0fd5768a27c4f28ecaa616936d88f3f901605f0dbc510",
-      "bytes": 4898
+      "sha256": "f604c1d248b0b9733042770c674cb760405e35fcc3bcf3cc2d4b9d3f3dbb9637",
+      "bytes": 5077
     },
     {
       "path": "desktop/model-overview.test.cjs",
@@ -1335,9 +1335,29 @@
       "bytes": 4554
     },
     {
+      "path": "desktop/model-settings-ui-verify.cjs",
+      "sha256": "a836cfa587dbcdb783c97e7f8774769817356687bfb7f2668667b53132022a16",
+      "bytes": 4905
+    },
+    {
+      "path": "desktop/model-settings-ui.js",
+      "sha256": "5286db06018ca696d340ea1fce73f5fbb105f28d568c8283c3e477a3452232d3",
+      "bytes": 4126
+    },
+    {
+      "path": "desktop/model-settings.cjs",
+      "sha256": "b248ea2451dfcc8d02537056f8b9dede7e486c47043f754b8d3d95a03c64296b",
+      "bytes": 5175
+    },
+    {
+      "path": "desktop/model-settings.test.cjs",
+      "sha256": "c6c4ee273e9fdb6ef3c8eae7b8383cf1ea84a3f3a970dc2b8e521d06184665db",
+      "bytes": 4560
+    },
+    {
       "path": "desktop/models-ui.js",
-      "sha256": "c424d9de4ab9291c0d2b198aac0bd2c8fcdcaac3aaafb080d857cc09342d9b66",
-      "bytes": 4243
+      "sha256": "56b1072c7c0f5ecefa026b8246c7231de14e59abf2f31209e55b4d0cceaffce7",
+      "bytes": 4643
     },
     {
       "path": "desktop/package-lock.json",
@@ -1371,8 +1391,8 @@
     },
     {
       "path": "desktop/preload.cjs",
-      "sha256": "55184a3a0ee08b931c68d6c284f59cf3c971fdd8aa431ab9f6e078d1188327bc",
-      "bytes": 2807
+      "sha256": "64fb9a266505ee9f9c4e6d95b68afc0a8128f10b51c12eb017bdcb8e71f8833f",
+      "bytes": 2917
     },
     {
       "path": "desktop/renderer.js",
@@ -1431,8 +1451,8 @@
     },
     {
       "path": "desktop/ui-verify-preload.cjs",
-      "sha256": "404aa239cc0eb896de50a3415c0dc968bf5fc1c73ad51bdb5c7822e38982a3cc",
-      "bytes": 7723
+      "sha256": "697f7d7c43b08b329ee4407649c500e8eaae89445bb6f1b3838a63b4e35b8164",
+      "bytes": 8428
     },
     {
       "path": "desktop/ui-verify-run.cjs",
@@ -1441,8 +1461,8 @@
     },
     {
       "path": "desktop/ui-verify.cjs",
-      "sha256": "95cd7ac455aef29e5779b88d12610f40893febabe70d1522f4f2d342a28610c6",
-      "bytes": 35855
+      "sha256": "e7f3359efe3da1ef63683baa70e2268b6c8ba76f61f273798f9f4f2a02facd0d",
+      "bytes": 35862
     },
     {
       "path": "desktop/verify-routing.cjs",
@@ -1531,8 +1551,13 @@
     },
     {
       "path": "docs/MODELS_OVERVIEW.md",
-      "sha256": "3a99205f93ce5b94dcd56814da9da5e733f0ccb51a72c3e37aff8ba4f00b331a",
-      "bytes": 2152
+      "sha256": "2f4487d763e12f5182ef742732eb564a494aac586ba606de6fafffeaabba998a",
+      "bytes": 2354
+    },
+    {
+      "path": "docs/MODEL_CONNECTIONS.md",
+      "sha256": "c21af97e287ac0701783c921b0665243ca85f632c651270d56ab1d7f966b9d7a",
+      "bytes": 1949
     },
     {
       "path": "docs/PRIVACY.md",

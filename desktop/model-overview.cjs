@@ -31,6 +31,8 @@ function normalizeOverview(data = {}) {
       executorReady: typeof endpoint?.ready === 'boolean' ? endpoint.ready : null,
       checkLabel: check.ok === false ? '上次检查失败' : check.ok === true && check.inference === true && check.kind === 'generation' ? '上次调用成功' : '尚无调用验证',
       checkedAt: date(check.at), capability: text(m.capability_notes, 800),
+      canChooseAgent: ['local','custom','deepseek','glm'].includes(m.provider),
+      defaultAgent: ['follow_global','dsh','pi'].includes(m.default_agent) ? m.default_agent : '',
     };
   });
   const usage = data.codex_usage || {};

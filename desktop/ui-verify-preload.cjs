@@ -12,15 +12,17 @@ let holdState = false;
 let stateReplies = [];
 let holdEmbed = false;
 let embedReplies = [];
+let settingsReply = null;
+let settingsFail = false;
 function getState() {
   const reply = { health: 'healthy', project: selectedProject, workspace: 'desktop-shell-prototype' };
   return holdState ? new Promise(resolve => stateReplies.push(() => resolve(reply))) : Promise.resolve(reply);
 }
 function panelStatus() {
   if (!panelFixture) return Promise.resolve({ ok: false, error: '验证模式：未连接面板' });
-  const reply = { ok: true, data: { state: 'connected', project: selectedProject, tasks: 1, executors: [], taskList: [{ id: selectedProject, title: selectedProject, project: selectedProject, status: 'running' }],
+  const reply = { ok: true, data: { state: 'connected', baseUrl:'http://127.0.0.1:8765', project: selectedProject, tasks: 1, executors: [], taskList: [{ id: selectedProject, title: selectedProject, project: selectedProject, status: 'running' }],
     overview: {models: [
-      {id: 'm-local', name: '本地示例模型', local: true, providerLabel: '本地模型', executorLabel: 'DeepSeek Harness', enabled: true, executorReady: true, checkLabel: '上次调用成功', capability: '短文本分类；能力边界待实测'},
+      {id: 'm-local', name: '本地示例模型', local: true, providerLabel: '本地模型', executorLabel: 'DeepSeek Harness', enabled: true, executorReady: true, canChooseAgent:true, defaultAgent:'dsh', checkLabel: '上次调用成功', capability: '短文本分类；能力边界待实测'},
       {id: 'm-cloud', name: '云端示例模型', local: false, providerLabel: 'WorkBuddy', executorLabel: 'WorkBuddy', enabled: true, executorReady: false, checkLabel: '尚无调用验证'},
     ], accounts: [
       {id: 'codex', label: 'Codex / ChatGPT', stateLabel: '上次数据 · 待更新', detail: '账户额度跨项目共享', windows: [{label: '5 小时', remaining: 0}, {label: '每周', remaining: null}]},
@@ -83,6 +85,13 @@ contextBridge.exposeInMainWorld('workbench', {
   chatSave: async (messages) => { calls.push({ api: 'chatSave', input: messages }); return { ok: true, data: { saved: (messages || []).length } }; },
   chatClear: async () => { calls.push({ api: 'chatClear' }); return { ok: true, data: { cleared: true } }; },
   dispatchModels: async () => ({ ok: true, data: { baseUrl: 'http://127.0.0.1:18765', defaultModel: 'm-local', models: [{ id: 'm-local', name: '本地示例模型', provider: 'local', local: true }] } }),
+  modelSettingsSave: (base, operation) => {
+    const safe=JSON.parse(JSON.stringify(operation));
+    const keyProvided=Boolean(safe.values?.api_key);
+    if(safe.values)delete safe.values.api_key;
+    calls.push({api:'modelSettingsSave',base,operation:safe,keyProvided});
+    return new Promise(resolve=>{settingsReply=()=>{resolve(settingsFail?{ok:false,error:'测试保存失败'}:{ok:true,data:{id:'m1',saved:true}});settingsReply=null;};});
+  },
   dispatchPreview: async (input) => { calls.push({ api: 'dispatchPreview', input }); return { ok: true, data: { dryRun: true, url: 'http://127.0.0.1:18765/api/tasks', body: input } }; },
   dispatchSend: async (input) => {
     calls.push({ api: 'dispatchSend', input });
@@ -118,4 +127,6 @@ contextBridge.exposeInMainWorld('__stubCalls', { all: () => calls.slice(), setSe
   releaseStates: () => { holdState = false; const replies = stateReplies; stateReplies = []; replies.forEach(resolve => resolve()); },
   holdEmbed: () => { holdEmbed = true; },
   releaseEmbeds: () => { holdEmbed = false; const replies = embedReplies; embedReplies = []; replies.forEach(resolve => resolve({ok:true,data:{url:'http://127.0.0.1:8765'}})); },
+  releaseSettings: () => {if(settingsReply)settingsReply();},
+  failSettings: value => {settingsFail=value===true;},
 });

@@ -15,6 +15,16 @@
 .model-badge { color: var(--ink); background: var(--surface-2); border: 1px solid var(--line); border-radius: 6px; padding: 2px 7px; font-size: 12px; }
 #models-page .model-meta { color: var(--muted); margin: 5px 0 0; font-size: 13px; line-height: 1.65; overflow-wrap: anywhere; }
 .model-row > button { flex-shrink: 0; }
+.model-actions { display: flex; flex-wrap: wrap; gap: 8px; flex-shrink: 0; }
+#model-settings-dialog { width: min(620px, calc(100vw - 28px)); max-height: calc(100vh - 28px); overflow: auto; }
+#model-settings-dialog fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+#model-settings-dialog label { display: grid; gap: 6px; margin: 12px 0; color: var(--ink); }
+#model-settings-dialog input, #model-settings-dialog select { width: 100%; min-width: 0; box-sizing: border-box; }
+.model-setting-pair { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+.model-setting-footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; position: sticky; bottom: -1px; padding: 12px 0 0; background: var(--surface); }
+#model-settings-advanced { margin: 14px 0; color: var(--ink); }
+#model-settings-advanced summary { cursor: pointer; color: var(--muted); }
+@media (max-width: 600px) { .model-setting-pair { grid-template-columns: 1fr; } }
 .model-capability { margin-top: 8px; color: var(--ink); font-size: 13px; }
 .model-capability summary { cursor: pointer; color: var(--muted); }
 .model-capability p { white-space: pre-wrap; }

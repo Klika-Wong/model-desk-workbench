@@ -6,7 +6,8 @@
   let unavailable = false;
   let busy = false;
   let epoch = 0;
-  const visible = () => !page.hidden && !document.hidden && !window.__workbenchShell?.isPanelShown();
+  let serviceBase = '';
+  const visible = () => !page.hidden && !document.hidden && !$('model-settings-dialog')?.open && !window.__workbenchShell?.isPanelShown();
   function status(message, error = false) {
     $('models-status').textContent = message;
     $('models-status').classList.toggle('is-error', error);
@@ -27,7 +28,7 @@
     window.ModelCards.renderModels($('models-list'), selected.map(m => ({...m, unavailable})), async id => {
       $('nav-chat').click();
       await window.__chatUi?.selectModel(id);
-    });
+    }, model => window.__modelSettingsUi?.open(model, serviceBase));
     window.ModelCards.renderAccounts($('models-accounts'), snapshot.accounts.map(a => unavailable ? {...a, stateLabel: `连接中断 · 上次数据（${a.stateLabel}）`} : a));
   }
   async function refresh() {
@@ -47,12 +48,16 @@
       if (request !== epoch || !visible()) return;
       if (!data) throw new Error('未连接本机服务。请启动工作台服务，或在设置中检查连接地址。');
       if (!data.overview || !Array.isArray(data.overview.models)) throw new Error('当前桌面连接层尚未提供模型总览，请更新并重开桌面。');
-      snapshot = data.overview; unavailable = false; draw();
+      snapshot = data.overview; serviceBase = data.baseUrl; unavailable = false; draw();
+      $('models-add').disabled = false;
       status('已读取快照 · 执行端就绪不等于正在执行 · 此页可见时每 30 秒更新');
+      return true;
     } catch (error) {
       if (request !== epoch || !visible()) return;
       unavailable = true; draw(); // Retain the previous snapshot read-only with an explicit stale label.
+      $('models-add').disabled = true;
       status(error.message || '读取失败，请重试。', true);
+      return false;
     } finally {
       busy = false; $('models-refresh').disabled = false;
       if (request !== epoch && visible()) refresh();
@@ -71,9 +76,10 @@
   $('models-search').addEventListener('input', draw);
   $('models-filter').addEventListener('change', draw);
   $('models-refresh').addEventListener('click', refresh);
+  $('models-add').addEventListener('click', () => window.__modelSettingsUi?.open(null, serviceBase));
   $('models-advanced').addEventListener('click', () => window.__workbenchShell?.openAdvanced());
   document.addEventListener('visibilitychange', () => { epoch++; if (visible()) refresh(); });
   window.addEventListener('pagehide', () => { epoch++; });
   window.setInterval(() => { if (visible()) refresh(); }, 30000);
-  window.__modelsUi = {show, hide, refresh, status};
+  window.__modelsUi = {show, hide, refresh, status, invalidate: () => {epoch++;}};
 })();

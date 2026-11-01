@@ -6,7 +6,7 @@
     return node;
   };
   const time = value => value ? new Date(value).toLocaleString() : '';
-  function renderModels(container, models, onSelect) {
+  function renderModels(container, models, onSelect, onConfigure) {
     container.replaceChildren();
     if (!models.length) container.append(el('p', 'models-empty', '没有匹配的模型。可调整筛选，或在高级设置中添加模型。'));
     for (const model of models) {
@@ -27,7 +27,16 @@
       button.type = 'button'; button.disabled = model.unavailable === true || !model.enabled || model.executorReady === false || model.selectionBlocked === true;
       button.title = button.disabled ? '请先在高级设置启用模型并恢复执行端连接' : '选择模型，不会自动发送消息';
       button.addEventListener('click', () => onSelect(model.id));
-      row.append(content, button); container.append(row);
+      const actions = el('div', 'model-actions');
+      actions.append(button);
+      if (model.canChooseAgent && onConfigure) {
+        const settings = el('button', '', '执行软件');
+        settings.type = 'button'; settings.disabled = model.unavailable === true;
+        settings.title = '选择后续新任务使用的执行软件';
+        settings.addEventListener('click', () => onConfigure(model));
+        actions.append(settings);
+      }
+      row.append(content, actions); container.append(row);
     }
   }
   function renderAccounts(container, accounts) {
