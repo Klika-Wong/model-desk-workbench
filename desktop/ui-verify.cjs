@@ -3,7 +3,7 @@ const { app, BrowserWindow, nativeTheme, ipcMain } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
 
-const PROJECT = 'E:\\model-desk-fixture';
+const PROJECT = 'E:\\多Agent工作台升级规划';
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const result = { ok: false, checks: [], error: '' };
 
@@ -99,6 +99,17 @@ async function main() {
     await new Promise(r => setTimeout(r, 400));
     const name = document.querySelector('#chat-project-name').textContent.trim();
     const restored = document.querySelectorAll('#chat-log .chat-msg').length;
+    const optionsCollapsedInitially = !document.querySelector('#chat-options').open;
+    const summaryInitially = (document.querySelector('#chat-options-summary') || {}).textContent || '';
+    // 网页 AI：默认不打开，点按钮只出风险确认
+    document.querySelector('#chat-webai').click();
+    await new Promise(r => setTimeout(r, 200));
+    const webaiDialog = document.querySelector('#webai-dialog');
+    const webaiOpened = Boolean(webaiDialog && webaiDialog.open);
+    const webaiRisks = document.querySelectorAll('#webai-dialog .webai-risks li').length;
+    webaiDialog.querySelector('[data-close]').click();
+    await new Promise(r => setTimeout(r, 150));
+    const webaiClosed = !webaiDialog.open;
     const restoredText = (document.querySelector('#chat-log .chat-msg .chat-text') || {}).textContent || '';
     document.querySelector('#chat-models').click();
     await new Promise(r => setTimeout(r, 200));
@@ -128,20 +139,119 @@ async function main() {
     if (chips.length) chips[0].click();
     await new Promise(r => setTimeout(r, 400));
     const dialog = document.querySelector('#chat-source-dialog');
+    // 多视角对比：两个模型 → 两张分支卡 → 可采纳其一
+    document.querySelector('#chat-multi').checked = true;
+    document.querySelector('#chat-multi').dispatchEvent(new Event('change'));
+    const multiSel = document.querySelector('#chat-multi-models');
+    const multiVisible = !multiSel.hidden;
+    [...multiSel.options].forEach((option, index) => { option.selected = index < 2; });
+    multiSel.dispatchEvent(new Event('change'));
+    await new Promise(r => setTimeout(r, 150));
+    document.querySelector('#chat-input').value = '多视角测试问题';
+    document.querySelector('#chat-input').dispatchEvent(new Event('input'));
+    const multiSendEnabled = !document.querySelector('#chat-send').disabled;
+    document.querySelector('#chat-send').click();
+    await new Promise(r => setTimeout(r, 3400));
+    const multiBranches = document.querySelectorAll('.chat-branch').length;
+    const adoptable = [...document.querySelectorAll('.chat-branch-foot button')].filter((b) => !b.disabled);
+    if (adoptable.length) adoptable[0].click();
+    await new Promise(r => setTimeout(r, 500));
+    const lastSave = window.__stubCalls.all().filter(c => c.api === 'chatSave').pop();
+    const multiAdopted = Boolean(lastSave && JSON.stringify(lastSave.input).includes('来自'));
+    // 讨论模式：两个模型串行发言，每位能看到前面发言
+    // 等上一轮多视角的并行分支完全结束，否则 multiGroupRunning 门控会拦住讨论（产品行为正确）。
+    await new Promise(r => setTimeout(r, 2500));
+    document.querySelector('#chat-multi').checked = false;
+    document.querySelector('#chat-multi').dispatchEvent(new Event('change'));
+    document.querySelector('#chat-discussion').checked = true;
+    document.querySelector('#chat-discussion').dispatchEvent(new Event('change'));
+    [...multiSel.options].forEach((option, index) => { option.selected = index < 2; });
+    multiSel.dispatchEvent(new Event('change'));
+    await new Promise(r => setTimeout(r, 150));
+    document.querySelector('#chat-consent').checked = true;
+    document.querySelector('#chat-consent').dispatchEvent(new Event('change'));
+    document.querySelector('#chat-input').value = '讨论测试问题';
+    document.querySelector('#chat-input').dispatchEvent(new Event('input'));
+    const discussionSendEnabled = !document.querySelector('#chat-send').disabled;
+    document.querySelector('#chat-send').click();
+    await new Promise(r => setTimeout(r, 9000));
+    const discussionWho = [...document.querySelectorAll('#chat-log .chat-who')].filter((w) => w.textContent.includes('讨论 ·'));
+    const discussionStageVisible = !document.querySelector('#chat-stage').hidden;
+    const discussionAgents = document.querySelectorAll('.agent-node').length;
+    const discussionDoneAgents = document.querySelectorAll('.agent-node[data-state="done"]').length;
+    const adoptButtons = [...document.querySelectorAll('.chat-adopt')];
+    const adoptCount = adoptButtons.length;
+    if (adoptButtons.length) adoptButtons[0].click();
+    await new Promise(r => setTimeout(r, 500));
+    const lastSaveAfterAdopt = window.__stubCalls.all().filter(c => c.api === 'chatSave').pop();
+    const adoptedDiscussion = Boolean(lastSaveAfterAdopt && JSON.stringify(lastSaveAfterAdopt.input).includes('讨论 ·'));
+    const firstNode = document.querySelector('.agent-node');
+    const firstModelId = firstNode ? firstNode.dataset.modelId : '';
+    const petBefore = firstModelId ? localStorage.getItem('pet-avatar:' + firstModelId) : null;
+    if (firstNode) firstNode.querySelector('.agent-avatar').click();
+    const petAfter = firstModelId ? localStorage.getItem('pet-avatar:' + firstModelId) : null;
+    const petSwitched = petAfter !== petBefore;
+    // 桌宠陪聊：单模型对话也显示一个桌宠节点，状态跟随"思考→说话→已回复"
+    document.querySelector('#chat-discussion').checked = false;
+    document.querySelector('#chat-discussion').dispatchEvent(new Event('change'));
+    document.querySelector('#chat-use-memory').checked = false;
+    document.querySelector('#chat-use-memory').dispatchEvent(new Event('change'));
+    document.querySelector('#chat-pet').checked = true;
+    document.querySelector('#chat-pet').dispatchEvent(new Event('change'));
+    await new Promise(r => setTimeout(r, 150));
+    document.querySelector('#chat-input').value = '桌宠陪聊测试';
+    document.querySelector('#chat-input').dispatchEvent(new Event('input'));
+    document.querySelector('#chat-consent').checked = true;
+    document.querySelector('#chat-consent').dispatchEvent(new Event('change'));
+    const petSendEnabled = !document.querySelector('#chat-send').disabled;
+    window.__stubCalls.setSendOk(true);
+    document.querySelector('#chat-send').click();
+    await new Promise(r => setTimeout(r, 4500));
+    const petStageVisible = !document.querySelector('#chat-stage').hidden;
+    const petAgents = document.querySelectorAll('.agent-node').length;
+    const petDoneAgents = document.querySelectorAll('.agent-node[data-state="done"]').length;
+    const petStateText = (document.querySelector('.agent-node .agent-state') || {}).textContent || '';
+    const petSummary = (document.querySelector('#chat-options-summary') || {}).textContent || '';
     const calls = window.__stubCalls.all().filter(c => c.api === 'dispatchSend');
     await new Promise(r => setTimeout(r, 800));
     const saves = window.__stubCalls.all().filter(c => c.api === 'chatSave');
-    return { name, restored, restoredText, sendEnabled, project: calls.length ? calls[calls.length - 1].input.project : null,
+    return { name, restored, restoredText, webaiOpened, webaiRisks, webaiClosed, sendEnabled, project: calls.length ? calls[calls.length - 1].input.project : null,
       saved: saves.length ? saves[saves.length - 1].input.length : 0, status: document.querySelector('#chat-status').textContent,
+      optionsCollapsedInitially, summaryInitially, petSummary,
       chips: chips.length,
       dialogOpen: Boolean(dialog && dialog.open),
       dialogTitle: (document.querySelector('#chat-source-title') || {}).textContent,
       dialogBody: (document.querySelector('#chat-source-body') || {}).textContent,
+      multiVisible, multiSendEnabled, multiBranches, multiAdopted, discussionSendEnabled, discussionWho: discussionWho.length, discussionStageVisible, discussionAgents, discussionDoneAgents, adoptCount, adoptedDiscussion, petSwitched,
+      petSendEnabled, petStageVisible, petAgents, petDoneAgents, petStateText,
       liveText, cursorOn, logCalls, finalText: finalText ? finalText.textContent : '', finalStreaming };
   })()`);
-  if (chat.name !== 'model-desk-fixture') throw new Error(`对话页项目名不对：${chat.name}`);
+  if (chat.name !== '多Agent工作台升级规划') throw new Error(`对话页项目名不对：${chat.name}`);
   if (chat.restored !== 1 || chat.restoredText !== '上次的第一句') throw new Error(`上次对话没有恢复：${JSON.stringify({ n: chat.restored, t: chat.restoredText })}`);
   if (chat.saved < 1) throw new Error('发消息后没有触发本机保存');
+  if (!chat.webaiOpened) throw new Error('网页 AI 按钮没有弹出风险确认');
+  if (chat.webaiRisks < 3) throw new Error(`风险条款太少：${chat.webaiRisks} 条`);
+  if (!chat.webaiClosed) throw new Error('网页 AI 确认框关不掉');
+  if (!chat.multiVisible) throw new Error('打开多视角后没有显示模型多选');
+  if (!chat.multiSendEnabled) throw new Error('选了两个月模型后仍不能发送');
+  if (chat.multiBranches !== 2) throw new Error(`分支数量不对：${chat.multiBranches}`);
+  if (!chat.multiAdopted) throw new Error('采纳视角后没有写入历史');
+  if (!chat.discussionSendEnabled) throw new Error('讨论模式选两个模型后仍不能发送');
+  if (chat.discussionWho < 2) throw new Error(`讨论发言气泡不足：${chat.discussionWho}`);
+  if (!chat.discussionStageVisible) throw new Error('讨论场景没有显示');
+  if (chat.discussionAgents !== 2) throw new Error(`场景节点数不对：${chat.discussionAgents}`);
+  if (chat.discussionDoneAgents !== 2) throw new Error(`发言完成节点数不对：${chat.discussionDoneAgents}`);
+  if (chat.adoptCount < 1) throw new Error('讨论发言后没有出现「采纳这条继续」按钮');
+  if (!chat.adoptedDiscussion) throw new Error('点击采纳后没有把发言写进历史');
+  if (!chat.petSwitched) throw new Error('点击头像没有切换桌宠形象');
+  if (!chat.petSendEnabled) throw new Error('桌宠陪聊勾选后仍不能发送');
+  if (!chat.petStageVisible) throw new Error('桌宠陪聊没有显示场景');
+  if (chat.petAgents !== 1) throw new Error(`桌宠陪聊节点数不对：${chat.petAgents}`);
+  if (chat.petDoneAgents !== 1) throw new Error(`桌宠陪聊没有到已回复状态：${chat.petDoneAgents}`);
+  if (!chat.petStateText.includes('已回复')) throw new Error(`桌宠陪聊完成文案不对：${chat.petStateText}`);
+  if (!chat.optionsCollapsedInitially) throw new Error('发送选项折叠没有默认收起（工具栏仍过载）');
+  if (chat.summaryInitially !== '普通对话') throw new Error(`初始摘要不对：${chat.summaryInitially}`);
+  if (chat.petSummary !== '桌宠陪聊') throw new Error(`勾选桌宠后摘要没有更新：${chat.petSummary}`);
   if (!chat.cursorOn || !chat.liveText.includes('正在输出')) throw new Error(`运行中没有增量显示：${JSON.stringify({ live: chat.liveText, cursor: chat.cursorOn })}`);
   if (chat.logCalls < 2) throw new Error(`增量刷新没有按 400ms 跑起来，900ms 内只拉了 ${chat.logCalls} 次`);
   if (!chat.finalText.includes('最终回答')) throw new Error(`终态没有显示最终回答：${chat.finalText}`);
@@ -152,10 +262,22 @@ async function main() {
   // 弹窗开着时留一张图，然后关掉，避免挡住后面的页面切换。
   fs.writeFileSync(path.join(__dirname, 'chat-source-dialog.png'), (await win.capturePage()).toPNG());
   await js("document.querySelector('#chat-source-dialog').close()");
+  await js("document.querySelector('#chat-multi').scrollIntoView({block:'center'}); true;");
+  await new Promise((resolve) => setTimeout(resolve, 250));
+  fs.writeFileSync(path.join(__dirname, 'chat-multi.png'), (await win.capturePage()).toPNG());
+  await js("const s=document.querySelector('#chat-stage'); if(s)s.scrollIntoView({block:'center'}); true;");
+  await new Promise((resolve) => setTimeout(resolve, 250));
+  fs.writeFileSync(path.join(__dirname, 'chat-discussion.png'), (await win.capturePage()).toPNG());
+  await new Promise((resolve) => setTimeout(resolve, 250));
+  fs.writeFileSync(path.join(__dirname, 'chat-pet.png'), (await win.capturePage()).toPNG());
   if (!chat.sendEnabled) throw new Error('填完模型/内容/确认后发送按钮仍是禁用');
   if (chat.project !== PROJECT) throw new Error(`对话发送用了错误项目：${chat.project}`);
   result.checks.push('chat-send-uses-absolute-project');
   result.checks.push('chat-history-restored-and-saved');
+  result.checks.push('webai-risk-gate-default-off');
+  result.checks.push('chat-multi-perspective-branches');
+  result.checks.push('chat-discussion-serial-turns');
+  result.checks.push('chat-pet-single-companion');
   result.checks.push('chat-injection-source-dialog');
   result.checks.push('chat-streaming-partial-then-final');
 
@@ -163,6 +285,7 @@ async function main() {
   const dispatch = await js(`(async () => {
     document.querySelector('#nav-tasks').click();
     await new Promise(r => setTimeout(r, 300));
+    const dispatchCollapsedInitially = !document.querySelector('#dispatch-details').open;
     document.querySelector('#dispatch-models').click();
     await new Promise(r => setTimeout(r, 200));
     document.querySelector('#dispatch-model').value = 'm-local';
@@ -181,18 +304,22 @@ async function main() {
     const compactPreview = summaryLines.length === 4 && summaryLines[0].includes('模型：') && technicalDetails && !technicalDetails.open;
     document.querySelector('#dispatch-send').click();
     await new Promise(r => setTimeout(r, 500));
-    return { project: previewProject, compactPreview: Boolean(compactPreview),
+    return { project: previewProject, compactPreview: Boolean(compactPreview), dispatchCollapsedInitially,
       status: document.querySelector('#dispatch-status').textContent,
       sendDisabledWhileRunning: document.querySelector('#dispatch-send').disabled,
       cancelVisible: !document.querySelector('#dispatch-cancel').hidden };
   })()`);
   if (dispatch.project !== PROJECT) throw new Error(`派发预览用了错误项目：${dispatch.project}`);
+  if (!dispatch.dispatchCollapsedInitially) throw new Error('派发卡片没有默认收起（运行与连接页仍过载）');
   if (!dispatch.compactPreview) throw new Error('派发预览应先展示可读摘要，技术详情默认折叠');
   if (!dispatch.sendDisabledWhileRunning) throw new Error('任务在跟跑时派发按钮仍可点：会覆盖前一个任务的跟踪');
   if (!dispatch.cancelVisible) throw new Error('派发后没有出现取消入口');
   result.checks.push('dispatch-preview-uses-absolute-project');
   result.checks.push('dispatch-preview-human-readable');
   result.checks.push('dispatch-no-double-send');
+  // 派发折叠收起时截一张「运行与连接」页，确认纵向流布局。
+  await new Promise((resolve) => setTimeout(resolve, 200));
+  fs.writeFileSync(path.join(__dirname, 'tasks-page.png'), (await win.capturePage()).toPNG());
 
   // 4) 嵌入失败时不锁滚动（不能把外壳滚动条永久关掉）
   const embed = await js(`(async () => {

@@ -39,7 +39,7 @@ test('正常面板 → connected，并解析执行端状态与任务数', async 
         execution: '任务按顺序执行',
         workspace: 'E:/x',
         execution_endpoints: { rows: [
-          { id: 'dsh', name: 'DSH', enabled: true, ready: true, current_model: 'fixture-local-model' },
+          { id: 'dsh', name: 'DSH', enabled: true, ready: true, current_model: '5b0f8b9318c0' },
           { id: 'workbuddy', name: 'WorkBuddy', enabled: true, ready: false, current_model: 'workbuddy-deepseek-flash' },
           { id: 'pi', name: 'Pi', enabled: false, ready: false, current_model: null },
           { id: 'unknown', name: 'Unknown' },
@@ -75,7 +75,7 @@ test('正常面板 → connected，并解析执行端状态与任务数', async 
     assert.equal(r.executors.find((x) => x.id === 'dsh').status, 'ok');
     assert.equal(r.executors.find((x) => x.id === 'workbuddy').status, 'error');
     assert.equal(r.executors.find((x) => x.id === 'pi').status, 'idle');
-    assert.equal(r.executors.find((x) => x.id === 'dsh').model, 'fixture-local-model');
+    assert.equal(r.executors.find((x) => x.id === 'dsh').model, '5b0f8b9318c0');
   } finally { server.close(); }
 });
 
@@ -91,9 +91,9 @@ test('HTTP200空对象不能当成面板连接成功',async()=>{const {server,po
 
 test('发往面板的项目路径先规范化：折叠重复与尾部分隔符，保留大小写', () => {
   const BT = String.fromCharCode(92); // 反斜杠，避免多层转义出错
-  const proj = `E:${BT}model-desk-fixture`;
-  assert.equal(projectForHeader('E://model-desk-fixture'), proj, '双斜杠要折叠');
-  assert.equal(projectForHeader('E:/model-desk-fixture'), proj, '正斜杠转反斜杠');
+  const proj = `E:${BT}多Agent工作台升级规划`;
+  assert.equal(projectForHeader('E://多Agent工作台升级规划'), proj, '双斜杠要折叠');
+  assert.equal(projectForHeader('E:/多Agent工作台升级规划'), proj, '正斜杠转反斜杠');
   assert.equal(projectForHeader(`${proj}${BT}`), proj, '尾部分隔符要去掉');
   assert.equal(projectForHeader(`E:${BT}MixedCase${BT}Sub`), `E:${BT}MixedCase${BT}Sub`, '不能改大小写');
   assert.equal(projectForHeader(`relative${BT}path`), null, '相对路径必须拒绝');

@@ -1,0 +1,10 @@
+.project-folders {margin: 12px 0; min-width:0;}
+.project-folders summary {cursor:pointer; color:var(--muted); font-size:13px; padding:6px 8px;}
+#project-shortcuts {max-height:160px; overflow:auto; display:flex; flex-direction:column; gap:4px;}
+.project-shortcut {text-align:left; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; padding:7px 10px;}
+#workspace-dialog {max-height:88vh; overflow:auto; width:min(720px,calc(100vw - 36px));}
+#workspace-root,.workspace-project-row p,#workspace-move-description {overflow-wrap:anywhere;}
+.workspace-project-row {border:1px solid var(--border); border-radius:10px; padding:12px; margin:10px 0;}
+.workspace-project-row input {max-width:100%; box-sizing:border-box;}
+.workspace-project-row button {margin:4px 6px 0 0;}
+#workspace-move-plan {padding:12px; border:1px solid var(--border); margin-top:10px;}

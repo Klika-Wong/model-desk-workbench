@@ -92,3 +92,14 @@ test('清空后文件消失，再读是空对话', () => {
   assert.equal(fs.existsSync(file), false);
   assert.deepEqual(store.load(file).messages, []);
 });
+
+test('非数组写入被拒绝，且不破坏已有记录', () => {
+  const file = tempFile();
+  store.save(file, [{ role: 'user', text: '不能丢' }]);
+  const before = fs.readFileSync(file, 'utf8');
+  for (const bad of [null, undefined, 'text', { role: 'user' }, 42]) {
+    assert.throws(() => store.save(file, bad), /必须是数组/, `应拒绝：${JSON.stringify(bad)}`);
+  }
+  assert.equal(fs.readFileSync(file, 'utf8'), before, '被拒绝的写入不得改动磁盘内容');
+  assert.deepEqual(store.load(file).messages, [{ role: 'user', text: '不能丢' }]);
+});

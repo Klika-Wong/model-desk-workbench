@@ -1,5 +1,6 @@
 'use strict';
 const http = require('node:http');
+const {createHash} = require('node:crypto');
 const {normalizeBase} = require('./panel-connector.cjs');
 const AGENTS = new Set(['follow_global', 'dsh', 'pi']);
 function createPayload(input) {
@@ -49,21 +50,70 @@ function request(base, method, route, token, payload) {
     if(bytes)req.write(bytes);req.end();
   });
 }
-async function saveModelSettings(baseUrl, operation) {
+function managementBase(baseUrl) {
   const url = new URL(baseUrl);
   if (url.username || url.password || url.search || url.hash || url.pathname !== '/') throw new Error('工作台地址格式不正确。');
-  const base = normalizeBase(baseUrl);
+  return normalizeBase(baseUrl);
+}
+function modelId(id) {
+  if (!/^[A-Za-z0-9_-]{1,160}$/.test(id || '')) throw new Error('模型编号无效。');
+  return id;
+}
+function connectionSnapshot(row) {
+  const checked = createPayload({name:row.name,provider:row.provider,api_base:row.api_base,model:row.model,
+    default_agent:'follow_global',max_input_tokens:row.max_input_tokens,max_output_tokens:row.max_output_tokens});
+  const values = Object.fromEntries(['name','provider','api_base','model','max_input_tokens','max_output_tokens'].map(key=>[key,checked[key]]));
+  // These fields are mandatory in the old full-save API; never replace them with form defaults.
+  if (typeof row.enabled !== 'boolean' || typeof row.bypass_proxy !== 'boolean' || typeof row.api_key_env !== 'string') throw new Error('模型配置不完整，请使用高级设置核对后重试。');
+  const preserved = {enabled:row.enabled,bypass_proxy:row.bypass_proxy,api_key_env:row.api_key_env};
+  const version = createHash('sha256').update(JSON.stringify({values,preserved})).digest('hex');
+  return {values,preserved,version};
+}
+async function currentConnection(base, token, id) {
+  const state = await request(base,'GET','/api/state',token);
+  if (state.status!==200 || !Array.isArray(state.data?.models)) throw new Error('无法读取当前模型配置，请刷新后重试。');
+  const row = state.data.models.find(row=>row?.id===id);
+  if (!row) throw new Error('模型已不存在，请刷新列表。');
+  return connectionSnapshot(row);
+}
+async function settingsSession(base) {
+  const session = await request(base,'GET','/api/session');
+  if(session.status!==200 || typeof session.data?.token!=='string')throw new Error('无法建立本机工作台会话。');
+  return session.data.token;
+}
+async function loadModelSettings(baseUrl,id) {
+  modelId(id);
+  const base = managementBase(baseUrl), token = await settingsSession(base);
+  const current = await currentConnection(base,token,id);
+  // No credential values or environment-variable names cross this IPC boundary.
+  return {id,values:current.values,version:current.version};
+}
+async function saveModelSettings(baseUrl, operation) {
+  const base = managementBase(baseUrl);
   let route, payload;
   if (operation?.action === 'create') {route='/api/models';payload=createPayload(operation.values);}
+  else if (operation?.action === 'edit') {
+    modelId(operation.id);
+    const fields=['name','provider','api_base','model','max_input_tokens','max_output_tokens'];
+    if (!operation.values || Object.keys(operation.values).some(key=>!fields.includes(key)) || !/^[a-f0-9]{64}$/.test(operation.version || '')) throw new Error('编辑数据无效，请重新打开模型设置。');
+    const checked=createPayload({...operation.values,default_agent:'follow_global'});
+    payload=Object.fromEntries(fields.map(key=>[key,checked[key]]));
+    route=`/api/models/${operation.id}/save`;
+  }
   else if (operation?.action === 'agent') {
     if (!/^[A-Za-z0-9_-]{1,160}$/.test(operation.id || '') || !AGENTS.has(operation.defaultAgent)) throw new Error('模型或执行软件无效。');
     route=`/api/models/${operation.id}/agent-default`;payload={default_agent:operation.defaultAgent};
   } else throw new Error('不支持的模型设置操作。');
-  const session=await request(base,'GET','/api/session');
-  if(session.status!==200 || typeof session.data?.token!=='string')throw new Error('无法建立本机工作台会话。');
-  const reply=await request(base,'POST',route,session.data.token,payload);
-  if (![200,201].includes(reply.status)) throw new Error(`模型设置未保存（HTTP ${reply.status}）。请检查字段、执行端安装状态或高级设置。`);
+  const token=await settingsSession(base);
+  if (operation.action==='edit') {
+    const current=await currentConnection(base,token,operation.id);
+    if (current.version!==operation.version) throw new Error('模型配置已被其他操作修改，请关闭后重新打开编辑。');
+    if (payload.provider!==current.values.provider) throw new Error('不能在编辑连接时更改服务类型，请另行添加模型。');
+    payload={...payload,...current.preserved};
+  }
+  const reply=await request(base,'POST',route,token,payload);
+  if (![200,201].includes(reply.status)) throw new Error(`未确认模型设置保存成功（HTTP ${reply.status}）。请刷新配置核对结果，并检查字段、运行中任务或高级设置。`);
   if(typeof reply.data?.id!=='string' || !reply.data.id)throw new Error('保存响应不完整，请重新读取列表确认；不要重复添加。');
   return {id:reply.data.id,name:typeof reply.data.name==='string'?reply.data.name:'',saved:true};
 }
-module.exports={createPayload,saveModelSettings};
+module.exports={createPayload,saveModelSettings,loadModelSettings};

@@ -33,6 +33,7 @@ async function updateState() {
 }
 
 refresh.addEventListener('click', updateState);
+window.__projectUi = { refresh:updateState };
 choose.addEventListener('click', async () => {
   try {
     showState(await window.workbench.chooseProject());

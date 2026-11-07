@@ -3,12 +3,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 const assert = require('node:assert/strict');
 const { chromium } = require(path.join(process.env.MODEL_DESK_NODE_MODULES || '', 'playwright'));
+const original = fs.readFileSync(path.join(__dirname, '../review-backups/20261030-toolbar/index.html'), 'utf8');
 const current = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
-const toolbarIds = ['designer-tool-select', 'designer-tool-hand', 'designer-add',
-  'designer-zoom-out', 'designer-zoom-reset', 'designer-zoom-in', 'designer-save',
-  'designer-undo', 'designer-redo', 'designer-arrange', 'designer-fit',
-  'designer-trial', 'designer-ai', 'designer-history-select', 'designer-history',
-  'designer-reload'].sort();
+const toolbarIds = [...original.slice(original.indexOf('<div class="designer-toolbar">'), original.indexOf('<p id="designer-message"')).matchAll(/id="([^"]+)"/g)].map(m => m[1]).sort();
 // Static offline fixture inlines only local CSS, so omit the production external-style CSP here.
 const html = current.replace(/<meta\b[^>]*http-equiv="Content-Security-Policy"[^>]*>/gi, '').replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '').replace(/<link\b[^>]*href="([^"]+\.css)"[^>]*>/g, (_, file) => `<style>${fs.readFileSync(path.join(__dirname, file), 'utf8')}</style>`);
 (async () => {

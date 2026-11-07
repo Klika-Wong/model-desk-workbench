@@ -2,11 +2,10 @@
   "name": "model-desk-desktop-shell-prototype",
   "version": "0.1.0",
   "private": true,
-  "description": "Windows desktop preview for project-scoped model collaboration and local memory management.",
+  "description": "Isolated desktop shell lifecycle prototype; no real model or project access.",
   "main": "main.cjs",
   "scripts": {
     "start": "electron .",
-    "test": "node --test *.test.cjs",
     "smoke": "node smoke-runner.cjs",
     "verify:ui": "node ui-verify-run.cjs"
   },

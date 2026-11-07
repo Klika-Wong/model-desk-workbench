@@ -112,7 +112,7 @@ const server = http.createServer((request, response) => {
     request.on('end', () => {
       try {
         const body = JSON.parse(data || '{}');
-        if (typeof body.project !== 'string' || body.project.length === 0) throw new Error('Project path is required.');
+        if (body.project !== null && (typeof body.project !== 'string' || body.project.length === 0)) throw new Error('Project path is required.');
         project = body.project;
         response.end(JSON.stringify({ project }));
       } catch {

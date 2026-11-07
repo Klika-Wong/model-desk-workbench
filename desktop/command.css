@@ -139,3 +139,102 @@ html.panel-embedded main.workspace { overflow: hidden; }
 @media (prefers-reduced-motion: reduce) { .chat-text.is-streaming::after { animation: none; } }
 
 #conn-status.is-error { color: var(--danger); }
+
+/* 网页 AI：风险清单 */
+.webai-risks { margin: 8px 0 12px; padding-left: 18px; font-size: 12px; line-height: 1.7; color: var(--ink-2); }
+.webai-risks li { margin-bottom: 4px; }
+.webai-pick { display: flex; align-items: center; gap: 6px; font-size: 12px; margin-top: 6px; }
+
+/* 多视角对比：分支卡片并排 */
+.chat-branches { display: grid; gap: 8px; margin-top: 8px; }
+.chat-branch { border: 1px solid var(--line); border-radius: 10px; background: var(--surface); overflow: hidden; }
+.chat-branch-head { display: flex; justify-content: space-between; gap: 8px; padding: 6px 10px; font-size: 11px; color: var(--muted); background: var(--surface-2); border-bottom: 1px solid var(--line); }
+.chat-branch-head strong { color: var(--ink-2); font-weight: 600; }
+.chat-branch-body { padding: 9px 11px; font-size: 13px; line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; min-height: 44px; }
+.chat-branch-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 6px 10px; border-top: 1px solid var(--line); font-size: 11px; color: var(--muted); }
+.chat-branch.is-failed { border-color: var(--danger); }
+.chat-branch.is-failed .chat-branch-body { color: var(--danger); }
+.chat-branch.is-done .chat-branch-head strong { color: var(--accent); }
+
+/* ---- UI 优化：多视角卡片与侧栏底部对比度 ---- */
+.chat-branch-foot { color: var(--ink-2); }
+.chat-branch-foot button {
+  padding: 4px 11px;
+  border: 1px solid var(--accent);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.chat-branch-foot button:hover:not(:disabled) { background: var(--accent); color: var(--on-accent); }
+.chat-branch-foot button:disabled { border-color: var(--line-strong); color: var(--muted); cursor: not-allowed; }
+.sidebar-bottom small { color: var(--ink-2); }
+
+/* ---- 讨论场景：多个 Agent 角色在一个场景里讨论 ---- */
+.chat-stage {
+  display: flex; justify-content: center; align-items: flex-start; gap: 20px; flex-wrap: wrap;
+  padding: 18px 12px; margin: 10px 0; border: 1px solid var(--line); border-radius: 12px;
+  background: var(--surface-2); min-height: 150px;
+}
+.agent-node { display: flex; flex-direction: column; align-items: center; gap: 7px; width: 132px; }
+.agent-avatar {
+  width: 110px; height: 62px; display: grid; place-items: center;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  overflow: hidden; cursor: pointer; transition: border-color .15s;
+}
+.agent-avatar:hover { border-color: var(--accent); }
+.agent-pet { width: 100%; height: 100%; object-fit: contain; }
+.agent-name { font-size: 12px; color: var(--ink-2); text-align: center; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.agent-state { font-size: 11px; color: var(--muted); }
+.agent-node[data-state="thinking"] .agent-state { color: var(--accent); }
+.agent-node[data-state="speaking"] .agent-state { color: var(--accent); }
+.agent-node[data-state="done"] .agent-state { color: var(--ok-ink); }
+.agent-bubble {
+  max-width: 220px; padding: 8px 10px; font-size: 12px; line-height: 1.6;
+  border: 1px solid var(--line); border-radius: 9px; background: var(--surface);
+  white-space: pre-wrap; overflow-wrap: anywhere; max-height: 130px; overflow: auto;
+}
+.agent-node[data-state="stalled"] .agent-state { color: var(--warn-ink); }
+
+/* 讨论发言的「采纳这条继续」按钮 */
+.chat-adopt {
+  margin-top: 6px; padding: 4px 11px;
+  border: 1px solid var(--accent); border-radius: 7px;
+  background: transparent; color: var(--accent);
+  font-size: 11px; font-weight: 500; cursor: pointer;
+}
+.chat-adopt:hover:not(:disabled) { background: var(--accent); color: var(--on-accent); }
+.chat-adopt:disabled { border-color: var(--line-strong); color: var(--muted); cursor: not-allowed; }
+
+/* ---- 对话页：发送选项折叠，降工具栏复杂度 ---- */
+.chat-options { margin-left: auto; }
+.chat-options > summary {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 5px 10px; border: 1px solid var(--line); border-radius: 7px;
+  cursor: pointer; font-size: 12px; color: var(--ink-2); list-style: none; user-select: none;
+}
+.chat-options > summary::-webkit-details-marker { display: none; }
+.chat-options > summary:hover { border-color: var(--accent); }
+.chat-options-summary { color: var(--accent); font-weight: 600; }
+.chat-options[open] > summary { border-color: var(--accent); }
+.chat-options-body {
+  display: grid; gap: 10px; margin-top: 8px; padding: 10px 12px;
+  border: 1px solid var(--line); border-radius: 9px; background: var(--surface-2);
+}
+.chat-option-group { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.chat-option-label {
+  min-width: 44px; font-size: 11px; letter-spacing: .06em; color: var(--muted); font-weight: 600;
+}
+
+/* ---- 运行与连接页：卡片折叠标题条 ---- */
+.card-summary {
+  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+  cursor: pointer; font-weight: 650; color: var(--ink);
+  list-style: none; user-select: none;
+}
+.card-summary::-webkit-details-marker { display: none; }
+.card-summary:hover { color: var(--accent); }
+.card-summary-note { font-size: 12px; font-weight: 400; color: var(--muted); }
+#tasks-page .dispatch-card[open] > summary { margin-bottom: 14px; }

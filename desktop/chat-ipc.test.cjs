@@ -19,7 +19,7 @@ test('actual IPC handlers isolate projects, preserve unassigned legacy history a
   const end = code.indexOf("ipcMain.handle('mini:tasks'", start);
   assert.ok(start > 0 && end > start);
   vm.runInNewContext(code.slice(start, end), {
-    chatStore, path, smokeMode:false, app:{getPath:()=>directory},
+    chatStore, path, smokeMode:false, workspaceStore:{root:directory},app:{getPath:()=>directory},
     ipcMain:{handle:(name,handler)=>handlers.set(name,handler)},
     assertTrustedSender:event=>{if(!event.trusted)throw new Error('untrusted');},
     requireSelectedProject:project=>{if(project!==selected)throw new Error('wrong project');return selected;},

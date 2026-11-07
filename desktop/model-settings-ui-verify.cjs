@@ -29,6 +29,18 @@ async function main(){
     out.agentOnly=$('model-connection-fields').hidden && $('model-setting-agent').value==='dsh';
     $('model-setting-agent').value='pi';$('model-settings-form').requestSubmit();window.__stubCalls.releaseSettings();await tick();
     out.agentPayload=window.__stubCalls.all().filter(c=>c.api==='modelSettingsSave').at(-1).operation;
+    document.querySelector('.model-row .model-actions button:nth-child(3)').click();await tick();
+    out.editLoaded=$('model-settings-dialog').open && $('model-setting-name').value==='Existing local' && $('model-setting-input').value==='16384';
+    out.editScoped=$('model-settings-auth').hidden && $('model-setting-agent').disabled && $('model-setting-provider').disabled;
+    $('model-setting-name').value='Changed name';$('model-settings-form').requestSubmit();window.__stubCalls.releaseSettings();await tick();
+    const edit=window.__stubCalls.all().filter(c=>c.api==='modelSettingsSave').at(-1).operation;
+    out.editPayload=edit.action==='edit' && edit.id==='m-local' && edit.values.name==='Changed name' && edit.version==='a'.repeat(64) && !('api_key' in edit.values) && !('default_agent' in edit.values);
+    window.__stubCalls.holdSettingsLoad();document.querySelector('.model-row .model-actions button:nth-child(3)').click();
+    out.editLoadingLocked=$('model-settings-save').disabled && $('model-connection-fields').disabled;
+    $('model-settings-cancel').click();await tick();$('models-add').click();$('model-setting-name').value='New draft';
+    window.__stubCalls.releaseSettingsLoad();await tick();
+    out.lateEditDiscarded=$('model-setting-name').value==='New draft' && $('model-settings-title').textContent==='添加模型连接' && !$('model-setting-provider').disabled;
+    $('model-settings-cancel').click();await tick();
     $('models-add').click();$('model-setting-name').value='Failure';$('model-setting-model').value='fixture';$('model-setting-key').value='fixture-only';
     window.__stubCalls.failSettings(true);$('model-settings-form').requestSubmit();window.__stubCalls.releaseSettings();await tick();
     out.failureKeepsForm=$('model-settings-dialog').open && !$('model-settings-save').disabled;
@@ -36,7 +48,7 @@ async function main(){
     $('model-settings-cancel').click();await tick();
     return out;
   })()`);
-  const expected=['createOpened','closeClearsKey','oneRequest','keyCleared','locked','cancelPrevented','closedAfterSave','keyProvided','noInference','agentOnly','failureKeepsForm','failureClearsKey'];
+  const expected=['createOpened','closeClearsKey','oneRequest','keyCleared','locked','cancelPrevented','closedAfterSave','keyProvided','noInference','agentOnly','editLoaded','editScoped','editPayload','editLoadingLocked','lateEditDiscarded','failureKeepsForm','failureClearsKey'];
   for(const key of expected)if(result[key]!==true)throw new Error(`${key}: ${JSON.stringify(result)}`);
   if(JSON.stringify(result.agentPayload)!==JSON.stringify({action:'agent',id:'m-local',defaultAgent:'pi'}))throw new Error('Agent update widened its payload');
   if(result.targetBase!=='http://127.0.0.1:8765')throw new Error('Settings did not bind to the displayed service');

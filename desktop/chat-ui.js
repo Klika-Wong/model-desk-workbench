@@ -19,6 +19,36 @@
   const consent = $('chat-consent');
   const useMemory = $('chat-use-memory');
   const useHistory = $('chat-use-history');
+  const multiToggle = $('chat-multi');
+  const discussionToggle = $('chat-discussion');
+  const petToggle = $('chat-pet');
+  const multiSelect = $('chat-multi-models');
+  const stage = $('chat-stage');
+  let loadedModels = [];
+  let multiGroupRunning = false;
+  let multiGeneration = 0;
+  const multiFinishers = new Set();
+  // 中止所有未完成的多视角分支：清定时器、resolve 挂起的 Promise、复位运行标记。
+  // 切页/切项目时调用；否则分支轮询会泄漏，multiGroupRunning 卡 true 会让发送按钮永久禁用。
+  function abortMulti() {
+    multiGeneration += 1;
+    for (const finish of [...multiFinishers]) finish();
+    multiFinishers.clear();
+    multiGroupRunning = false;
+  }
+  // 桌宠陪聊（单模型）：activePet 记录当前陪聊的模型，驱动场景里那个单独节点的状态。
+  let activePet = null;       // { modelId, modelName }
+  let petSpoken = false;      // 是否已经拿到第一段正文
+  let petStalledTimer = null; // A07：等了很久无正文 → stalled
+  function clearPetStalled() {
+    if (petStalledTimer) { clearTimeout(petStalledTimer); petStalledTimer = null; }
+  }
+  function resetPet() {
+    clearPetStalled();
+    activePet = null;
+    petSpoken = false;
+    if (stage) stage.hidden = true;
+  }
   const memoryHint = $('chat-memory-hint');
   if (!log || !input) return;
 
@@ -80,6 +110,8 @@
     const revision = ++conversationRevision;
     ++sendRevision;
     stopPolling();
+    abortMulti();
+    resetPet();
     pendingTask = null;
     sending = false;
     clearing = false;
@@ -111,9 +143,23 @@
   };
 
   function refresh() {
-    const canSend = Boolean(historyReady && !clearing && consent.checked && !consent.disabled && modelSelect.value && input.value.trim() && projectPath && !pendingTask && !sending);
+    const multiOn = Boolean(multiToggle && multiToggle.checked) || Boolean(discussionToggle && discussionToggle.checked);
+    if (multiSelect) multiSelect.hidden = !multiOn;
+    const pickedCount = multiOn && multiSelect ? multiSelect.selectedOptions.length : 0;
+    const modelReady = multiOn ? pickedCount >= 2 : Boolean(modelSelect.value);
+    const canSend = Boolean(historyReady && !clearing && consent.checked && !consent.disabled && modelReady && input.value.trim() && projectPath && !pendingTask && !sending && !multiGroupRunning);
     sendButton.disabled = !canSend;
-    $('chat-clear').disabled = Boolean(!historyReady || clearing || sending || pendingTask);
+    // 发送选项折叠收起时，摘要要一眼看出当前发送方式。
+    const summary = $('chat-options-summary');
+    if (summary) {
+      if (multiToggle && multiToggle.checked) summary.textContent = '多视角对比';
+      else if (discussionToggle && discussionToggle.checked) summary.textContent = '讨论模式';
+      else if (petToggle && petToggle.checked) summary.textContent = '桌宠陪聊';
+      else summary.textContent = '普通对话';
+    }
+    // 清空是"自救"入口：记录损坏导致 historyReady=false 时也必须能点，
+    // 否则坏文件永远删不掉，用户只能手删磁盘。
+    $('chat-clear').disabled = Boolean(clearing || sending || pendingTask || !projectPath);
     $('chat-cancel').hidden = !pendingTask;
     $('chat-cancel').disabled = cancelling;
     if (useMemory) {
@@ -124,14 +170,14 @@
     }
   }
 
-  function bubble(role, text, meta) {
+  function bubble(role, text, meta, whoLabel) {
     const empty = log.querySelector('.chat-empty');
     if (empty) empty.remove();
     const wrap = document.createElement('div');
     wrap.className = `chat-msg ${role}`;
     const who = document.createElement('span');
     who.className = 'chat-who';
-    who.textContent = role === 'user' ? '你' : '模型';
+    who.textContent = whoLabel || (role === 'user' ? '你' : '模型');
     const body = document.createElement('div');
     body.className = 'chat-text';
     body.textContent = text;
@@ -183,6 +229,21 @@
         modelSelect.append(option);
       }
       if (defaultModel && models.some((m) => m.id === defaultModel)) modelSelect.value = defaultModel;
+      loadedModels = models.slice();
+      if (multiSelect) {
+        // 重建选项前记住用户已勾选的模型，刷新后保留选择，不静默覆盖。
+        const previouslySelected = new Set([...multiSelect.options].filter((o) => o.selected).map((o) => o.value));
+        multiSelect.replaceChildren();
+        for (const model of models) {
+          const option = document.createElement('option');
+          option.value = model.id;
+          option.textContent = `${model.name}${model.local ? ' · 本地' : ' · 云端'}`;
+          multiSelect.append(option);
+        }
+        const kept = [...multiSelect.options].filter((o) => previouslySelected.has(o.value));
+        if (kept.length) kept.forEach((o) => o.selected = true);
+        else for (const option of [...multiSelect.options].slice(0, 2)) option.selected = true;
+      }
       consent.disabled = models.length === 0;
       say(`已读取 ${models.length} 个模型`);
       return true;
@@ -205,13 +266,14 @@
       if (!id) throw new Error('还没有加载记忆空间，无法带上记忆。');
       const reply = await window.workbench.memoryPacket({ spaceId: id, query: text, budgetChars: 2000 });
       if (!reply.ok) throw new Error(reply.error);
-      const packet = reply.data;
-      if (packet.items.length) {
+      const packet = reply.data || {};
+      const items = Array.isArray(packet.items) ? packet.items : [];
+      if (items.length) {
         memoryText = packet.text;
         injected = {
-          count: packet.items.length,
+          count: items.length,
           matched: packet.matched,
-          items: packet.items.map((item) => ({
+          items: items.map((item) => ({
             id: String(item.id),
             title: String(item.title || '未命名记忆'),
             version: item.version,
@@ -298,6 +360,12 @@
         idleStreak += 1;
         if (idleStreak >= LIVE_IDLE_AFTER) liveDelay = LIVE_SLOW_MS;
       }
+      // 桌宠陪聊：第一次拿到正文，从"思考中"切到"发言中"。
+      if (activePet && !petSpoken) {
+        petSpoken = true;
+        clearPetStalled();
+        setAgentState(activePet.modelId, 'speaking');
+      }
       live.classList.add('is-streaming');
     } catch {}
   }
@@ -350,6 +418,14 @@
       }
       stopPolling();
       pendingTask = null;
+      // 桌宠陪聊：本轮结束，节点定格在"已回复"或"失败"；回答不重复挂（对话气泡已显示）。
+      if (activePet) {
+        const ok = !reply.data.exitCode && ['completed', 'accepted'].includes(state);
+        setAgentState(activePet.modelId, 'done', ok ? reply.data.answer : '', false, ok ? '已回复' : '失败');
+        clearPetStalled();
+        activePet = null;
+        petSpoken = false;
+      }
       const body = node.querySelector('.chat-text');
       body.classList.remove('is-streaming');
       const meta = document.createElement('div');
@@ -383,6 +459,8 @@
   }
 
   async function send() {
+    if (multiToggle && multiToggle.checked) return sendMulti();
+    if (discussionToggle && discussionToggle.checked) return sendDiscussion();
     const text = input.value.trim();
     if (!historyReady || clearing || !text || !consent.checked || consent.disabled || !modelSelect.value || pendingTask || sending) return;
     sending = true; // Lock before the first await, not after obtaining a task ID.
@@ -433,6 +511,19 @@
       if (!reply.ok) throw new Error(reply.error);
       pendingTask = reply.data.id;
       say(`已派发：${pendingTask}（${reply.data.status || 'queued'}）`);
+      // 桌宠陪聊：单个模型也显示一个桌宠节点，状态跟随"思考→说话→已回复"。
+      if (petToggle && petToggle.checked && stage) {
+        const model = loadedModels.find((m) => m.id === modelId);
+        activePet = { modelId, modelName: model ? model.name : modelId };
+        petSpoken = false;
+        renderStage([{ id: modelId, name: activePet.modelName }]);
+        setAgentState(modelId, 'thinking');
+        // A07：8 秒日志仍无正文就如实说「等待中：日志暂无正文」。
+        clearPetStalled();
+        petStalledTimer = setTimeout(() => {
+          if (activePet && !petSpoken) setAgentState(activePet.modelId, 'stalled');
+        }, 8000);
+      }
       timer = setInterval(() => poll(pendingTask, node), 2000);
       liveDelay = LIVE_FAST_MS;
       idleStreak = 0;
@@ -456,6 +547,371 @@
     }
   }
 
+
+  // ---------- 多视角对比 ----------
+  const BRANCH_LABEL = { queued: '排队中', running: '生成中', done: '已完成', failed: '失败' };
+
+  function branchCard(branch) {
+    const card = document.createElement('div');
+    card.className = 'chat-branch';
+    card.dataset.branch = branch.key;
+    const head = document.createElement('div');
+    head.className = 'chat-branch-head';
+    const name = document.createElement('strong');
+    name.textContent = branch.modelName;
+    const state = document.createElement('span');
+    state.textContent = BRANCH_LABEL.queued;
+    head.append(name, state);
+    const body = document.createElement('div');
+    body.className = 'chat-branch-body';
+    body.textContent = '等待派发…';
+    const foot = document.createElement('div');
+    foot.className = 'chat-branch-foot';
+    const meta = document.createElement('span');
+    meta.textContent = branch.local ? '本机模型' : '云端模型';
+    const adopt = document.createElement('button');
+    adopt.type = 'button';
+    adopt.className = 'ghost';
+    adopt.textContent = '用这条继续';
+    adopt.disabled = true;
+    adopt.addEventListener('click', () => adoptBranch(branch, card));
+    foot.append(meta, adopt);
+    card.append(head, body, foot);
+    return { card, state, body, meta, adopt };
+  }
+
+  function paintBranch(branch, ui) {
+    ui.state.textContent = BRANCH_LABEL[branch.status] || branch.status;
+    if (branch.status === 'failed' && branch.error) ui.body.textContent = branch.error;
+    else if (branch.answer) ui.body.textContent = branch.answer;
+    ui.card.classList.toggle('is-done', branch.status === 'done');
+    ui.card.classList.toggle('is-failed', branch.status === 'failed');
+    if (branch.tokens) ui.meta.textContent = `${branch.local ? '本机' : '云端'} · ${branch.tokens} tokens`;
+    ui.adopt.disabled = !(branch.status === 'done' && String(branch.answer || '').trim()) || ui.card.dataset.adopted === '1';
+  }
+
+  function adoptBranch(branch, card) {
+    const answer = String(branch.answer || '').trim();
+    if (!answer) return;
+    messages.push({ role: 'assistant', text: answer, meta: `来自 ${branch.modelName}` });
+    persist();
+    for (const other of log.querySelectorAll('.chat-branch')) {
+      const button = other.querySelector('.chat-branch-foot button');
+      if (button) button.disabled = true;
+    }
+    card.dataset.adopted = '1';
+    say(`已采纳「${branch.modelName}」的回答；其他视角不写进历史。`);
+  }
+
+  async function watchBranch(branch, ui, prompt) {
+    const multi = window.__chatMulti;
+    try {
+      const reply = await window.workbench.dispatchSend({ prompt, modelId: branch.modelId, kind: 'chat', project: projectPath });
+      if (!reply || !reply.ok) {
+        multi.applyStatus(branch, { state: 'failed', error: (reply && reply.error) || '派发失败' });
+        paintBranch(branch, ui);
+        return;
+      }
+      branch.taskId = reply.data.id;
+      multi.applyStatus(branch, { state: reply.data.status || 'queued' });
+      paintBranch(branch, ui);
+      const gen = multiGeneration;
+      await new Promise((resolve) => {
+        let logTimer = null;
+        let statusTimer = null;
+        const finish = () => {
+          multiFinishers.delete(finish);
+          if (logTimer) clearInterval(logTimer);
+          if (statusTimer) clearInterval(statusTimer);
+          logTimer = null; statusTimer = null;
+          resolve();
+        };
+        multiFinishers.add(finish);
+        logTimer = setInterval(async () => {
+          if (gen !== multiGeneration) { finish(); return; }
+          if (!branch.taskId || document.hidden) return;
+          try {
+            const live = await window.workbench.dispatchLog(branch.taskId);
+            if (live && live.ok) {
+              const text = String(live.data.answer || '').trim();
+              if (text && text !== branch.answer) { branch.answer = text; paintBranch(branch, ui); }
+            }
+          } catch {}
+        }, 500);
+        statusTimer = setInterval(async () => {
+          if (gen !== multiGeneration) { finish(); return; }
+          try {
+            const status = await window.workbench.dispatchStatus(branch.taskId);
+            if (!status || !status.ok) return;
+            const task = status.data.task;
+            multi.applyStatus(branch, {
+              state: task ? (task.status || task.phase) : 'running',
+              answer: status.data.answer,
+              exitCode: status.data.exitCode,
+              tokens: task && task.usage ? task.usage.total_tokens : null,
+            });
+            paintBranch(branch, ui);
+            if (multi.isSettled(branch)) finish();
+          } catch {}
+        }, 2000);
+      });
+    } catch (error) {
+      multi.applyStatus(branch, { state: 'failed', error: error.message });
+      paintBranch(branch, ui);
+    }
+  }
+
+  async function sendMulti() {
+    const multi = window.__chatMulti;
+    const text = input.value.trim();
+    if (!historyReady || clearing || !text || !consent.checked || consent.disabled || pendingTask || sending || multiGroupRunning) return;
+    if (!projectPath) { say('请先选择项目文件夹。', true); return; }
+    const chosen = multi.pickModels(loadedModels, multiSelect ? [...multiSelect.selectedOptions].map((option) => option.value) : []);
+    if (chosen.length < 2) { say('多视角至少需要两个可用模型：先读模型，再勾两个。', true); return; }
+
+    const gen = multiGeneration;
+    multiGroupRunning = true;
+    refresh();
+    const history = useHistory && useHistory.checked
+      ? window.__chatPrompt.buildHistory(messages, window.__chatPrompt.DEFAULT_HISTORY_CHARS)
+      : { text: '', included: 0, omitted: 0 };
+    messages.push({ role: 'user', text });
+    persist();
+    input.value = '';
+    bubble('user', text);
+
+    const branches = chosen.map(multi.createBranch);
+    const wrap = document.createElement('div');
+    wrap.className = 'chat-branches';
+    const uis = branches.map((branch) => {
+      const ui = branchCard(branch);
+      wrap.append(ui.card);
+      return ui;
+    });
+    log.append(wrap);
+    log.scrollTop = log.scrollHeight;
+    say(`${branches.length} 个视角已排队：本机队列串行，会依次执行。`);
+
+    try {
+      const { prompt } = await composePrompt(text, history);
+      await Promise.all(branches.map((branch, index) => watchBranch(branch, uis[index], prompt)));
+      const summary = multi.summarize(branches);
+      if (gen === multiGeneration) say(`全部结束：成功 ${summary.done} 个 / 失败 ${summary.failed} 个。选一条「用这条继续」写进历史。`);
+    } catch (error) {
+      say(`多视角发送失败：${error.message}`, true);
+    } finally {
+      multiGroupRunning = false;
+      refresh();
+    }
+  }
+
+  // ---------- 讨论场景：多个 Agent 角色可视化 ----------
+  // 桌宠形象：每个模型一个可配置形象。默认按 model id 稳定分配 emoji，点击头像循环切换（emoji 池 + 大肥鱼 GIF），存本机。
+  const PET_GIFS = {
+    waiting: 'assets/pets/idle.gif',
+    thinking: 'assets/pets/thinking.gif',
+    speaking: 'assets/pets/speaking.gif',
+    stalled: 'assets/pets/idle.gif',
+    done: 'assets/pets/idle.gif',
+  };
+  const PET_GIF_ID = 'dafeiyu';
+  const PET_EMOJIS = ['🐳', '🦊', '🐱', '🐼', '🐸', '🦉', '🐙', '🐹', '🐰', '🐯'];
+  const PET_OPTIONS = [PET_GIF_ID, ...PET_EMOJIS.map((e) => 'emoji:' + e)];
+
+  function petKey(modelId) { return 'pet-avatar:' + modelId; }
+
+  function hashEmoji(modelId) {
+    let h = 0;
+    const s = String(modelId);
+    for (let i = 0; i < s.length; i += 1) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+    return PET_EMOJIS[h % PET_EMOJIS.length];
+  }
+
+  function currentPet(modelId) {
+    try { return localStorage.getItem(petKey(modelId)) || ('emoji:' + hashEmoji(modelId)); } catch { return 'emoji:' + hashEmoji(modelId); }
+  }
+
+  function renderAvatar(avatar, modelId) {
+    avatar.replaceChildren();
+    const node = avatar.closest('.agent-node');
+    const state = node ? node.dataset.state : 'waiting';
+    const pet = currentPet(modelId);
+    avatar.title = '点击切换形象';
+    avatar.dataset.modelId = modelId;
+    if (pet === PET_GIF_ID) {
+      const img = document.createElement('img');
+      img.className = 'agent-pet';
+      img.src = PET_GIFS[state] || PET_GIFS.waiting;
+      img.alt = '';
+      img.onerror = () => { img.remove(); avatar.textContent = hashEmoji(modelId); };
+      avatar.append(img);
+    } else {
+      avatar.textContent = pet.slice('emoji:'.length);
+    }
+  }
+
+  function cyclePet(modelId, avatar) {
+    const cur = currentPet(modelId);
+    const idx = PET_OPTIONS.indexOf(cur);
+    const next = PET_OPTIONS[(idx + 1) % PET_OPTIONS.length];
+    try { localStorage.setItem(petKey(modelId), next); } catch {}
+    renderAvatar(avatar, modelId);
+  }
+
+  function renderStage(models) {
+    if (!stage) return;
+    stage.replaceChildren();
+    for (const model of models) {
+      const node = document.createElement('div');
+      node.className = 'agent-node';
+      node.dataset.state = 'waiting';
+      node.dataset.modelId = model.id;
+      const avatar = document.createElement('div');
+      avatar.className = 'agent-avatar';
+      avatar.addEventListener('click', () => cyclePet(model.id, avatar));
+      renderAvatar(avatar, model.id);
+      const name = document.createElement('div');
+      name.className = 'agent-name';
+      name.textContent = model.name;
+      const stateEl = document.createElement('div');
+      stateEl.className = 'agent-state';
+      stateEl.textContent = '等待中';
+      node.append(avatar, name, stateEl);
+      stage.append(node);
+    }
+    stage.hidden = false;
+  }
+
+  function setAgentState(modelId, state, answer, withBubble = true, labelOverride = null) {
+    if (!stage) return;
+    const node = stage.querySelector(`.agent-node[data-model-id="${CSS.escape(modelId)}"]`);
+    if (!node) return;
+    node.dataset.state = state;
+    const stateEl = node.querySelector('.agent-state');
+    const label = { waiting: '等待中', thinking: '思考中…', speaking: '发言中', stalled: '等待中：日志暂无正文', done: '已发言' };
+    if (stateEl) stateEl.textContent = labelOverride || label[state] || state;
+    const pet = node.querySelector('.agent-pet');
+    if (pet) pet.src = PET_GIFS[state] || PET_GIFS.waiting;
+    if (state === 'done' && withBubble) {
+      let bubble = node.querySelector('.agent-bubble');
+      if (!bubble) { bubble = document.createElement('div'); bubble.className = 'agent-bubble'; node.append(bubble); }
+      bubble.textContent = answer || '（没有有效发言）';
+    }
+  }
+
+  // ---------- 讨论模式 ----------
+  // 多个模型串行发言，每位能看到前面所有发言；返回该位模型的非空回答，否则 null。
+  async function runDiscussionTurn(model, prompt, onState) {
+    const multi = window.__chatMulti;
+    const branch = multi.createBranch(model, 0);
+    const reply = await window.workbench.dispatchSend({ prompt, modelId: model.id, kind: 'chat', project: projectPath });
+    if (!reply || !reply.ok) { if (onState) onState('done'); return null; }
+    branch.taskId = reply.data.id;
+    multi.applyStatus(branch, { state: reply.data.status || 'queued' });
+    if (onState) onState('thinking');
+    const gen = multiGeneration;
+    await new Promise((resolve) => {
+      let logTimer = null;
+      let statusTimer = null;
+      let stalledTimer = null;
+      let hasSpoken = false;
+      const finish = () => {
+        if (logTimer) clearInterval(logTimer);
+        if (statusTimer) clearInterval(statusTimer);
+        if (stalledTimer) clearTimeout(stalledTimer);
+        resolve();
+      };
+      // A07：等了很久日志还没有正文，如实说「等待中：日志暂无正文」，不假装在思考。
+      stalledTimer = setTimeout(() => {
+        if (gen === multiGeneration && !hasSpoken && onState) onState('stalled');
+      }, 8000);
+      logTimer = setInterval(async () => {
+        if (gen !== multiGeneration) { finish(); return; }
+        if (!branch.taskId || document.hidden) return;
+        try {
+          const live = await window.workbench.dispatchLog(branch.taskId);
+          if (live && live.ok) { const text = String(live.data.answer || '').trim(); if (text) { branch.answer = text; if (!hasSpoken) { hasSpoken = true; if (onState) onState('speaking'); } } }
+        } catch {}
+      }, 500);
+      statusTimer = setInterval(async () => {
+        if (gen !== multiGeneration) { finish(); return; }
+        try {
+          const status = await window.workbench.dispatchStatus(branch.taskId);
+          if (!status || !status.ok) return;
+          const task = status.data.task;
+          multi.applyStatus(branch, { state: task ? (task.status || task.phase) : 'running', answer: status.data.answer, exitCode: status.data.exitCode, tokens: task && task.usage ? task.usage.total_tokens : null });
+          if (multi.isSettled(branch)) finish();
+        } catch {}
+      }, 2000);
+    });
+    if (branch.status !== 'done' || !String(branch.answer || '').trim()) return null;
+    return { answer: String(branch.answer).trim(), tokens: branch.tokens };
+  }
+
+  // 讨论发言的"采纳"按钮：把某位模型的发言写进历史，后续追问能带上它。
+  function discussionAdoptButton(modelName, answer) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'chat-adopt';
+    btn.textContent = '采纳这条继续';
+    btn.addEventListener('click', () => {
+      messages.push({ role: 'assistant', text: answer, meta: `讨论 · ${modelName}` });
+      persist();
+      for (const b of log.querySelectorAll('.chat-adopt')) b.disabled = true;
+      say(`已采纳「${modelName}」的发言；继续追问会带上它。`);
+    });
+    return btn;
+  }
+
+  async function sendDiscussion() {
+    const multi = window.__chatMulti;
+    const text = input.value.trim();
+    if (!historyReady || clearing || !text || !consent.checked || consent.disabled || pendingTask || sending || multiGroupRunning) {
+      if (multiGroupRunning) say('上一组多视角还没结束，请稍候再开始讨论。', true);
+      else if (!consent.checked || consent.disabled) say('请先勾选确认，再发送讨论。', true);
+      else say('讨论未发送：请检查模型选择与内容。', true);
+      return;
+    }
+    if (!projectPath) { say('请先选择项目文件夹。', true); return; }
+    const chosen = multi.pickModels(loadedModels, multiSelect ? [...multiSelect.selectedOptions].map((o) => o.value) : []);
+    if (chosen.length < 2) { say('讨论至少需要两个可用模型：先读模型，再勾两个。', true); return; }
+
+    const gen = multiGeneration;
+    multiGroupRunning = true;
+    refresh();
+    messages.push({ role: 'user', text });
+    persist();
+    input.value = '';
+    bubble('user', text);
+
+    const spoken = [];
+    renderStage(chosen);
+    say(`讨论开始：${chosen.length} 位模型依次发言，每位能看到前面的发言。`);
+    try {
+      for (const model of chosen) {
+        say(`讨论中：${model.name} 正在发言…`);
+        setAgentState(model.id, 'thinking');
+        const prompt = window.__chatMulti.buildDiscussionPrompt({ question: text, spoken });
+        const result = await runDiscussionTurn(model, prompt, (state) => setAgentState(model.id, state));
+        if (result) {
+          spoken.push({ modelName: model.name, text: result.answer });
+          setAgentState(model.id, 'done', result.answer);
+          const wrap = bubble('assistant', result.answer, result.tokens ? `${result.tokens} tokens` : '', `讨论 · ${model.name}`);
+          wrap.append(discussionAdoptButton(model.name, result.answer));
+        } else {
+          setAgentState(model.id, 'done', '（没有有效发言）');
+          bubble('assistant', '（这位模型没有给出有效发言）', '', `讨论 · ${model.name}`);
+        }
+      }
+      if (gen === multiGeneration) say(`讨论结束，${spoken.length}/${chosen.length} 位已发言。`);
+    } catch (error) {
+      say(`讨论失败：${error.message}`, true);
+    } finally {
+      multiGroupRunning = false;
+      refresh();
+    }
+  }
+
   // 导航：切到对话时隐藏其他页，切走时隐藏自己。
   const PAGES = ['memory-page', 'tasks-page', 'designer-page', 'chat-page', 'models-page'];
   function showChat() {
@@ -465,7 +921,15 @@
     for (const b of document.querySelectorAll('.nav-button')) b.classList.toggle('active', b.id === 'nav-chat');
     refresh();
   }
-  function hideChat() { const el = $('chat-page'); if (el) el.hidden = true; $('nav-chat')?.classList.remove('active'); }
+  function hideChat() {
+    const el = $('chat-page');
+    if (el) el.hidden = true;
+    $('nav-chat')?.classList.remove('active');
+    // 页面切走就停轮询：任务还在跑，但没必要继续拉隐藏页的 DOM 和 IPC。
+    stopPolling();
+    abortMulti();
+    resetPet();
+  }
   $('nav-chat').addEventListener('click', () => { hideChat(); showChat(); });
   for (const id of ['nav-memory', 'nav-tasks', 'nav-designer', 'nav-panel']) {
     const button = $(id);
@@ -473,6 +937,28 @@
   }
 
   $('chat-models').addEventListener('click', loadModels);
+  // 网页 AI：每次打开都要过一遍风险确认，不做"记住选择"。
+  $('chat-webai').addEventListener('click', () => {
+    const error = $('webai-error');
+    if (error) error.textContent = '';
+    $('webai-dialog')?.showModal();
+  });
+  $('webai-confirm').addEventListener('click', async () => {
+    const picked = document.querySelector('input[name="webai-target"]:checked');
+    const url = picked ? picked.value : '';
+    const button = $('webai-confirm');
+    button.disabled = true;
+    try {
+      const reply = await window.workbench.webaiOpen(url);
+      if (!reply || !reply.ok) throw new Error((reply && reply.error) || '打开失败。');
+      $('webai-dialog').close();
+      say(`已打开第三方网页 AI（${reply.data.host}）：它不经过本工作台，回复不会自动带回这里。`);
+    } catch (error) {
+      $('webai-error').textContent = error.message;
+    } finally {
+      button.disabled = false;
+    }
+  });
   // 复用任务页那套原生目录选择：不另写一份选择逻辑，避免两处行为不一致。
   $('chat-project').addEventListener('click', () => {
     const choose = $('choose');
@@ -484,6 +970,10 @@
   useMemory.addEventListener('change', () => { consent.checked = false; invalidateSend(); });
   if (useHistory) useHistory.addEventListener('change', () => { consent.checked = false; invalidateSend(); });
   modelSelect.addEventListener('change', () => { consent.checked = false; invalidateSend(); });
+  if (multiToggle) multiToggle.addEventListener('change', () => { if (multiToggle.checked) { if (discussionToggle) discussionToggle.checked = false; if (petToggle) petToggle.checked = false; } refresh(); });
+  if (discussionToggle) discussionToggle.addEventListener('change', () => { if (discussionToggle.checked) { if (multiToggle) multiToggle.checked = false; if (petToggle) petToggle.checked = false; } refresh(); });
+  if (petToggle) petToggle.addEventListener('change', () => { if (petToggle.checked) { if (multiToggle) multiToggle.checked = false; if (discussionToggle) discussionToggle.checked = false; } refresh(); });
+  if (multiSelect) multiSelect.addEventListener('change', refresh);
   input.addEventListener('input', invalidateSend);
   window.addEventListener('workbench-project-changed', () => {
     consent.checked = false; invalidateSend(); syncProject().then(refresh);
@@ -508,7 +998,7 @@
     } finally { if (revision === conversationRevision) { cancelling = false; refresh(); } }
   });
   $('chat-clear').addEventListener('click', async () => {
-    if (!historyReady || clearing || sending || pendingTask) return;
+    if (clearing || sending || pendingTask) return;
     const revision = conversationRevision;
     clearing = true; refresh();
     try {
@@ -518,7 +1008,9 @@
       messages.length = 0;
       log.replaceChildren();
       stopPolling();
+      resetPet();
       pendingTask = null;
+      historyReady = true; // 坏记录已删除，允许重新开始
       say('对话已清空（本机记录也已删除；任务记录不受影响）。');
       renderEmpty();
     } catch { if (revision === conversationRevision) say('清空失败，保留当前对话，请稍后重试。', true); }

@@ -2,7 +2,7 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
 const http=require('node:http');
-const {createPayload,saveModelSettings}=require('./model-settings.cjs');
+const {createPayload,saveModelSettings,loadModelSettings}=require('./model-settings.cjs');
 const values=()=>({name:'Example',provider:'local',api_base:'http://127.0.0.1:11434/v1',model:'example:7b',default_agent:'dsh',max_input_tokens:32768,max_output_tokens:4096});
 async function serverTest(run, respond) {
   const calls=[];
@@ -11,7 +11,7 @@ async function serverTest(run, respond) {
       calls.push({method:req.method,path:req.url,token:req.headers['x-panel-token'],body:raw?JSON.parse(raw):null});
       res.setHeader('Content-Type','application/json');
       if(req.url==='/api/session')return res.end(JSON.stringify({token:'test-session-only'}));
-      if(respond)return respond(res);
+      if(respond)return respond(res,req,calls);
       res.end(JSON.stringify({id:'m1',name:'Example',api_key:'fixture-secret-response',secret:'fixture-encrypted-response'}));
     });
   });
@@ -22,6 +22,37 @@ test('create validates fields and never enables budget bypass, default switching
   const body=createPayload(values());assert.equal(body.bypass_proxy,true);assert.equal(body.enabled,true);
   assert.equal(body.make_default,undefined);assert.equal(body.api_key,undefined);
   for(const key of ['make_default','paid_allowed','clear_key','subagent'])assert.throws(()=>createPayload({...values(),[key]:true}));
+});
+
+test('editing keeps authentication source, disabled/proxy flags and omits unrelated fields',async()=>{
+  const row={id:'m1',...values(),enabled:false,bypass_proxy:true,api_key_env:'EXAMPLE_MODEL_KEY',secret:'fixture-secret',api_key:'fixture-plain',default_agent:'pi'};
+  await serverTest(async(base,calls)=>{
+    const loaded=await loadModelSettings(base,'m1');
+    assert.deepEqual(Object.keys(loaded).sort(),['id','values','version']);
+    assert.equal(JSON.stringify(loaded).includes('fixture-secret'),false);
+    assert.equal(JSON.stringify(loaded).includes('EXAMPLE_MODEL_KEY'),false);
+    await saveModelSettings(base,{action:'edit',id:'m1',version:loaded.version,values:{...loaded.values,name:'Renamed'}});
+    const post=calls.find(c=>c.method==='POST');
+    assert.equal(post.path,'/api/models/m1/save');
+    assert.deepEqual(post.body,{...loaded.values,name:'Renamed',enabled:false,bypass_proxy:true,api_key_env:'EXAMPLE_MODEL_KEY'});
+    assert.equal(calls.filter(c=>c.method==='POST').length,1);
+    assert.equal(calls.some(c=>c.path.includes('/test')),false);
+  },(res,req)=>res.end(JSON.stringify(req.url==='/api/state'?{models:[row]}:{id:'m1'})));
+});
+
+test('stale edits, native models and secret injection fail before a write',async()=>{
+  const row={id:'m1',...values(),enabled:true,bypass_proxy:true,api_key_env:''};
+  await serverTest(async(base,calls)=>{
+    const loaded=await loadModelSettings(base,'m1');
+    const edit={action:'edit',id:'m1',version:loaded.version,values:loaded.values};
+    await assert.rejects(saveModelSettings(base,{...edit,values:{...edit.values,api_key:'fixture'}}),/无效/);
+    await assert.rejects(saveModelSettings(base,{...edit,values:{...edit.values,provider:'custom'}}),/服务类型/);
+    row.enabled=false;
+    await assert.rejects(saveModelSettings(base,edit),/其他操作修改/);
+    row.provider='workbuddy';
+    await assert.rejects(loadModelSettings(base,'m1'),/API 或本地/);
+    assert.equal(calls.some(c=>c.method==='POST'),false);
+  },res=>res.end(JSON.stringify({models:[row]})));
 });
 test('invalid provider, URL and numeric limits are rejected without echoing values',()=>{
   for(const value of ['workbuddy','zcode','invalid'])assert.throws(()=>createPayload({...values(),provider:value}));

@@ -82,6 +82,10 @@
 
   async function loadModels() {
     modelsButton.disabled = true;
+    // 读取期间锁死派发入口：旧模型列表可能已失效，不能用上一次的状态发任务。
+    consent.disabled = true;
+    if (send) send.disabled = true;
+    if (preview) preview.disabled = true;
     say('正在读取工作台模型…');
     try {
       const reply = await window.workbench.dispatchModels();

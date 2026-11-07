@@ -32,7 +32,7 @@ async function main() {
     const timer = setTimeout(() => {
       timedOut = true;
       child.kill();
-    }, 30000);
+    }, 180000);  // 用例已经涨到 60+ 项，30 秒会把还没跑完的进程直接杀掉
     child.once('error', (error) => {
       clearTimeout(timer);
       reject(error);

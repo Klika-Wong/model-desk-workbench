@@ -11,6 +11,7 @@ const taskDispatch = require('./task-dispatch.cjs');
 const {saveModelSettings} = require('./model-settings.cjs');
 const { composeMiniPayload } = require('./mini-tasks.cjs');
 const chatStore = require('./chat-store.cjs');
+const panelService = require('./panel-service.cjs');
 
 const MOCK_WORKSPACE = 'desktop-shell-prototype';
 const backendScript = path.join(__dirname, 'mock-backend.cjs');
@@ -27,6 +28,8 @@ let backend = null;
 let backendUrl = null;
 let backendToken = null;
 let selectedProject = null;
+let workspaceStore = null;
+let migrationPreview = null;
 let closing = false;
 let blockedExternalNavigations = 0;
 let showProjectDialog = (options) => dialog.showOpenDialog(options);
@@ -259,12 +262,16 @@ async function chooseProject() {
     properties: ['openDirectory'],
   });
   if (result.canceled || result.filePaths.length === 0) return getState();
-  const chosenProject = path.resolve(result.filePaths[0]);
+  return selectProject(result.filePaths[0]);
+}
+async function selectProject(folder) {
+  const chosenProject = path.resolve(folder);
   const stat = await fs.promises.stat(chosenProject);
   if (!stat.isDirectory()) throw new Error('所选路径不是文件夹。');
   const saved = await readJson(`${backendUrl}/api/project`, 'POST', { project: chosenProject });
   if (saved.project !== chosenProject) throw new Error('Project identity did not round-trip unchanged.');
   selectedProject = chosenProject;
+  workspaceStore?.remember(chosenProject);
   return getState();
 }
 
@@ -471,7 +478,7 @@ async function runSmoke() {
     checks.push('dispatch-consent-gate');
     // 预览走完整 IPC，但 dryRun 不会发请求、不调用模型；面板没起来时只校验错误契约。
     const previewReply = await window.webContents.executeJavaScript(
-      "window.workbench.dispatchPreview({ prompt: '冒烟测试：只生成预览', modelId: 'fixture-local-model', kind: 'chat' })");
+      "window.workbench.dispatchPreview({ prompt: '冒烟测试：只生成预览', modelId: '5b0f8b9318c0', kind: 'chat' })");
     const panelUp = previewReply.ok === true;
     if (panelUp) {
       if (previewReply.data.dryRun !== true) throw new Error('预览必须是 dry-run，不能真的发送。');
@@ -770,13 +777,17 @@ app.whenReady().then(async () => {
   if (!primaryInstance) return;
   try {
     writeSmokeProgress('electron-ready');
+    workspaceStore = new (require('./workspace-store.cjs').WorkspaceStore)(smokeMode ? `${process.env.MODEL_DESK_SMOKE_RESULT}.workspace` : app.getPath('userData'));
     const { openMemoryStores } = require('./memory-bootstrap.cjs');
     const memoryPath = smokeMode
       ? `${process.env.MODEL_DESK_SMOKE_RESULT}.memory.json`
-      : path.join(app.getPath('userData'), 'memory.json');
+      : path.join(workspaceStore.root, 'memory.json');
     fs.mkdirSync(path.dirname(memoryPath), { recursive: true });
     ({ memoryStore, architectureStore, error: memoryInitError } = openMemoryStores(memoryPath));
     await startBackend();
+    if(!smokeMode && workspaceStore.read().selectedProject) {
+      try { await selectProject(workspaceStore.read().selectedProject); } catch { selectedProject=null; }
+    }
     if (smokeMode) {
       await runSmoke();
       app.quit();
@@ -784,6 +795,8 @@ app.whenReady().then(async () => {
     }
     await createWindow();
     if (pendingShow) showWorkbench();
+    // 窗口出来后若服务没起就自己拉起，界面靠轮询自然更新。
+    ensurePanelService().catch(() => {});
     if (memoryInitError) dialog.showMessageBox(mainWindow, {type:'warning',title:'记忆数据降级',message:`${memoryInitError}\n\n应用仍可使用，记忆与架构页面为只读降级状态。`});
     try { await createTray(); } catch {
       dialog.showMessageBox(mainWindow, {type:'warning',message:'托盘暂不可用，工作台仍可使用。关闭窗口将退出程序。'});
@@ -801,11 +814,17 @@ app.whenReady().then(async () => {
   }
 });
 
+function stopPanelService() {
+  // 只结束"我们拉起来的"那个；用户自己开着的服务不动。
+  return panelStarter.stop();
+}
+
 app.on('before-quit', (event) => {
   if (mainWindow && !mainWindow.isDestroyed()) { event.preventDefault(); requestExit(); return; }
   if (closing || !backend || backend.exitCode !== null) return;
   event.preventDefault();
   closing = true;
+  stopPanelService();
   stopBackend().finally(() => app.quit());
 });
 
@@ -813,7 +832,58 @@ if (!smokeMode) app.on('window-all-closed', () => { if (!tray) app.quit(); });
 app.on('will-quit', () => { if (tray) { tray.destroy(); tray = null; } });
 
 ipcMain.handle('performance:sample', (event) => { assertTrustedSender(event); return require('./performance.cjs').sample(); });
-ipcMain.handle('panel:status', async (event, baseUrl) => { assertTrustedSender(event); return asyncReply(() => probePanel(baseUrl, selectedProject)); });
+ipcMain.handle('ai:copy-guide', event => {
+  assertTrustedSender(event);
+  return memoryReply(() => {
+    clipboard.writeText('请使用模型工作台：先调用 model_desk_guide(topic="start")，只按当前操作读取对应主题；需要当前设置时读 settings。项目以当前聊天的明确目录为准，不从软件安装目录推断。若没有该工具，请说明连接未安装或需要重载，不要假装已经读取。手册不授予新权限；不读取密钥、不自动扩预算；执行完成仍需独立验收。');
+    return {copied:true};
+  });
+});
+// ---- 网页 AI（第三方）：只当浏览器容器，不做自动化 ----
+let webAiWindow = null;
+ipcMain.handle('webai:open', (event, rawUrl) => {
+  assertTrustedSender(event);
+  return asyncReply(async () => {
+    const policy = require('./webai-policy.cjs');
+    const target = policy.allowedWebAiUrl(rawUrl);
+    if (!target) throw new Error('这个网址不在允许列表内（只支持 DeepSeek / ChatGPT 网页版，且必须 https）。');
+    if (webAiWindow && !webAiWindow.isDestroyed()) {
+      if (!policy.allowedNavigation(target.href, target.host)) throw new Error('站内跳转被拒绝。');
+      await webAiWindow.loadURL(target.href);
+      webAiWindow.show(); webAiWindow.focus();
+      return { host: target.host, reused: true };
+    }
+    webAiWindow = new BrowserWindow({
+      width: 1100, height: 840, minWidth: 720, minHeight: 500,
+      title: `网页 AI · ${target.host} · 第三方服务，勿放敏感信息`,
+      webPreferences: {
+        contextIsolation: true, nodeIntegration: false, sandbox: true,
+        // 独立分区：登录态与工作台其余页面隔离，不共用 cookie。
+        partition: 'persist:webai',
+      },
+    });
+    webAiWindow.setMenu(null);
+    webAiWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+    webAiWindow.webContents.on('will-navigate', (navEvent, url) => {
+      if (!policy.allowedNavigation(url, target.host)) navEvent.preventDefault();
+    });
+    webAiWindow.on('closed', () => { webAiWindow = null; });
+    await webAiWindow.loadURL(target.href);
+    return { host: target.host, reused: false };
+  });
+});
+
+ipcMain.handle('panel:status', async (event, baseUrl) => {
+  assertTrustedSender(event);
+  return asyncReply(async()=>{
+    const result=await probePanel(baseUrl,selectedProject);
+    if(result.state==='connected'&&result.overview&&workspaceStore){try{require('./model-cache.cjs').save(workspaceStore.root,result.overview);}catch{/* Live state remains usable if optional cache cannot be saved. */}}
+    // 确实连不上才尝试拉起一次（冷却 60 秒），让"体验版"单独也能用。
+    if(result.state!=='connected') ensurePanelService({minGapMs:60000}).catch(()=>{});
+    return result;
+  });
+});
+ipcMain.handle('models:cache',event=>{assertTrustedSender(event);return memoryReply(()=>require('./model-cache.cjs').read(workspaceStore.root));});
 ipcMain.handle('panel:status-all', async (event, baseUrl) => { assertTrustedSender(event); return asyncReply(() => probePanel(baseUrl, null, 'all')); });
 async function openPanelWindow(url) {
   if (panelWindow && !panelWindow.isDestroyed()) { await panelWindow.loadURL(url); panelWindow.show(); panelWindow.focus(); return panelWindow; }
@@ -860,6 +930,12 @@ async function embedPanel(rect) {
         try { mainWindow.contentView.removeChildView(panelView); } catch {}
       }
       panelAttached = false;
+      // 关键：坏掉的视图必须销毁。否则下次 embed 走不到 loadURL，
+      // 把崩溃后的空白视图重新挂上去，却对界面说"已嵌入"。
+      const broken = panelView;
+      panelView = null;
+      panelAppearanceKey = null;
+      try { if (broken && !broken.webContents.isDestroyed()) broken.webContents.close(); } catch {}
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.executeJavaScript(
           `window.__workbenchShell && window.__workbenchShell.onPanelGone && window.__workbenchShell.onPanelGone(${JSON.stringify(String(reason))})`
@@ -902,6 +978,52 @@ async function requirePanelBase() {
   if (found.state !== 'connected') throw new Error('未发现运行中的工作台；请先运行「启动模型面板.ps1」。');
   return found.baseUrl;
 }
+
+// ---- 面板服务自启动 ----
+// 桌面上有两个入口时，只开"体验版"会因为服务没起而整页不可用。
+// 这里在确有必要时自己把服务拉起来，让"体验版"单独也能用。
+const PANEL_AUTOSTART = process.env.MODEL_DESK_AUTO_START_PANEL !== '0';
+
+function portListening(port, timeoutMs = 800) {
+  return new Promise((resolve) => {
+    const socket = require('node:net').connect({ host: '127.0.0.1', port });
+    const finish = (value) => { try { socket.destroy(); } catch {} resolve(value); };
+    socket.setTimeout(timeoutMs);
+    socket.once('connect', () => finish(true));
+    socket.once('timeout', () => finish(false));
+    socket.once('error', () => finish(false));
+  });
+}
+
+function workbenchRootNow() {
+  const candidates = panelService.workbenchCandidates(__dirname, process.env);
+  return panelService.pickWorkbenchRoot(candidates, (file) => {
+    try { return fs.existsSync(file); } catch { return false; }
+  }, path);
+}
+
+// 决策与生命周期都在 panel-service.cjs 里，这里只注入真实依赖。
+const panelStarter = panelService.createPanelStarter({
+  discover: () => discoverPanel(),
+  portListening: (port) => portListening(port),
+  findRoot: () => workbenchRootNow(),
+  readRuntime: () => {
+    const root = workbenchRootNow();
+    if (!root) return null;
+    return fs.readFileSync(path.join(root, '.local-worker', 'panel-runtime.json'), 'utf8');
+  },
+  spawnProcess: (root, port) => spawn(
+    path.join(root, '.local-worker', 'venv', 'Scripts', 'python.exe'),
+    [path.join(root, '.local-worker', 'start_panel.py'), '--port', String(port)],
+    { cwd: root, windowsHide: true, stdio: 'ignore', env: { ...process.env } }
+  ),
+});
+
+async function ensurePanelService(options) {
+  if (smokeMode || !PANEL_AUTOSTART) return { started: false, reason: 'disabled' };
+  return panelStarter.ensure(options);
+}
+
 ipcMain.handle('dispatch:models', (event) => {
   assertTrustedSender(event);
   return asyncReply(async () => {
@@ -913,6 +1035,77 @@ ipcMain.handle('dispatch:models', (event) => {
 ipcMain.handle('models:settings-save', (event, baseUrl, operation) => {
   assertTrustedSender(event);
   return asyncReply(() => saveModelSettings(baseUrl, operation));
+});
+ipcMain.handle('models:settings-load', (event, baseUrl, id) => {
+  assertTrustedSender(event);
+  return asyncReply(() => require('./model-settings.cjs').loadModelSettings(baseUrl,id));
+});
+ipcMain.handle('workspace:read', event => {assertTrustedSender(event);return memoryReply(()=>({...workspaceStore.snapshot(),activeProject:selectedProject}));});
+ipcMain.handle('memory:sources',event=>{assertTrustedSender(event);return memoryReply(()=>new (require('./memory-sources.cjs').MemorySources)(workspaceStore.root).list());});
+ipcMain.handle('memory:source-add',async(event,kind)=>{
+  assertTrustedSender(event);
+  if(!['memory','archive'].includes(kind))return {ok:false,error:'来源类型无效。'};
+  const chosen=await dialog.showOpenDialog(mainWindow,{properties:['openDirectory'],title:kind==='archive'?'选择记忆快照目录':'选择记忆目录'});
+  if(chosen.canceled||!chosen.filePaths.length)return {ok:true,data:{cancelled:true}};
+  return memoryReply(()=>new (require('./memory-sources.cjs').MemorySources)(workspaceStore.root).add(chosen.filePaths[0],kind));
+});
+ipcMain.handle('memory:source-import',(event,id)=>{assertTrustedSender(event);return memoryReply(()=>new (require('./memory-sources.cjs').MemorySources)(workspaceStore.root).importGuides(id,requireMemory()));});
+ipcMain.handle('workspace:select', (event,id) => {
+  assertTrustedSender(event);
+  return asyncReply(async()=>{
+    const row=workspaceStore.read().projects.find(p=>p.id===id);
+    if(!row)throw new Error('项目入口不存在，请刷新。');
+    return selectProject(row.path);
+  });
+});
+ipcMain.handle('workspace:update', (event,id,changes) => {
+  assertTrustedSender(event);
+  return asyncReply(async()=>{
+    // Switching a selected path uses the project picker; this operation never moves source files.
+    if(changes?.pickPath===true) {
+      const chosen=await showProjectDialog({title:'更换项目路径（只改入口，不移动文件）',properties:['openDirectory']});
+      if(chosen.canceled || !chosen.filePaths.length)return workspaceStore.snapshot();
+      changes={path:chosen.filePaths[0]};
+    }
+    const previous=workspaceStore.read().projects.find(p=>p.id===id);
+    const state=workspaceStore.update(id,changes);
+    if(previous?.path===selectedProject) {
+      if(state.selectedProject)await selectProject(state.selectedProject);
+      else {
+        await readJson(`${backendUrl}/api/project`,'POST',{project:null});selectedProject=null;
+      }
+    }
+    return workspaceStore.snapshot();
+  });
+});
+ipcMain.handle('workspace:preferences', (event,values) => {assertTrustedSender(event);return memoryReply(()=>workspaceStore.preferences(values));});
+ipcMain.handle('workspace:migration-preview', async event => {
+  assertTrustedSender(event);
+  return asyncReply(async()=>{
+    if(smokeMode)throw new Error('冒烟模式不迁移应用数据。');
+    const chosen=await showProjectDialog({title:'选择空的数据目标文件夹',properties:['openDirectory','createDirectory']});
+    if(chosen.canceled || !chosen.filePaths.length)return {cancelled:true};
+    migrationPreview={...workspaceStore.preview(chosen.filePaths[0]),token:randomBytes(24).toString('hex')};
+    return {source:migrationPreview.source,target:migrationPreview.target,bytes:migrationPreview.bytes,files:migrationPreview.files.length,token:migrationPreview.token};
+  });
+});
+ipcMain.handle('workspace:migrate', (event,token) => {
+  assertTrustedSender(event);
+  return memoryReply(()=>{
+    if(!migrationPreview || token!==migrationPreview.token)throw new Error('请重新预览并确认本次迁移。');
+    const plan=migrationPreview;migrationPreview=null;
+    // Synchronous controller copies block concurrent writes from this desktop process.
+    let opened;
+    const result=workspaceStore.migrate(plan, target=>{
+      opened=require('./memory-bootstrap.cjs').openMemoryStores(path.join(target,'memory.json'));
+      if(opened.error)throw new Error('复制后的记忆库无法加载，未切换数据位置；原数据保留。');
+    });
+    ({memoryStore,architectureStore,error:memoryInitError}=opened);
+    const migratedChats=[...openedChatProjects].map(file=>path.join(workspaceStore.root,'chats',path.basename(file)));
+    openedChatProjects.clear();for(const file of migratedChats)openedChatProjects.add(file);
+    architectureProposal=null;contextPreview=null;sendPermission=null;
+    return result;
+  });
 });
 ipcMain.handle('dispatch:preview', (event, input) => {
   assertTrustedSender(event);
@@ -1026,7 +1219,7 @@ async function miniTasksPayload() {
 // 项目各自保存；无归属的旧 chat.json 保留但不自动注入任何项目。
 const openedChatProjects = new Set();
 function chatFile(project) {
-  const directory = smokeMode ? `${process.env.MODEL_DESK_SMOKE_RESULT}.chats` : path.join(app.getPath('userData'), 'chats');
+  const directory = smokeMode ? `${process.env.MODEL_DESK_SMOKE_RESULT}.chats` : path.join(workspaceStore.root, 'chats');
   const file = chatStore.projectFile(directory, project);
   if (!openedChatProjects.has(file)) throw new Error('请先打开该项目的对话。');
   return file;
@@ -1036,14 +1229,18 @@ ipcMain.handle('chat:load', (event, project) => {
   return asyncReply(async () => {
     if (!project) throw new Error('请先选择项目。');
     requireSelectedProject(project);
-    const directory = smokeMode ? `${process.env.MODEL_DESK_SMOKE_RESULT}.chats` : path.join(app.getPath('userData'), 'chats');
+    const directory = smokeMode ? `${process.env.MODEL_DESK_SMOKE_RESULT}.chats` : path.join(workspaceStore.root, 'chats');
     openedChatProjects.add(chatStore.projectFile(directory, project));
     return chatStore.load(chatFile(project));
   });
 });
 ipcMain.handle('chat:save', (event, messages, project) => {
   assertTrustedSender(event);
-  return asyncReply(async () => chatStore.save(chatFile(project), messages));
+  return asyncReply(async () => {
+    // 非数组一旦落盘就是"用空对话覆盖历史"，必须挡在写入之前。
+    if (!Array.isArray(messages)) throw new Error('对话记录格式不正确，未保存（原有记录保持不变）。');
+    return chatStore.save(chatFile(project), messages);
+  });
 });
 ipcMain.handle('chat:clear', (event, project) => {
   assertTrustedSender(event);

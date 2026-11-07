@@ -58,6 +58,8 @@ function load(file) {
 }
 
 function save(file, messages) {
+  // 非数组绝不能落盘：trim() 会把它变成空数组，等于用空对话覆盖历史。
+  if (!Array.isArray(messages)) throw new Error('对话记录必须是数组，未写入。');
   const { messages: kept, dropped } = trim(messages);
   const payload = { version: 1, savedAt: new Date().toISOString(), messages: kept };
   fs.mkdirSync(path.dirname(file), { recursive: true });

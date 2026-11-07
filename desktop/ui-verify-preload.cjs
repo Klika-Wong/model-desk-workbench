@@ -8,7 +8,7 @@ let terminalStatus = 'completed';
 let chatClearFails = false;
 let holdPerformance = false, performanceReplies = [];
 let logCalls = 0;
-let selectedProject = 'E:\\model-desk-fixture';
+let selectedProject = 'E:\\多Agent工作台升级规划';
 let panelFixture = false;
 let holdNextPanel = false;
 let heldPanelReply = null;
@@ -18,6 +18,9 @@ let holdEmbed = false;
 let embedReplies = [];
 let settingsReply = null;
 let settingsFail = false;
+let workspaceFixture={dataRoot:'E:/fixture-data',projects:[{id:'fixture-project',path:'E:/fixture-project',name:'Fixture project'}],quotaAutoRefresh:true,quotaRefreshSeconds:60};
+let offlineCacheFixture=false;
+let holdSettingsLoad = false, settingsLoadReplies = [];
 function getState() {
   const reply = { health: 'healthy', project: selectedProject, workspace: 'desktop-shell-prototype' };
   return holdState ? new Promise(resolve => stateReplies.push(() => resolve(reply))) : Promise.resolve(reply);
@@ -59,6 +62,16 @@ const snapshot = {
 contextBridge.exposeInMainWorld('workbench', {
   getState,
   chooseProject: async () => ({ health: 'healthy', project: selectedProject, workspace: 'desktop-shell-prototype' }),
+  workspaceRead: async()=>({ok:true,data:{...workspaceFixture,activeProject:selectedProject}}),
+  modelCache: async()=>({ok:true,data:offlineCacheFixture?{cached:true,models:[{id:'cached-model',name:'Cached fixture',enabled:true,providerLabel:'本地模型',executorLabel:'DeepSeek Harness',checkLabel:'尚无调用验证',canChooseAgent:true,local:true}],accounts:[{id:'offline',label:'账户额度',stateLabel:'服务未连接 · 额度未知',detail:'仅本机清单',windows:[]}]}:null}),
+  memorySources: async()=>({ok:true,data:[{id:'source-1',name:'Fixture memory',path:'E:/fixture-memory',kind:'memory',available:true,files:[{name:'README.md',bytes:20,canImport:true}]}]}),
+  memorySourceAdd: async kind=>{calls.push({api:'memorySourceAdd',kind});return {ok:true};},
+  memorySourceImport: async id=>{calls.push({api:'memorySourceImport',id});return {ok:true,data:{imported:1,unchanged:0}};},
+  workspaceSelect: async id=>{selectedProject=workspaceFixture.projects.find(p=>p.id===id)?.path;calls.push({api:'workspaceSelect',id});return {ok:true};},
+  workspaceUpdate: async(id,changes)=>{calls.push({api:'workspaceUpdate',id,changes});workspaceFixture.projects=workspaceFixture.projects.flatMap(p=>p.id===id?(changes.remove?[]:[{...p,...changes}]):[p]);return {ok:true};},
+  workspacePreferences: async values=>{workspaceFixture={...workspaceFixture,...values};calls.push({api:'workspacePreferences',values});return {ok:true};},
+  workspaceMigrationPreview: async()=>({ok:true,data:{source:workspaceFixture.dataRoot,target:'E:/new-fixture-data',files:3,bytes:1024,token:'fixture-preview'}}),
+  workspaceMigrate: async token=>{calls.push({api:'workspaceMigrate',token});workspaceFixture.dataRoot='E:/new-fixture-data';return {ok:true};},
   getTasks: async () => ({ tasks: [] }),
   startDemoTasks: async () => ({ tasks: [] }),
   cancelDemoTask: async () => ({ tasks: [] }),
@@ -92,7 +105,12 @@ contextBridge.exposeInMainWorld('workbench', {
   chatLoad: async (project) => ({ ok: true, data: { messages: project?.includes('different-fixture') ? [] : [{ role: 'user', text: '上次的第一句' }], dropped: 0, corrupted: false } }),
   chatSave: async (messages, project) => { calls.push({ api: 'chatSave', input: messages, project }); return { ok: true, data: { saved: (messages || []).length } }; },
   chatClear: async (project) => { calls.push({ api: 'chatClear', project }); return { ok: !chatClearFails, data: { cleared: !chatClearFails } }; },
-  dispatchModels: async () => ({ ok: true, data: { baseUrl: 'http://127.0.0.1:18765', defaultModel: 'm-local', models: [{ id: 'm-local', name: '本地示例模型', provider: 'local', local: true }] } }),
+  dispatchModels: async () => ({ ok: true, data: { baseUrl: 'http://127.0.0.1:18765', defaultModel: 'm-local', models: [{ id: 'm-local', name: '本地示例模型', provider: 'local', local: true }, { id: 'm-cloud', name: '云端示例模型', provider: 'cloud', local: false }] } }),
+  copyAiGuide: async () => { calls.push({api:'copyAiGuide'}); return {ok:true,data:{copied:true}}; },
+  modelSettingsLoad: async (base,id) => {
+    if(holdSettingsLoad)await new Promise(resolve=>settingsLoadReplies.push(resolve));
+    return {ok:true,data:{id,version:'a'.repeat(64),values:{name:'Existing local',provider:'local',api_base:'http://127.0.0.1:11434/v1',model:'fixture:7b',max_input_tokens:16384,max_output_tokens:2048}}};
+  },
   modelSettingsSave: (base, operation) => {
     const safe=JSON.parse(JSON.stringify(operation));
     const keyProvided=Boolean(safe.values?.api_key);
@@ -125,6 +143,7 @@ contextBridge.exposeInMainWorld('workbench', {
 });
 
 contextBridge.exposeInMainWorld('__stubCalls', { all: () => calls.slice(), setSendOk: (value) => { sendOk = value === true; logCalls = 0; },
+  enableOfflineCache:()=>{offlineCacheFixture=true;},
   logCalls: () => logCalls,
   failStatus: count => { statusFailures=count; },
   terminalStatus: value => { terminalStatus=value; },
@@ -143,4 +162,6 @@ contextBridge.exposeInMainWorld('__stubCalls', { all: () => calls.slice(), setSe
   releaseEmbeds: () => { holdEmbed = false; const replies = embedReplies; embedReplies = []; replies.forEach(resolve => resolve({ok:true,data:{url:'http://127.0.0.1:8765'}})); },
   releaseSettings: () => {if(settingsReply)settingsReply();},
   failSettings: value => {settingsFail=value===true;},
+  holdSettingsLoad: () => {holdSettingsLoad=true;},
+  releaseSettingsLoad: () => {holdSettingsLoad=false;const replies=settingsLoadReplies;settingsLoadReplies=[];replies.forEach(resolve=>resolve());},
 });

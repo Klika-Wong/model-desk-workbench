@@ -6,11 +6,11 @@ const assert = require('node:assert/strict');
 const { buildTaskRequest, dispatchTask, parsePort, projectHeader } = require('./task-dispatch.cjs');
 
 const BT = String.fromCharCode(92);
-const PROJECT = `E:${BT}model-desk-fixture`;
+const PROJECT = `E:${BT}多Agent工作台升级规划`;
 
 test('请求体按面板约定生成，默认走手动路由与模型默认执行器', () => {
-  const body = buildTaskRequest({ prompt: '回答 2+2', modelId: 'fixture-local-model', title: '连通性', project: PROJECT });
-  assert.equal(body.model_id, 'fixture-local-model');
+  const body = buildTaskRequest({ prompt: '回答 2+2', modelId: '5b0f8b9318c0', title: '连通性', project: PROJECT });
+  assert.equal(body.model_id, '5b0f8b9318c0');
   assert.equal(body.route_mode, 'manual');
   assert.equal(body.kind, 'chat');
   assert.equal(body.prompt, '回答 2+2');
@@ -65,7 +65,7 @@ test('总任务时限的非法值一律抛错，不静默回退也不改预算',
 });
 
 test('dry-run 不联网、不打印令牌', async () => {
-  const body = buildTaskRequest({ prompt: '回答 2+2', modelId: 'fixture-local-model', project: PROJECT });
+  const body = buildTaskRequest({ prompt: '回答 2+2', modelId: '5b0f8b9318c0', project: PROJECT });
   const preview = await dispatchTask({ payload: body, dryRun: true });
   assert.equal(preview.dryRun, true);
   assert.equal(preview.method, 'POST');

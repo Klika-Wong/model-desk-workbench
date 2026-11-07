@@ -42,7 +42,12 @@ async function main() {
       fs.writeFileSync(path.join(process.env.MODEL_DESK_SCREENSHOTS, `models-${width}-${theme}.png`), (await win.webContents.capturePage()).toPNG());
     }
   }
+  await win.loadFile(path.join(__dirname,'index.html'));
+  await js(`window.__stubCalls.enableOfflineCache();document.getElementById('nav-panel').click()`);
+  await new Promise(resolve=>setTimeout(resolve,150));
+  const offline=await js(`(()=>{const row=document.querySelector('.model-row');return {shown:row?.textContent.includes('Cached fixture'),label:document.getElementById('models-count').textContent.includes('本机离线清单'),disabled:row&&[...row.querySelectorAll('button')].every(b=>b.disabled),unknown:document.getElementById('models-accounts').textContent.includes('额度未知'),noSend:window.__stubCalls.all().every(c=>c.api!=='dispatchSend')};})()`);
+  if(Object.values(offline).some(v=>v!==true))throw new Error('Offline cache: '+JSON.stringify(offline));
   win.destroy();
-  process.stdout.write(JSON.stringify({ok:true,results})+'\n');
+  process.stdout.write(JSON.stringify({ok:true,results,offline})+'\n');
 }
 app.whenReady().then(main).then(() => app.quit()).catch(error => {process.stdout.write(JSON.stringify({ok:false,error:error.message})+'\n'); app.exit(1);});

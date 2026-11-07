@@ -6,15 +6,15 @@
     return node;
   };
   const time = value => value ? new Date(value).toLocaleString() : '';
-  function renderModels(container, models, onSelect, onConfigure) {
+  function renderModels(container, models, onSelect, onConfigure, onEdit) {
     container.replaceChildren();
-    if (!models.length) container.append(el('p', 'models-empty', '没有匹配的模型。可调整筛选，或在高级设置中添加模型。'));
+    if (!models.length) container.append(el('p', 'models-empty', '没有匹配的模型。可调整筛选，或点击“添加模型连接”。'));
     for (const model of models) {
       const row = el('article', 'model-row');
       const content = el('div', 'model-info');
       const heading = el('div', 'model-heading');
       heading.append(el('h3', '', model.name), el('span', 'model-badge', model.providerLabel));
-      const state = model.unavailable ? '连接中断 · 上次数据' : !model.enabled ? '已停用' : model.executorReady === true ? '执行端就绪' : model.executorReady === false ? '执行端未就绪' : '连接待确认';
+      const state = model.cached ? '本机配置记录 · 服务未连接' : model.unavailable ? '连接中断 · 上次数据' : !model.enabled ? '已停用' : model.executorReady === true ? '执行端就绪' : model.executorReady === false ? '执行端未就绪' : '连接待确认';
       content.append(heading, el('p', 'model-meta', `${model.executorLabel} · ${state}`),
         el('p', 'model-meta', `${model.checkLabel}${model.checkedAt ? ' · ' + time(model.checkedAt) : ''}`));
       if (model.selectionBlocked) content.append(el('p', 'model-meta', '需先在高级设置中选择为执行端当前模型'));
@@ -35,6 +35,12 @@
         settings.title = '选择后续新任务使用的执行软件';
         settings.addEventListener('click', () => onConfigure(model));
         actions.append(settings);
+        if (onEdit) {
+          const edit = el('button', '', '编辑连接');
+          edit.type = 'button'; edit.disabled = model.unavailable === true;
+          edit.addEventListener('click', () => onEdit(model));
+          actions.append(edit);
+        }
       }
       row.append(content, actions); container.append(row);
     }
