@@ -1,9 +1,8 @@
 (function (global) {
 'use strict';
 
-// 形象系统：每个模型一个会动、能点、能拖的拟人角色。
-// 默认一律给拟人形象；品牌币只作为可切换的一档保留。
-// 纯映射放在这里，协作视图与对话页共用，避免各写一套。
+// 形象系统：每个模型有多个可点选的拟人角色，角色自带 9 种动作。
+// 纯映射放在这里，协作视图与对话页共用；DOM 渲染也在这一层，避免两处各写一套。
 
 const EMOJIS = ['🐳', '🦊', '🐱', '🐼', '🐸', '🦉', '🐙', '🐹', '🐰', '🐯'];
 const BRAND_ID = 'brand';
@@ -11,12 +10,40 @@ const CHARACTER_ID = 'character';
 const CRAB_ID = 'crab';
 const GIF_ID = 'dafeiyu';
 const C = 'assets/characters/';
+const R = C + 'roster/';
 
-// 每个角色都有「待机 / 思考 / 说话 / 完成 / 被戳 / 被拖」六种状态，
-// 状态切换 = 换一张自带动效的图，不靠 CSS 假装它在动。
+// GitHub: savanna0425/llm-pet，15 个模型 × 标准版/Q 版 = 30 个手绘 Q 版角色。
+// 授权见 assets/characters/roster/NOTICE.md：署名 ZipZipPipe（DeepSeek 另署名上善）、仅非商业。
+const ROSTER = {
+  deepseek: { label: 'DeepSeek · 蓝色大肥鱼', ids: ['deepseek-chibi', 'deepseek-standard'] },
+  openai: { label: 'ChatGPT · 银白龙裔', ids: ['chatgpt-chibi', 'chatgpt-standard'] },
+  claude: { label: 'Claude · 向日葵', ids: ['claude-chibi', 'claude-standard'] },
+  gemini: { label: 'Gemini · 星辰猫耳', ids: ['gemini-chibi', 'gemini-standard'] },
+  grok: { label: 'Grok · 星冠双马尾', ids: ['grok-chibi', 'grok-standard'] },
+  zhipu: { label: 'GLM', ids: ['glm-chibi', 'glm-standard'] },
+  kimi: { label: 'Kimi', ids: ['kimi-chibi', 'kimi-standard'] },
+  qwen: { label: 'Qwen · 通义千问', ids: ['qwen-chibi', 'qwen-standard'] },
+  doubao: { label: '豆包', ids: ['doubao-chibi', 'doubao-standard'] },
+  hunyuan: { label: '腾讯混元', ids: ['hunyuan-chibi', 'hunyuan-standard'] },
+  minimax: { label: 'MiniMax', ids: ['minimax-chibi', 'minimax-standard'] },
+  mistral: { label: 'Mistral', ids: ['mistral-chibi', 'mistral-standard'] },
+  meta: { label: 'Meta Muse', ids: ['metamuse-chibi', 'metamuse-standard'] },
+  ollama: { label: 'MiMo', ids: ['mimo-chibi', 'mimo-standard'] },
+  spark: { label: '文心 ERNIE', ids: ['ernie-chibi', 'ernie-standard'] },
+};
+
+// spritesheet 九行：待机 / 右移 / 左移 / 招手 / 跳跃 / 失败 / 等待 / 工作 / 审查
+const ACTIONS = { idle: 0, moveRight: 1, moveLeft: 2, wave: 3, jump: 4, fail: 5, wait: 6, work: 7, review: 8 };
+const STATE_ACTION = {
+  waiting: 'idle', thinking: 'work', speaking: 'work', done: 'wave',
+  failed: 'fail', stalled: 'wait', poke: 'jump', drag: 'moveRight',
+};
+const SCENE_ACTION = { discuss: null, work: 'work', slack: 'idle' };
+
+// 本项目早期用的三套形象，保留为额外可选，不再是默认。
 const CHARACTERS = {
   character: {
-    label: '拟人少女',
+    label: 'Q 版少女',
     waiting: C + 'char-idle.svg', thinking: C + 'char-thinking.svg',
     speaking: C + 'char-typing.svg', done: C + 'char-happy.svg',
     failed: C + 'char-idle.svg', stalled: C + 'char-thinking.svg',
@@ -39,7 +66,6 @@ const CHARACTERS = {
   },
 };
 
-// 品牌币：白币托底 + 品牌色标识，两种主题都读得清。
 const BRANDS = {
   deepseek: { label: 'DeepSeek', file: 'assets/brands/deepseek-color.svg', color: '#4D6BFE', mono: true },
   openai: { label: 'OpenAI', file: 'assets/brands/openai.svg', color: '#10A37F', mono: true },
@@ -104,28 +130,49 @@ function hashOf(model) {
   for (let i = 0; i < s.length; i += 1) h = (h * 31 + s.charCodeAt(i)) >>> 0;
   return h;
 }
-
 function hashEmoji(model) { return EMOJIS[hashOf(model) % EMOJIS.length]; }
-// 同一个模型永远同一个色相；几个拟人形象同屏时不撞脸。
 function hueOf(model) { return hashOf(model) % 360; }
 
-// 默认形象：DeepSeek 用大肥鱼（它的社区拟人形象），Claude 用像素螃蟹，
-// 其余一律拟人少女（按模型 id 换发色）。不再默认发 emoji 或 logo。
-function defaultChoice(model) {
+// 每个模型至少两个专属形象：认得出品牌用该品牌的两版；认不出按 id 稳定挑两组。
+function rosterFor(model) {
   const key = keyOf(model);
-  if (key === 'deepseek') return GIF_ID;
-  if (key === 'claude') return CRAB_ID;
-  return CHARACTER_ID;
+  if (ROSTER[key]) return { label: ROSTER[key].label, ids: ROSTER[key].ids.slice(), own: true };
+  const groups = Object.values(ROSTER);
+  const h = hashOf(model);
+  const a = groups[h % groups.length];
+  const b = groups[(h + 7) % groups.length];
+  const ids = [a.ids[h % 2], b.ids[(h + 1) % 2]];
+  return { label: '通用形象', ids, own: false };
 }
 
-function optionsFor(model) {
-  const list = [CHARACTER_ID, CRAB_ID, GIF_ID];
-  if (keyOf(model)) list.push(BRAND_ID);
-  for (const e of EMOJIS) list.push('emoji:' + e);
+function defaultChoice(model) { return 'roster:' + rosterFor(model).ids[0]; }
+
+// 形象选择器的数据：专属两版在前，通用形象在后，全部带缩略图。
+function choicesFor(model) {
+  const roster = rosterFor(model);
+  const list = roster.ids.map((id) => ({
+    value: 'roster:' + id,
+    label: roster.label + (id.endsWith('-chibi') ? ' · Q 版' : ' · 标准版'),
+    thumb: R + id + '.gif',
+    own: true,
+  }));
+  list.push({ value: CHARACTER_ID, label: '通用 · Q 版少女', glyph: '👧', own: false });
+  list.push({ value: CRAB_ID, label: '通用 · 像素螃蟹', glyph: '🦀', own: false });
+  list.push({ value: GIF_ID, label: '通用 · 大肥鱼', glyph: '🐳', own: false });
+  if (keyOf(model)) list.push({ value: BRAND_ID, label: '官方标识', glyph: '◈', own: false });
+  for (const e of EMOJIS.slice(0, 4)) list.push({ value: 'emoji:' + e, label: '表情 ' + e, glyph: e, own: false });
   return list;
 }
 
+function optionsFor(model) { return choicesFor(model).map((c) => c.value); }
+
 function resolve(model, choice) {
+  if (typeof choice === 'string' && choice.indexOf('roster:') === 0) {
+    const id = choice.slice(7);
+    if (/^[a-z0-9-]+$/.test(id)) {
+      return { kind: 'roster', id, sheet: R + id + '.webp', thumb: R + id + '.gif' };
+    }
+  }
   if (choice === BRAND_ID) {
     const brand = brandOf(model);
     if (brand) return { kind: 'brand', brand };
@@ -134,31 +181,49 @@ function resolve(model, choice) {
   if (typeof choice === 'string' && choice.indexOf('emoji:') === 0) {
     return { kind: 'emoji', emoji: choice.slice(6) };
   }
-  // 存的旧值失效（例如改了模型名）：退回拟人少女，不渲染空白。
-  return { kind: 'character', role: CHARACTER_ID, def: CHARACTERS[CHARACTER_ID] };
+  return resolve(model, defaultChoice(model));
 }
 
-// 状态 → 图。认不得的状态一律回待机，不显示破图。
 function stateFile(choice, state) {
   const def = CHARACTERS[choice];
   if (!def) return null;
   return def[state] || def.waiting;
 }
 
+// 状态 + 场景 → 动作行。场景只覆盖视觉动作，不改变真实状态。
+function actionRow(choice, state, scene) {
+  const sceneAction = SCENE_ACTION[scene || 'discuss'];
+  const name = sceneAction || STATE_ACTION[state] || 'idle';
+  return ACTIONS[name] === undefined ? 0 : ACTIONS[name];
+}
+
 function mount(el, model, choice, opts) {
   const options = opts || {};
   const state = options.state || 'waiting';
+  const scene = options.scene || 'discuss';
   const hit = resolve(model, choice);
   el.replaceChildren();
   el.classList.toggle('is-brand', hit.kind === 'brand');
   el.classList.toggle('is-character', hit.kind === 'character');
+  el.classList.toggle('is-roster', hit.kind === 'roster');
   el.classList.toggle('is-emoji', hit.kind === 'emoji');
   el.style.removeProperty('--brand');
   el.style.removeProperty('--brand-logo');
   el.style.removeProperty('--avatar-hue');
   el.style.removeProperty('--char-hue');
-  el.dataset.avatarChoice = hit.kind === 'character' ? hit.role : hit.kind;
+  el.dataset.avatarChoice = hit.kind === 'roster' ? 'roster:' + hit.id : (hit.kind === 'character' ? hit.role : hit.kind);
   el.dataset.avatarState = state;
+  if (hit.kind === 'roster') {
+    const sprite = document.createElement('div');
+    sprite.className = 'pet-sprite';
+    sprite.dataset.sprite = '1';
+    sprite.style.setProperty('--pet-sheet', `url("${hit.sheet}")`);
+    sprite.style.setProperty('--pet-row', String(actionRow(choice, state, scene)));
+    sprite.style.setProperty('--pet-flip', options.facing === 'left' ? '-1' : '1');
+    el.append(sprite);
+    el.title = '点形象可选中、双击戳一下、拖动换位';
+    return 'roster';
+  }
   if (hit.kind === 'brand') {
     const coin = document.createElement('span');
     coin.className = 'brand-coin';
@@ -181,19 +246,37 @@ function mount(el, model, choice, opts) {
     img.onerror = () => { img.remove(); el.textContent = hashEmoji(model); };
     if (hit.def.tint) el.style.setProperty('--char-hue', hueOf(model) + 'deg');
     el.append(img);
-    el.title = hit.def.label + ' · 双击有反应、可拖动';
+    el.title = hit.def.label;
     return hit.role;
   }
   el.textContent = hit.emoji;
   el.style.setProperty('--avatar-hue', String(hueOf(model)));
-  el.title = '点击切换形象（当前：' + hit.emoji + '）';
+  el.title = '表情 ' + hit.emoji;
   return 'emoji';
 }
 
+// 状态变化时只改 CSS 变量，不重建节点——spritesheet 动画不会跳回第一帧。
+function updateState(el, choice, state, scene, facing) {
+  if (!el) return;
+  el.dataset.avatarState = state;
+  const sprite = el.querySelector('[data-sprite]');
+  if (sprite) {
+    sprite.style.setProperty('--pet-row', String(actionRow(choice, state, scene)));
+    if (facing) sprite.style.setProperty('--pet-flip', facing === 'left' ? '-1' : '1');
+    return;
+  }
+  const img = el.querySelector('img[data-avatar]');
+  if (img) {
+    const next = stateFile(el.dataset.avatarChoice, state);
+    if (next && img.getAttribute('src') !== next) img.src = next;
+  }
+}
+
 const api = {
-  BRAND_ID, CHARACTER_ID, CRAB_ID, GIF_ID, EMOJIS, CHARACTERS, BRANDS,
-  keyOf, brandOf, optionsFor, defaultChoice, resolve, stateFile,
-  hashEmoji, hueOf, mount,
+  BRAND_ID, CHARACTER_ID, CRAB_ID, GIF_ID, EMOJIS, CHARACTERS, BRANDS, ROSTER,
+  ACTIONS, STATE_ACTION, SCENE_ACTION, R,
+  keyOf, brandOf, optionsFor, choicesFor, rosterFor, defaultChoice, resolve,
+  stateFile, actionRow, hashEmoji, hueOf, mount, updateState,
 };
 
 if (typeof module !== 'undefined' && module.exports) module.exports = api;

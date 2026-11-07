@@ -784,12 +784,9 @@
     const stateEl = node.querySelector('.agent-state');
     const label = { waiting: '等待中', thinking: '思考中…', speaking: '发言中', stalled: '等待中：日志暂无正文', done: '已发言' };
     if (stateEl) stateEl.textContent = labelOverride || label[state] || state;
-    const pet = node.querySelector('img[data-avatar]');
-    if (pet && AVATARS) {
-      const avatar = node.querySelector('.agent-avatar');
-      const next = AVATARS.stateFile(avatar && avatar.dataset.avatarChoice, state);
-      if (next && pet.getAttribute('src') !== next) pet.src = next;
-      if (avatar) avatar.dataset.avatarState = state;
+    const avatar = node.querySelector('.agent-avatar');
+    if (avatar && AVATARS) {
+      AVATARS.updateState(avatar, currentPet(modelId), state, 'discuss');
     }
     if (state === 'done' && withBubble) {
       let bubble = node.querySelector('.agent-bubble');

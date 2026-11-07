@@ -281,7 +281,7 @@ async function main() {
   result.checks.push('chat-injection-source-dialog');
   result.checks.push('chat-streaming-partial-then-final');
 
-  // 协作视图：拟人形象、引用关系、点击/双击/拖拽交互
+  // 协作视图：完整 ID、多形象选择器、场景、关系图与交互
   const stage = await js(`(async () => {
     ['m-local', 'm-cloud', 'm-deepseek'].forEach((id) => {
       localStorage.removeItem('pet-avatar:' + id);
@@ -293,22 +293,50 @@ async function main() {
     const othersHidden = ['chat-page', 'tasks-page', 'memory-page', 'models-page'].every((id) => document.getElementById(id).hidden);
     document.querySelector('#stage-refresh').click();
     await new Promise(r => setTimeout(r, 500));
-    const pick = document.querySelector('#stage-models');
-    [...pick.options].forEach((o) => { o.selected = true; });
-    pick.dispatchEvent(new Event('change'));
+    const boxes = [...document.querySelectorAll('#stage-models input[type="checkbox"]')];
+    boxes.forEach((b) => { if (!b.checked) { b.checked = true; b.dispatchEvent(new Event('change', { bubbles: true })); } });
     await new Promise(r => setTimeout(r, 300));
-    const pickCount = pick.options.length;
+    const pickCount = boxes.length;
+    const checkedCount = boxes.filter((b) => b.checked).length;
+    const fullName = boxes[0].parentElement.querySelector('span');
+    const idComplete = fullName.textContent.length > 0 && fullName.textContent === fullName.title && !getComputedStyle(fullName).textOverflow?.includes('ellipsis');
     const actors = document.querySelectorAll('.stage-actor').length;
-    const figures = document.querySelectorAll('.stage-actor img.avatar-figure').length;
-    const brandCoins = document.querySelectorAll('.stage-actor .brand-coin').length;
-    const deepseekPet = Boolean(document.querySelector('.stage-actor[data-model-id="m-deepseek"] img[src*="assets/pets/"]'));
-    const tints = [...document.querySelectorAll('.stage-actor-avatar')].map((a) => a.style.getPropertyValue('--char-hue'));
-    const distinctTints = new Set(tints.filter(Boolean)).size;
+    const sprites = document.querySelectorAll('.stage-actor .pet-sprite').length;
+    const sheets = [...document.querySelectorAll('.stage-actor .pet-sprite')].map((s) => s.style.getPropertyValue('--pet-sheet'));
+    const distinctSheets = new Set(sheets).size;
+    const deepseekRoster = (document.querySelector('.stage-actor[data-model-id="m-deepseek"] .pet-sprite') || { style: { getPropertyValue: () => '' } }).style.getPropertyValue('--pet-sheet').includes('deepseek-');
+    const outfitChips = document.querySelectorAll('.stage-actor:first-of-type .actor-outfits .outfit').length;
+    const ownChips = document.querySelectorAll('.stage-actor:first-of-type .actor-outfits .outfit[data-value^="roster:"]').length;
     const headerText = document.querySelector('#stage-page h1').textContent;
+    // 悬浮桌宠入口：点一下应走 pet:open，状态栏给出明确反馈
+    const hasPetOpen = Boolean(document.querySelector('#stage-pet-open'));
+    if (hasPetOpen) document.querySelector('#stage-pet-open').click();
+    await new Promise(r => setTimeout(r, 200));
+    const petStatus = document.querySelector('#stage-status').textContent;
 
-    // 改 ID：仍然贯穿到其他页面
+    // 形象库：点 ＋ 展开，选项多于两个，点一个要落盘
     const firstActor = document.querySelector('.stage-actor');
     const pickedId = firstActor.dataset.modelId;
+    firstActor.querySelector('.outfit-more').click();
+    await new Promise(r => setTimeout(r, 150));
+    const pickerOpen = Boolean(firstActor.querySelector('.outfit-picker'));
+    const pickerItems = firstActor.querySelectorAll('.outfit-picker .outfit-item').length;
+    const beforePet = localStorage.getItem('pet-avatar:' + pickedId);
+    const generic = [...firstActor.querySelectorAll('.outfit-picker .outfit-item')].find((i) => !i.title.startsWith('通用') && !i.title.includes('Q 版') && !i.title.includes('标准版'));
+    const third = firstActor.querySelectorAll('.outfit-picker .outfit-item')[3];
+    (third || generic).click();
+    await new Promise(r => setTimeout(r, 200));
+    const afterPet = localStorage.getItem('pet-avatar:' + pickedId);
+
+    // 场景：只改视觉，不改真实状态
+    document.querySelector('#stage-scenes button[data-scene="work"]').click();
+    await new Promise(r => setTimeout(r, 150));
+    const workScene = document.querySelector('#stage-floor').dataset.scene;
+    const sceneLabel = document.querySelector('#stage-scene-label').textContent;
+    document.querySelector('#stage-scenes button[data-scene="discuss"]').click();
+    await new Promise(r => setTimeout(r, 150));
+
+    // 改 ID：名字要完整显示，且贯穿其他页面
     firstActor.querySelector('.stage-actor-name').click();
     await new Promise(r => setTimeout(r, 120));
     const input = document.querySelector('.stage-name-input');
@@ -318,7 +346,7 @@ async function main() {
     const stored = localStorage.getItem('model-alias:' + pickedId);
     const renamed = firstActor.querySelector('.stage-actor-name').textContent;
 
-    // 单击选中 / 双击戳一下 / 点 ⇄ 换形象
+    // 单击选中 / 双击戳一下
     firstActor.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     await new Promise(r => setTimeout(r, 120));
     const selected = document.querySelectorAll('.stage-actor.is-selected').length;
@@ -326,11 +354,6 @@ async function main() {
     await new Promise(r => setTimeout(r, 150));
     const pokeBubbles = [...document.querySelectorAll('.actor-poke-bubble')].filter((b) => !b.hidden).length;
     const pokeState = firstActor.querySelector('.stage-actor-avatar').dataset.avatarState;
-    const beforePet = localStorage.getItem('pet-avatar:' + pickedId);
-    firstActor.querySelector('.actor-swap').click();
-    await new Promise(r => setTimeout(r, 150));
-    const afterPet = localStorage.getItem('pet-avatar:' + pickedId);
-    const swapChoice = firstActor.querySelector('.stage-actor-avatar').dataset.avatarChoice;
 
     // 拖动一个角色：位置要落盘
     const dragEl = document.querySelector('.stage-actor[data-model-id="m-cloud"]');
@@ -342,19 +365,19 @@ async function main() {
     await new Promise(r => setTimeout(r, 200));
     const savedPos = localStorage.getItem('collab-pos:m-cloud');
 
-    // 跑一轮讨论：连线数量 = 后面每位参考前面所有发言；记录按顺序列出
+    // 跑一轮讨论：连线、光点、记录、参考标记
     window.__stubCalls.setSendOk(true);
     document.querySelector('#stage-question').value = '协作视图测试问题';
     document.querySelector('#stage-ask').click();
-    for (let i = 0; i < 50; i += 1) {
+    for (let i = 0; i < 60; i += 1) {
       await new Promise(r => setTimeout(r, 500));
       if (!document.querySelector('#stage-ask').disabled) break;
     }
     const bubbles = [...document.querySelectorAll('.stage-actor-bubble')].filter((b) => !b.hidden).length;
     const links = document.querySelectorAll('#stage-links path.collab-link').length;
     const turns = document.querySelectorAll('#stage-turns .collab-turn').length;
+    const statusRows = document.querySelectorAll('#stage-status-list .status-row').length;
     const refTags = [...document.querySelectorAll('#stage-turns .turn-ref')].map((n) => n.textContent);
-    const statusText = document.querySelector('#stage-status').textContent;
 
     document.querySelector('#nav-chat').click();
     await new Promise(r => setTimeout(r, 300));
@@ -362,39 +385,56 @@ async function main() {
     localStorage.removeItem('model-alias:' + pickedId);
     localStorage.removeItem('pet-avatar:' + pickedId);
     localStorage.removeItem('collab-pos:m-cloud');
-    return { visible, othersHidden, pickCount, actors, figures, brandCoins, deepseekPet, distinctTints, headerText,
-      stored, renamed, selected, pokeBubbles, pokeState, beforePet, afterPet, swapChoice, savedPos,
-      bubbles, links, turns, refTags, statusText, chatLabels };
+    return { visible, othersHidden, pickCount, checkedCount, idComplete, actors, sprites, distinctSheets, deepseekRoster,
+      outfitChips, ownChips, headerText, hasPetOpen, petStatus, pickerOpen, pickerItems, beforePet, afterPet, workScene, sceneLabel,
+      stored, renamed, selected, pokeBubbles, pokeState, savedPos, bubbles, links, turns, statusRows, refTags, chatLabels };
   })()`);
   if (!stage.visible) throw new Error('协作视图没有显示');
   if (!stage.othersHidden) throw new Error('协作视图打开时其他页面没有隐藏');
-  if (stage.pickCount < 2) throw new Error(`模型多选为空：${stage.pickCount}`);
-  if (stage.actors < 2) throw new Error(`角色节点不足：${stage.actors}`);
+  if (stage.pickCount < 2) throw new Error(`模型勾选列表为空：${stage.pickCount}`);
+  if (stage.checkedCount !== stage.pickCount) throw new Error(`没有默认全选模型：${stage.checkedCount}/${stage.pickCount}`);
+  if (!stage.idComplete) throw new Error('模型 ID 仍被截断或没有完整 title');
   if (stage.headerText.includes('舞台') || stage.headerText.includes('台上')) throw new Error(`标题还留着表演化文案：${stage.headerText}`);
-  if (stage.figures < 2) throw new Error(`默认没有渲染拟人角色：${stage.figures}`);
-  if (stage.brandCoins !== 0) throw new Error(`默认不该出现品牌币：${stage.brandCoins}`);
-  if (!stage.deepseekPet) throw new Error('DeepSeek 没有用大肥鱼形象');
-  if (stage.distinctTints < 2) throw new Error(`多个拟人角色没有区分配色：${stage.distinctTints}`);
+  if (stage.actors < 2) throw new Error(`角色节点不足：${stage.actors}`);
+  if (stage.sprites < 2) throw new Error(`默认没有渲染动作角色：${stage.sprites}`);
+  if (stage.distinctSheets < 2) throw new Error(`多个模型用了同一张形象：${stage.distinctSheets}`);
+  if (!stage.deepseekRoster) throw new Error('DeepSeek 没有用对应的专属角色');
+  if (stage.outfitChips < 2 || stage.ownChips < 2) throw new Error(`每个模型的专属形象少于两个：${stage.outfitChips}/${stage.ownChips}`);
+  if (!stage.hasPetOpen || !stage.petStatus.includes('悬浮到桌面')) throw new Error(`悬浮桌宠入口无效：${stage.hasPetOpen}/${stage.petStatus}`);
+  if (!stage.pickerOpen || stage.pickerItems < 6) throw new Error(`形象库没打开或选项太少：${stage.pickerOpen}/${stage.pickerItems}`);
+  if (stage.afterPet === stage.beforePet) throw new Error('在形象库里换形象没有存到本机');
+  if (stage.workScene !== 'work' || stage.sceneLabel !== '工作中') throw new Error(`场景切换无效：${stage.workScene}/${stage.sceneLabel}`);
   if (stage.stored !== '小鲸') throw new Error(`形象 ID 没有存到本机：${stage.stored}`);
   if (stage.renamed !== '小鲸') throw new Error(`改名后节点文字没更新：${stage.renamed}`);
   if (stage.selected !== 1) throw new Error(`单击没有选中唯一角色：${stage.selected}`);
   if (stage.pokeBubbles !== 1 || stage.pokeState !== 'poke') throw new Error(`双击没有触发反应：${stage.pokeBubbles}/${stage.pokeState}`);
-  if (stage.afterPet === stage.beforePet) throw new Error('点 ⇄ 换形象没有存到本机');
-  if (!stage.swapChoice) throw new Error('换形象后没有渲染新形象');
   if (!stage.savedPos) throw new Error('拖动后位置没有存到本机');
   if (stage.bubbles < 1) throw new Error(`一轮讨论后没有输出摘要：${stage.bubbles}`);
   if (stage.links < 1) throw new Error(`没有画出引用关系连线：${stage.links}`);
   if (stage.turns < 2) throw new Error(`本轮记录条数不对：${stage.turns}`);
+  if (stage.statusRows < 2) throw new Error(`模型状态列表为空：${stage.statusRows}`);
   if (!stage.refTags.some((t) => t.includes('参考'))) throw new Error(`记录里没有标注参考关系：${JSON.stringify(stage.refTags)}`);
   if (!stage.chatLabels.includes('小鲸')) throw new Error(`改 ID 后对话页下拉没同步：${stage.chatLabels}`);
-  result.checks.push('collab-alias-sync', 'collab-character-avatar', 'collab-interaction', 'collab-reference-graph');
+  result.checks.push('collab-full-id', 'collab-multi-outfits', 'collab-scenes', 'pet-desktop-window', 'collab-alias-sync', 'collab-interaction', 'collab-reference-graph');
 
-  // 留两张图：关系图（含连线与记录）、桌宠模式。
+  // 留两张图：关系图（含统一面板）、桌宠模式。
   await js(`(async () => {
+    // 截图要展示默认状态：清掉测试过程中改过的形象 / 位置 / ID，重新读一次模型。
+    ['m-local', 'm-cloud', 'm-deepseek'].forEach((id) => {
+      localStorage.removeItem('pet-avatar:' + id);
+      localStorage.removeItem('collab-pos:' + id);
+      localStorage.removeItem('model-alias:' + id);
+    });
     document.querySelector('#nav-stage').click();
-    await new Promise(r => setTimeout(r, 700));
+    await new Promise(r => setTimeout(r, 300));
+    await window.__stageUi.refresh();
+    await new Promise(r => setTimeout(r, 900));
+    return { turns: document.querySelectorAll('#stage-turns .collab-turn').length,
+      sprites: document.querySelectorAll('.stage-actor .pet-sprite').length,
+      firstSheet: (document.querySelector('.pet-sprite') || { style: { getPropertyValue: () => '' } }).style.getPropertyValue('--pet-sheet') };
   })()`);
-  await wait(700);
+  // 隐藏窗口的合成器会滞后，连续抓几帧丢掉旧画面再保存。
+  for (let i = 0; i < 6; i += 1) { await wait(350); await win.capturePage(); }
   fs.writeFileSync(path.join(__dirname, 'stage-page.png'), (await win.capturePage()).toPNG());
   await js("document.querySelector('#stage-pet').checked = true; document.querySelector('#stage-pet').dispatchEvent(new Event('change')); true;");
   await wait(500);

@@ -1,0 +1,152 @@
+{
+  "chatgpt-chibi": {
+    "name": "ChatGPT 宠物 · Q 版",
+    "sheet": "chatgpt-chibi.webp",
+    "preview": "chatgpt-chibi.gif"
+  },
+  "chatgpt-standard": {
+    "name": "ChatGPT 宠物 · 标准版",
+    "sheet": "chatgpt-standard.webp",
+    "preview": "chatgpt-standard.gif"
+  },
+  "claude-chibi": {
+    "name": "Claude 宠物 · Q 版",
+    "sheet": "claude-chibi.webp",
+    "preview": "claude-chibi.gif"
+  },
+  "claude-standard": {
+    "name": "Claude 宠物 · 标准版",
+    "sheet": "claude-standard.webp",
+    "preview": "claude-standard.gif"
+  },
+  "deepseek-chibi": {
+    "name": "DeepSeek 蓝色大肥鱼 · Q 版",
+    "sheet": "deepseek-chibi.webp",
+    "preview": "deepseek-chibi.gif"
+  },
+  "deepseek-standard": {
+    "name": "DeepSeek 蓝色大肥鱼 · 标准版",
+    "sheet": "deepseek-standard.webp",
+    "preview": "deepseek-standard.gif"
+  },
+  "doubao-chibi": {
+    "name": "Doubao 宠物 · Q 版",
+    "sheet": "doubao-chibi.webp",
+    "preview": "doubao-chibi.gif"
+  },
+  "doubao-standard": {
+    "name": "Doubao 宠物 · 标准版",
+    "sheet": "doubao-standard.webp",
+    "preview": "doubao-standard.gif"
+  },
+  "ernie-chibi": {
+    "name": "文心（ERNIE）宠物 · Q 版",
+    "sheet": "ernie-chibi.webp",
+    "preview": "ernie-chibi.gif"
+  },
+  "ernie-standard": {
+    "name": "文心（ERNIE）宠物 · 标准版",
+    "sheet": "ernie-standard.webp",
+    "preview": "ernie-standard.gif"
+  },
+  "gemini-chibi": {
+    "name": "Gemini 宠物 · Q 版",
+    "sheet": "gemini-chibi.webp",
+    "preview": "gemini-chibi.gif"
+  },
+  "gemini-standard": {
+    "name": "Gemini 宠物 · 标准版",
+    "sheet": "gemini-standard.webp",
+    "preview": "gemini-standard.gif"
+  },
+  "glm-chibi": {
+    "name": "GLM 宠物 · Q 版",
+    "sheet": "glm-chibi.webp",
+    "preview": "glm-chibi.gif"
+  },
+  "glm-standard": {
+    "name": "GLM 宠物 · 标准版",
+    "sheet": "glm-standard.webp",
+    "preview": "glm-standard.gif"
+  },
+  "grok-chibi": {
+    "name": "Grok 宠物 · Q 版",
+    "sheet": "grok-chibi.webp",
+    "preview": "grok-chibi.gif"
+  },
+  "grok-standard": {
+    "name": "Grok 宠物 · 标准版",
+    "sheet": "grok-standard.webp",
+    "preview": "grok-standard.gif"
+  },
+  "hunyuan-chibi": {
+    "name": "腾讯混元宠物 · Q 版",
+    "sheet": "hunyuan-chibi.webp",
+    "preview": "hunyuan-chibi.gif"
+  },
+  "hunyuan-standard": {
+    "name": "腾讯混元宠物 · 标准版",
+    "sheet": "hunyuan-standard.webp",
+    "preview": "hunyuan-standard.gif"
+  },
+  "kimi-chibi": {
+    "name": "Kimi 宠物 · Q 版",
+    "sheet": "kimi-chibi.webp",
+    "preview": "kimi-chibi.gif"
+  },
+  "kimi-standard": {
+    "name": "Kimi 宠物 · 标准版",
+    "sheet": "kimi-standard.webp",
+    "preview": "kimi-standard.gif"
+  },
+  "metamuse-chibi": {
+    "name": "Meta Muse 宠物 · Q 版",
+    "sheet": "metamuse-chibi.webp",
+    "preview": "metamuse-chibi.gif"
+  },
+  "metamuse-standard": {
+    "name": "Meta Muse 宠物 · 标准版",
+    "sheet": "metamuse-standard.webp",
+    "preview": "metamuse-standard.gif"
+  },
+  "mimo-chibi": {
+    "name": "MiMo 宠物 · Q 版",
+    "sheet": "mimo-chibi.webp",
+    "preview": "mimo-chibi.gif"
+  },
+  "mimo-standard": {
+    "name": "MiMo 宠物 · 标准版",
+    "sheet": "mimo-standard.webp",
+    "preview": "mimo-standard.gif"
+  },
+  "minimax-chibi": {
+    "name": "MiniMax 宠物 · Q 版",
+    "sheet": "minimax-chibi.webp",
+    "preview": "minimax-chibi.gif"
+  },
+  "minimax-standard": {
+    "name": "MiniMax 宠物 · 标准版",
+    "sheet": "minimax-standard.webp",
+    "preview": "minimax-standard.gif"
+  },
+  "mistral-chibi": {
+    "name": "Mistral 宠物 · Q 版",
+    "sheet": "mistral-chibi.webp",
+    "preview": "mistral-chibi.gif"
+  },
+  "mistral-standard": {
+    "name": "Mistral 宠物 · 标准版",
+    "sheet": "mistral-standard.webp",
+    "preview": "mistral-standard.gif"
+  },
+  "qwen-chibi": {
+    "name": "Qwen 宠物 · Q 版",
+    "sheet": "qwen-chibi.webp",
+    "preview": "qwen-chibi.gif"
+  },
+  "qwen-standard": {
+    "name": "Qwen 宠物 · 标准版",
+    "sheet": "qwen-standard.webp",
+    "preview": "qwen-standard.gif"
+  }
+}

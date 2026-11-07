@@ -44,3 +44,14 @@ Clawd 形象未获原作者授权，本项目**没有采用 Clawd 素材**，只
 **公开发布或商业化前**：必须把 `char-*.svg` 换成自有 / CC0 的拟人素材，把 `assets/pets/` 三个 GIF
 换成自有素材，并相应更新或删除对应 NOTICE。完整条款、压缩方式与替换步骤见三个目录里的 `NOTICE.md`。
 
+## 30 个模型主题 Q 版角色（2026-11-07 晚新增）
+
+| 素材 | 来源 | 许可 | 位置 |
+| --- | --- | --- | --- |
+| 15 个模型 × 标准版 / Q 版，共 30 个角色、每个 9 种动作序列帧 | [savanna0425/llm-pet](https://github.com/savanna0425/llm-pet) | **无统一开源软件许可**：形象作者 **ZipZipPipe** 要求署名、**仅限非商业**；DeepSeek 形象另遵循 **CC BY-NC-SA 4.0**（另署名 **上善**） | `desktop/assets/characters/roster/` |
+
+这些是同人形象，与 OpenAI / Anthropic / DeepSeek / Google / xAI 等公司无官方关联。
+上游 `NOTICE.md` 原文见 `desktop/assets/characters/roster/NOTICE-llm-pet.md`，
+本项目的取用与压缩说明见同目录 `NOTICE.md`。
+**公开发布或商业化前必须替换这批素材**；本项目仅作本机、个人、非商业原型。
+

@@ -1,0 +1,84 @@
+/* 桌宠小窗：背景全透明，只画角色、气泡和悬浮工具条。 */
+* { box-sizing: border-box; }
+/* 面板用了 display:grid，会盖掉 UA 的 [hidden]{display:none}，必须显式压住。 */
+[hidden] { display: none !important; }
+html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: transparent; overflow: hidden; }
+body { font-family: "Segoe UI", "Microsoft YaHei", sans-serif; -webkit-user-select: none; user-select: none; }
+.pet { position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; padding-bottom: 8px; }
+
+.pet-actor {
+  --pet-w: 132px; --pet-h: 143px;
+  width: var(--pet-w); height: var(--pet-h); display: grid; place-items: center;
+  cursor: grab; filter: drop-shadow(0 6px 8px rgba(15, 23, 42, .28));
+}
+.pet.is-locked .pet-actor { cursor: default; }
+.pet.is-dragging .pet-actor { cursor: grabbing; }
+.pet-actor .pet-sprite, .pet-actor .avatar-figure { pointer-events: none; }
+.pet-actor .avatar-figure { object-fit: contain; width: 100%; height: 100%; }
+/* 与主界面同一套 spritesheet 播放规则（八帧一行、九行动作）。 */
+.pet-sprite {
+  width: var(--pet-w); height: var(--pet-h);
+  background-image: var(--pet-sheet); background-repeat: no-repeat;
+  background-size: calc(var(--pet-w) * 8) calc(var(--pet-h) * 9);
+  background-position-x: 0;
+  background-position-y: calc(var(--pet-row, 0) * var(--pet-h) * -1);
+  animation: pet-play 1.44s steps(8) infinite;
+  transform: scaleX(var(--pet-flip, 1));
+}
+@keyframes pet-play {
+  from { background-position-x: 0; }
+  to { background-position-x: calc(var(--pet-w) * -8); }
+}
+
+.pet-bubble {
+  position: absolute; top: 4px; left: 50%; transform: translateX(-50%);
+  max-width: 226px; padding: 8px 11px; font-size: 12px; line-height: 1.5;
+  color: #16202c; background: rgba(255, 255, 255, .96);
+  border-radius: 12px; box-shadow: 0 6px 20px -8px rgba(15, 23, 42, .6);
+  white-space: pre-wrap; overflow-wrap: anywhere; text-align: center;
+}
+.pet-bubble .emote-glyph { display: block; font-size: 30px; line-height: 1.2; margin-bottom: 2px; }
+
+.pet-toolbar {
+  display: flex; gap: 4px; margin-top: 6px; padding: 4px 6px;
+  border-radius: 999px; background: rgba(255, 255, 255, .9);
+  box-shadow: 0 4px 14px -6px rgba(15, 23, 42, .6);
+  opacity: .25; transition: opacity .18s;
+}
+.pet:hover .pet-toolbar, .pet-toolbar:focus-within { opacity: 1; }
+.pet-toolbar button {
+  width: 26px; height: 26px; padding: 0; font-size: 13px; line-height: 1;
+  border: 0; border-radius: 50%; background: transparent; color: #334155; cursor: pointer;
+}
+.pet-toolbar button:hover { background: #e6edf6; }
+.pet-toolbar button.is-on { background: #d7e8ff; color: #14508c; }
+
+.pet-emotes {
+  position: absolute; bottom: 44px; left: 50%; transform: translateX(-50%);
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px;
+  width: 224px; padding: 7px; border-radius: 12px;
+  background: rgba(255, 255, 255, .97); box-shadow: 0 8px 22px -10px rgba(15, 23, 42, .7);
+}
+.pet-emotes button {
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  padding: 4px 2px; border: 0; border-radius: 8px; background: transparent;
+  font-size: 9px; color: #475569; cursor: pointer;
+}
+.pet-emotes button:hover { background: #eef4fb; }
+.pet-emotes .emote-face { font-size: 21px; line-height: 1.2; }
+
+.pet-chatbox {
+  position: absolute; bottom: 44px; left: 50%; transform: translateX(-50%);
+  width: 232px; padding: 8px; border-radius: 12px;
+  background: rgba(255, 255, 255, .98); color: #16202c;
+  box-shadow: 0 8px 22px -10px rgba(15, 23, 42, .7);
+}
+.pet-chatbox select, .pet-chatbox input { font-size: 11px; padding: 4px 6px; border: 1px solid #d8e0ea; border-radius: 7px; background: #fff; color: #16202c; }
+.pet-chatbox select { width: 100%; margin-bottom: 5px; }
+.pet-chat-row { display: flex; gap: 4px; }
+.pet-chat-row input { flex: 1; min-width: 0; }
+.pet-chat-row button { flex: none; padding: 4px 9px; font-size: 11px; border: 0; border-radius: 7px; background: #2f6fd0; color: #fff; cursor: pointer; }
+.pet-chat-row button:disabled { opacity: .5; }
+.pet-chat-status { margin: 5px 0 0; font-size: 10px; line-height: 1.4; color: #64748b; }
+
+@media (prefers-reduced-motion: reduce) { .pet-sprite { animation: none; } }

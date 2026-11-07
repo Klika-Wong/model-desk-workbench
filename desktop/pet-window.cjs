@@ -1,0 +1,121 @@
+/* 独立桌宠窗口：透明、无边框、置顶、可锁定、可拖动、位置记忆。
+   参考成熟做法（dsh-pet / ArkPets / Electron 桌宠实践）：小窗只占角色包围盒，
+   不做全屏透明层，避免 Windows DWM 合成问题；状态与位置留在本机。 */
+// 纯 Node 单测环境里没有 electron 包，容错加载；真正创建窗口只在主进程发生。
+let electronApi = null;
+try { electronApi = require('electron'); } catch { electronApi = null; }
+const { BrowserWindow, ipcMain, screen } = electronApi || {};
+const path = require('node:path');
+const fs = require('node:fs');
+
+const WIDTH = 250;
+const HEIGHT = 300;
+let petWindow = null;
+let configPath = null;
+let state = { x: null, y: null, locked: false, alwaysOnTop: true, outfit: null, modelId: null };
+
+// 配置文件可能被手改坏或来自旧版本，读进来先收紧，别让怪值进窗口构造参数。
+function sanitizeState(raw) {
+  const clean = { x: null, y: null, locked: false, alwaysOnTop: true, outfit: null, modelId: null };
+  if (!raw || typeof raw !== 'object') return clean;
+  if (Number.isFinite(raw.x) && Number.isFinite(raw.y) && Math.abs(raw.x) < 100000 && Math.abs(raw.y) < 100000) {
+    clean.x = Math.round(raw.x); clean.y = Math.round(raw.y);
+  }
+  clean.locked = raw.locked === true;
+  clean.alwaysOnTop = raw.alwaysOnTop !== false;
+  if (typeof raw.outfit === 'string') clean.outfit = raw.outfit.slice(0, 80);
+  if (typeof raw.modelId === 'string') clean.modelId = raw.modelId.slice(0, 80);
+  return clean;
+}
+
+function load() {
+  try {
+    state = sanitizeState(JSON.parse(fs.readFileSync(configPath, 'utf8')));
+  } catch {}
+  return state;
+}
+function save() {
+  try { fs.writeFileSync(configPath, JSON.stringify(state, null, 2)); } catch {}
+}
+
+function defaultPosition() {
+  const area = screen.getPrimaryDisplay().workArea;
+  return { x: Math.max(area.x, area.x + area.width - WIDTH - 40), y: Math.max(area.y, area.y + area.height - HEIGHT - 40) };
+}
+
+function create() {
+  if (petWindow && !petWindow.isDestroyed()) { petWindow.showInactive(); return petWindow; }
+  const pos = (typeof state.x === 'number' && typeof state.y === 'number') ? { x: state.x, y: state.y } : defaultPosition();
+  petWindow = new BrowserWindow({
+    width: WIDTH, height: HEIGHT, x: pos.x, y: pos.y,
+    transparent: true, frame: false, alwaysOnTop: state.alwaysOnTop,
+    skipTaskbar: true, resizable: false, hasShadow: false, show: false,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.cjs'),
+      contextIsolation: true, nodeIntegration: false, sandbox: true,
+      backgroundThrottling: false,
+    },
+  });
+  petWindow.loadFile(path.join(__dirname, 'pet.html'));
+  petWindow.once('ready-to-show', () => petWindow.showInactive());
+  petWindow.on('moved', () => {
+    if (!petWindow || petWindow.isDestroyed()) return;
+    const [x, y] = petWindow.getPosition();
+    state.x = x; state.y = y; save();
+  });
+  petWindow.on('closed', () => { petWindow = null; });
+  return petWindow;
+}
+
+function trusted(event) {
+  if (!petWindow || petWindow.isDestroyed()) return false;
+  return event.sender === petWindow.webContents;
+}
+
+function registerPetWindow(userDataPath) {
+  configPath = path.join(userDataPath, 'pet-window.json');
+  load();
+  ipcMain.handle('pet:open', (event) => {
+    // 只允许主窗口或桌宠自己打开，避免任意渲染进程弹窗。
+    if (event.senderFrame && !/index\.html|pet\.html$/.test(event.senderFrame.url)) {
+      return { ok: false, error: 'Untrusted desktop window.' };
+    }
+    try { create(); return { ok: true, data: Object.assign({}, state) }; }
+    catch (error) { return { ok: false, error: error.message }; }
+  });
+  ipcMain.handle('pet:state', (event) => {
+    if (!trusted(event)) return { ok: false, error: 'Untrusted desktop window.' };
+    return { ok: true, data: Object.assign({}, state) };
+  });
+  ipcMain.handle('pet:control', (event, action, value) => {
+    if (!trusted(event) || !petWindow || petWindow.isDestroyed()) return { ok: false, error: 'Untrusted desktop window.' };
+    if (action === 'lock') {
+      state.locked = Boolean(value); save();
+      return { ok: true, data: { locked: state.locked } };
+    }
+    if (action === 'top') {
+      state.alwaysOnTop = Boolean(value);
+      petWindow.setAlwaysOnTop(state.alwaysOnTop); save();
+      return { ok: true, data: { alwaysOnTop: state.alwaysOnTop } };
+    }
+    if (action === 'move') {
+      if (state.locked) return { ok: true, data: { locked: true } };
+      const dx = Number(value && value.dx) || 0;
+      const dy = Number(value && value.dy) || 0;
+      const [x, y] = petWindow.getPosition();
+      petWindow.setPosition(x + Math.round(dx), y + Math.round(dy));
+      return { ok: true };
+    }
+    if (action === 'outfit' || action === 'model') {
+      if (typeof value === 'string' && value.length <= 80) {
+        state[action === 'outfit' ? 'outfit' : 'modelId'] = value; save();
+      }
+      return { ok: true, data: Object.assign({}, state) };
+    }
+    if (action === 'close') { petWindow.close(); return { ok: true }; }
+    return { ok: false, error: 'Unknown pet action.' };
+  });
+  return { close: () => { if (petWindow && !petWindow.isDestroyed()) petWindow.close(); } };
+}
+
+module.exports = { registerPetWindow, defaultPosition, sanitizeState };

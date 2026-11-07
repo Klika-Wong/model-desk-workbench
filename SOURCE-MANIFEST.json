@@ -1071,8 +1071,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "cca75ccaba02737160178af5bc45f512a632b0ee3859dd3da9eab1eee05ad514",
-      "bytes": 5051
+      "sha256": "456e179b21ff3bbfb1eacf5b73e1515f6f5e0bda388b128d798af3b9a44ef2d3",
+      "bytes": 6933
     },
     {
       "path": "LICENSE",
@@ -1086,8 +1086,8 @@
     },
     {
       "path": "THIRD_PARTY.md",
-      "sha256": "ec81d99c0a648bfa774e1314523d929fbec602592e0e4fd3c0851bef25ec1bfa",
-      "bytes": 3428
+      "sha256": "958e5e72bfa0030b96ca7f63b8c0c24a74f7ee4fb5c1c485795032c3b0b1a987",
+      "bytes": 4273
     },
     {
       "path": "desktop/ai-guide-ui.js",
@@ -1280,6 +1280,321 @@
       "bytes": 4332
     },
     {
+      "path": "desktop/assets/characters/roster/NOTICE-llm-pet.md",
+      "sha256": "9a01fc4cfb10427273ea49c361dd1df159ea08dc8bbc6ccaf88e71c494ed5647",
+      "bytes": 1211
+    },
+    {
+      "path": "desktop/assets/characters/roster/NOTICE.md",
+      "sha256": "480569e2007ea6b8596115c1316e4bd344fc1895c66f56ef6205d627e9171a66",
+      "bytes": 2530
+    },
+    {
+      "path": "desktop/assets/characters/roster/chatgpt-chibi.gif",
+      "sha256": "fc06b2d9399bacafe8248139c7e7f52839bdad7cb7d7106cd5647bc6fd509240",
+      "bytes": 93081
+    },
+    {
+      "path": "desktop/assets/characters/roster/chatgpt-chibi.webp",
+      "sha256": "819a5fcc502961074545dfae28da506cf7bf1d4873f371782a9a5f3e7b1842d0",
+      "bytes": 258266
+    },
+    {
+      "path": "desktop/assets/characters/roster/chatgpt-standard.gif",
+      "sha256": "1216f8f8ed21b7e770bfaaff9b3d2becff26cc3d94dcd1b90f1a85eecaeb094f",
+      "bytes": 92212
+    },
+    {
+      "path": "desktop/assets/characters/roster/chatgpt-standard.webp",
+      "sha256": "70ec20d740881a9bc635ddb4ed6c2394ed5893badd8cc278cd39ba3e07474741",
+      "bytes": 177888
+    },
+    {
+      "path": "desktop/assets/characters/roster/claude-chibi.gif",
+      "sha256": "3787d62874f1d431c5d0039c0ce93d7f5acf2ef36123ebc8c4943bd006f2facb",
+      "bytes": 111569
+    },
+    {
+      "path": "desktop/assets/characters/roster/claude-chibi.webp",
+      "sha256": "6f51272def907457acf721047ae64104166d7a63ba9963d02447fac232ac6651",
+      "bytes": 182326
+    },
+    {
+      "path": "desktop/assets/characters/roster/claude-standard.gif",
+      "sha256": "9cf504fb53ab8424bcc80cb6d674f468758e3b90b39b1283be394ce26f666688",
+      "bytes": 96058
+    },
+    {
+      "path": "desktop/assets/characters/roster/claude-standard.webp",
+      "sha256": "e7b443e7db15cc78d7a16b7c5bf0a2cca91561f0f6cb1cb18a53c7f967d1c9b0",
+      "bytes": 164440
+    },
+    {
+      "path": "desktop/assets/characters/roster/deepseek-chibi.gif",
+      "sha256": "9fdfff3a64ae27f71ef79f9fba6461b29845c0bc5ce5666328ad23df83160d68",
+      "bytes": 96019
+    },
+    {
+      "path": "desktop/assets/characters/roster/deepseek-chibi.webp",
+      "sha256": "031f1489ae812937b30fa920cb06a9865903ea792c093bbb9d95d97e37167e07",
+      "bytes": 180564
+    },
+    {
+      "path": "desktop/assets/characters/roster/deepseek-standard.gif",
+      "sha256": "0d53c90debeb9fd23170db943be700fb4f1db70018bcdd6567e6d70234cca50c",
+      "bytes": 77166
+    },
+    {
+      "path": "desktop/assets/characters/roster/deepseek-standard.webp",
+      "sha256": "8452b37df8f96de5c868fbb927c82eaf450e2d235e4f44ca5fe3510bf275fb56",
+      "bytes": 151390
+    },
+    {
+      "path": "desktop/assets/characters/roster/doubao-chibi.gif",
+      "sha256": "da7efc45f9e2ad65a0c0181fb4c7c2bf33d4ed3780e707dd0772698d247f300c",
+      "bytes": 98951
+    },
+    {
+      "path": "desktop/assets/characters/roster/doubao-chibi.webp",
+      "sha256": "93d33568b8345f05011ca9eeea04fc80287931690d539cd77f18edf3aa76e0f2",
+      "bytes": 227172
+    },
+    {
+      "path": "desktop/assets/characters/roster/doubao-standard.gif",
+      "sha256": "ce79afd8dbd52db885853fb8fb4847e82d505c0ed73300eaf4621e9ee87147ba",
+      "bytes": 65218
+    },
+    {
+      "path": "desktop/assets/characters/roster/doubao-standard.webp",
+      "sha256": "fe8776381e5f052aa6365a553db3181e83b174687f86a398bcf6cf0fb2fb1434",
+      "bytes": 183290
+    },
+    {
+      "path": "desktop/assets/characters/roster/ernie-chibi.gif",
+      "sha256": "fb9b4877c1f8e9a9ed7d73909ff8daea55822819a293189d8a095128009ad165",
+      "bytes": 118100
+    },
+    {
+      "path": "desktop/assets/characters/roster/ernie-chibi.webp",
+      "sha256": "284537d42182fcf5f4d25b9bcb073a9e97baefa6e4edabe7923c73e6836ef804",
+      "bytes": 204550
+    },
+    {
+      "path": "desktop/assets/characters/roster/ernie-standard.gif",
+      "sha256": "16ba882f16376c2e256d0c94512153edc7b06ac982f71de3c8b91b54be693361",
+      "bytes": 102962
+    },
+    {
+      "path": "desktop/assets/characters/roster/ernie-standard.webp",
+      "sha256": "0b6c8a8105562ea9bc5e7f95b1a63814a1414bce12c6609b391407f32fee7c5e",
+      "bytes": 182876
+    },
+    {
+      "path": "desktop/assets/characters/roster/gemini-chibi.gif",
+      "sha256": "47fb34b852a4242af659f51c32fa213185c7a69ab387311220fd4732261b09c0",
+      "bytes": 102553
+    },
+    {
+      "path": "desktop/assets/characters/roster/gemini-chibi.webp",
+      "sha256": "603ed565032cd21073dd911d75afb10dbc6290901d2cdb6998168226c0db795a",
+      "bytes": 196474
+    },
+    {
+      "path": "desktop/assets/characters/roster/gemini-standard.gif",
+      "sha256": "f0dcba09b99a0bc03e50270e62d89e0ff9f08f331b1c834e95527cf04527d3a4",
+      "bytes": 83607
+    },
+    {
+      "path": "desktop/assets/characters/roster/gemini-standard.webp",
+      "sha256": "d5ebbbc5d4109bdf8bfaba1fd0d75c675265f123c3a54824182b1f6c08f2b532",
+      "bytes": 177210
+    },
+    {
+      "path": "desktop/assets/characters/roster/glm-chibi.gif",
+      "sha256": "87715299a194fa0364c16c397a4863fa6ac1b3da26ab50eae2dbadc906e9f640",
+      "bytes": 99312
+    },
+    {
+      "path": "desktop/assets/characters/roster/glm-chibi.webp",
+      "sha256": "9349845022d18b3d9d5d973c7de80393a45e643bb348eed10bb8d635c61efa21",
+      "bytes": 173516
+    },
+    {
+      "path": "desktop/assets/characters/roster/glm-standard.gif",
+      "sha256": "9589bf948f9bbdb43fb7f1d680b5b3e585a2ed2ebaa2e42015f9eaac4e31f061",
+      "bytes": 82177
+    },
+    {
+      "path": "desktop/assets/characters/roster/glm-standard.webp",
+      "sha256": "634a5bb32340085c3f2a896b75fbd3a9aa5670dd33077fa3e77f5ca60fc7dcff",
+      "bytes": 148372
+    },
+    {
+      "path": "desktop/assets/characters/roster/grok-chibi.gif",
+      "sha256": "9da1e735224629570e54fe2408feae6e91a5148279c43f170856d684161bc488",
+      "bytes": 122333
+    },
+    {
+      "path": "desktop/assets/characters/roster/grok-chibi.webp",
+      "sha256": "e926ac1bdd85ea000594ce325cb456a038394cddd695342d5c763f1751633629",
+      "bytes": 224784
+    },
+    {
+      "path": "desktop/assets/characters/roster/grok-standard.gif",
+      "sha256": "c87ff12b766dc7ce4a086dd4fa9ffe154c6a1ff69733e8c4b7de56548bbd21e1",
+      "bytes": 98467
+    },
+    {
+      "path": "desktop/assets/characters/roster/grok-standard.webp",
+      "sha256": "7a39075b40160805b93587bc28918f057ffb3394619c8aaf325f36a5e4481925",
+      "bytes": 173404
+    },
+    {
+      "path": "desktop/assets/characters/roster/hunyuan-chibi.gif",
+      "sha256": "e4341488fda6b8385e8ee958eb7ce44027d5efc969469bd18526e0fb4e5ef7a9",
+      "bytes": 109316
+    },
+    {
+      "path": "desktop/assets/characters/roster/hunyuan-chibi.webp",
+      "sha256": "8cdc0482e7d55650522e6691af160656fdbcf5db5e06a5de3b10e43bd0bf2256",
+      "bytes": 177356
+    },
+    {
+      "path": "desktop/assets/characters/roster/hunyuan-standard.gif",
+      "sha256": "6abb53c7b7b761b21bcf6f5620ed1cfcffc3b54055ffa7d3f91607752ae4d2ac",
+      "bytes": 85488
+    },
+    {
+      "path": "desktop/assets/characters/roster/hunyuan-standard.webp",
+      "sha256": "d560fd902186e24fb2aa7ba4fcaee4ffbf176f1a40e378bb19fb55868cddf2af",
+      "bytes": 155044
+    },
+    {
+      "path": "desktop/assets/characters/roster/kimi-chibi.gif",
+      "sha256": "d7b2c4a6834d73bbfedbb8b6cb96b8dbdb15f60441ecd7b0ada59379dcedf25b",
+      "bytes": 112791
+    },
+    {
+      "path": "desktop/assets/characters/roster/kimi-chibi.webp",
+      "sha256": "d8375cdfbddd63fa440ab73b26f46139dc66fcfd27dc29adc6b2930780e71695",
+      "bytes": 180936
+    },
+    {
+      "path": "desktop/assets/characters/roster/kimi-standard.gif",
+      "sha256": "24f8c380819448f83a2d7ee9104b905803690f657286ae77540101f55942006e",
+      "bytes": 93249
+    },
+    {
+      "path": "desktop/assets/characters/roster/kimi-standard.webp",
+      "sha256": "b4c1f4c1db7f812ba7365f6055070274b998b28248ce98df11ef1dbc9506a269",
+      "bytes": 172236
+    },
+    {
+      "path": "desktop/assets/characters/roster/metamuse-chibi.gif",
+      "sha256": "9840b6ab3dc0bfebe152242888225f8eb10d8e5b870bac28f2643cb00eca83f9",
+      "bytes": 58002
+    },
+    {
+      "path": "desktop/assets/characters/roster/metamuse-chibi.webp",
+      "sha256": "822f3beab5cf66ab361404423ddbc992dd5927749fa47f77bdf953e9610751ab",
+      "bytes": 178962
+    },
+    {
+      "path": "desktop/assets/characters/roster/metamuse-standard.gif",
+      "sha256": "93aa6fc6a838e1172d872b2aec8ce71ccf119b17a25474f8ee2f39a3bbed4e9c",
+      "bytes": 43193
+    },
+    {
+      "path": "desktop/assets/characters/roster/metamuse-standard.webp",
+      "sha256": "c8c2c3622cb9272efebc560ed538b834a9b7526d60550de0756d81f324133caa",
+      "bytes": 147848
+    },
+    {
+      "path": "desktop/assets/characters/roster/mimo-chibi.gif",
+      "sha256": "ccef418dee16ac82e601cb65067cdd803e91b6f2e0c8d6b69b52684f17b3e4b8",
+      "bytes": 63672
+    },
+    {
+      "path": "desktop/assets/characters/roster/mimo-chibi.webp",
+      "sha256": "f844814ab9ae499bbe963a496c0ca87b19b165041ae2bb076d4fff545ccfa0fb",
+      "bytes": 201054
+    },
+    {
+      "path": "desktop/assets/characters/roster/mimo-standard.gif",
+      "sha256": "7862c769ee94251c9c4e7cb3698c8fa10d03782877be62f412ffae08d92308cb",
+      "bytes": 52695
+    },
+    {
+      "path": "desktop/assets/characters/roster/mimo-standard.webp",
+      "sha256": "99d927561b0d474de33463f3fcd6216884519653ad417b91cd7bbe70e00c16ba",
+      "bytes": 190278
+    },
+    {
+      "path": "desktop/assets/characters/roster/minimax-chibi.gif",
+      "sha256": "ec10a8c7000fc0dec2f9b835524673aa44def391006798f1700fb41eb733fab3",
+      "bytes": 77747
+    },
+    {
+      "path": "desktop/assets/characters/roster/minimax-chibi.webp",
+      "sha256": "210b657ccedebab066f22dfa6f10810513c892d133dbf6ceeaa8c313803c78e7",
+      "bytes": 177216
+    },
+    {
+      "path": "desktop/assets/characters/roster/minimax-standard.gif",
+      "sha256": "579656c6786e275196eb655c42cf45330e244ea1a53f9f7627329b800eeda30b",
+      "bytes": 65814
+    },
+    {
+      "path": "desktop/assets/characters/roster/minimax-standard.webp",
+      "sha256": "2975c2baa00199a3cfae6055b3261baee56e86fdfbe9ba20b5f590553634fbe6",
+      "bytes": 161600
+    },
+    {
+      "path": "desktop/assets/characters/roster/mistral-chibi.gif",
+      "sha256": "19a95f6ad1bf81875985e5a2f06c7ff0fa213c3fc1788b82aec315bf63aa72a8",
+      "bytes": 106855
+    },
+    {
+      "path": "desktop/assets/characters/roster/mistral-chibi.webp",
+      "sha256": "3419c4c8b089a7737ca7f7a4e6e28fdbdaaa806d667e30f2076665a399990fc2",
+      "bytes": 230582
+    },
+    {
+      "path": "desktop/assets/characters/roster/mistral-standard.gif",
+      "sha256": "b91671f4a9e542b683d0d34a474d5dc4ac77223e56aa424820cedecddc8cb9b5",
+      "bytes": 81022
+    },
+    {
+      "path": "desktop/assets/characters/roster/mistral-standard.webp",
+      "sha256": "7426f72c5f8076222f1ef5c191a936e1e8fba80323b844eda25df20cd80360d3",
+      "bytes": 201478
+    },
+    {
+      "path": "desktop/assets/characters/roster/qwen-chibi.gif",
+      "sha256": "ec3ac01cb9a053c58b71ca3f8f5d2731e6fac7fa699db65894944e8d23c1ed3c",
+      "bytes": 108289
+    },
+    {
+      "path": "desktop/assets/characters/roster/qwen-chibi.webp",
+      "sha256": "155d270d32036010c710131d55c5ab921223d70b4487ac1db4d7749e12710a50",
+      "bytes": 178516
+    },
+    {
+      "path": "desktop/assets/characters/roster/qwen-standard.gif",
+      "sha256": "9bcec13866977717b8d5393d7f8d0164ba01330f40067876703ce3bfd67775aa",
+      "bytes": 91860
+    },
+    {
+      "path": "desktop/assets/characters/roster/qwen-standard.webp",
+      "sha256": "d315686311e566eab7e65998121e361114fa259694dbc582f8a52fec02dca1bb",
+      "bytes": 171838
+    },
+    {
+      "path": "desktop/assets/characters/roster/roster.json",
+      "sha256": "6b3c3065440cdc55ab25650d5710287238e70d9d5d3d8ad5ce0e50cd788bcaf2",
+      "bytes": 4145
+    },
+    {
       "path": "desktop/assets/pets/NOTICE.md",
       "sha256": "8680c91addbdc9b80f0beadaff7f4914323fa71f49ff9ea13bbf3aa01e24541d",
       "bytes": 1201
@@ -1306,13 +1621,13 @@
     },
     {
       "path": "desktop/avatars.js",
-      "sha256": "78743fdae92a4adb065bbe61c0f90104c786fd44df01c8c2ea98c27cf6b8aa76",
-      "bytes": 8551
+      "sha256": "f2d66990e1069e4472eb3f0f459ac60bdfac8bf7789dd5d39d4d7889bba5a89a",
+      "bytes": 12872
     },
     {
       "path": "desktop/avatars.test.cjs",
-      "sha256": "4a5fff2727adeb4109e72f4bd3443174ad5c4a348d1d2095ebb1139cf59f2248",
-      "bytes": 5057
+      "sha256": "37ffa9baf7d97e79b4125252ca9be3d590192387fe6969012c27f34fb5c86bb2",
+      "bytes": 5649
     },
     {
       "path": "desktop/chat-ipc.test.cjs",
@@ -1351,8 +1666,8 @@
     },
     {
       "path": "desktop/chat-ui.js",
-      "sha256": "81e7152de044e981c3683d3c2dd7c1eb56a640663c2e4a60b04ac4046195c709",
-      "bytes": 48081
+      "sha256": "dd592429141ae2ef20d9406678e6595b6158967735dbc5b0c72fc7f34cb8707d",
+      "bytes": 47894
     },
     {
       "path": "desktop/command-palette.js",
@@ -1361,8 +1676,8 @@
     },
     {
       "path": "desktop/command.css",
-      "sha256": "601c12abcd8c168eb5ba99556fd696e835dbe56f04c71aa3526987d35b24ccaf",
-      "bytes": 16376
+      "sha256": "8c71d5912be9da799a13acd071b91956572d3f2d26dd84ea6b6ba3e3166bc4ef",
+      "bytes": 16423
     },
     {
       "path": "desktop/concurrency-probe.cjs",
@@ -1431,13 +1746,13 @@
     },
     {
       "path": "desktop/index.html",
-      "sha256": "d1efb4fb89ee127943f4accd4638de1f55ec436ccc89d3c7b4f44b49348ed6c7",
-      "bytes": 36045
+      "sha256": "f5c927441c6fa76599503a0396d7654411059c8e06764dc6ae5166a67d2d5622",
+      "bytes": 37199
     },
     {
       "path": "desktop/main.cjs",
-      "sha256": "74031b353eb2c7722165649e85620879e7b22c7d1949c7548e9069048958bdf9",
-      "bytes": 70746
+      "sha256": "87962948aa117fa861079637cecbc5a30212f0ab1bec3256481b23e487c57bd3",
+      "bytes": 71069
     },
     {
       "path": "desktop/memory-bootstrap.cjs",
@@ -1650,9 +1965,34 @@
       "bytes": 1571
     },
     {
+      "path": "desktop/pet-ui.js",
+      "sha256": "4b34bffc30154e906f4139ff0eeb23076625bcd8ee5d0f3fa4e67736cc797061",
+      "bytes": 10478
+    },
+    {
+      "path": "desktop/pet-window.cjs",
+      "sha256": "71eec261b278a33267c47a8de6ae21dc40e1e762a38ea285900f57d5b4d5b6f0",
+      "bytes": 5326
+    },
+    {
+      "path": "desktop/pet-window.test.cjs",
+      "sha256": "30741a2ce0e95e1f5c94d3c3bbc463c00fbdb8b4b70c381968ca2a4218e48e3a",
+      "bytes": 1331
+    },
+    {
+      "path": "desktop/pet.css",
+      "sha256": "3c98078df2234c43c1a697893cd35adae133c90029c5382040b874ce118a21fb",
+      "bytes": 4308
+    },
+    {
+      "path": "desktop/pet.html",
+      "sha256": "c653375b53a81b263862951417792803c6c47768aa3a49270661988fe143d5ff",
+      "bytes": 1343
+    },
+    {
       "path": "desktop/preload.cjs",
-      "sha256": "37967ea793104402b5d4bfc2c752abb1f076f18c2fc22df83a4aba93c0aa9181",
-      "bytes": 3901
+      "sha256": "5a595b83bb36a086044d7f91fd7be8381abd65c92289d447f92d3e22652636b7",
+      "bytes": 4084
     },
     {
       "path": "desktop/renderer.js",
@@ -1676,13 +2016,13 @@
     },
     {
       "path": "desktop/stage-ui.js",
-      "sha256": "a7c98ff912318ff3c4134b54984f495cd3e105a6ed1cab726382b20e7e23583d",
-      "bytes": 21898
+      "sha256": "458d53f46431f04f2445ddda24b9e46766ab4c37a3f0fb3d81ff05319a64100d",
+      "bytes": 28814
     },
     {
       "path": "desktop/stage.css",
-      "sha256": "a0aa64e9933253c30632c7c795901009641eacdd8d82f91ac5179b08ae0da363",
-      "bytes": 9325
+      "sha256": "727438c567951413611f650ab6cfacc0db3c6a38d5e87c4a1f907fa439b12de9",
+      "bytes": 14472
     },
     {
       "path": "desktop/style.css",
@@ -1721,8 +2061,8 @@
     },
     {
       "path": "desktop/ui-verify-preload.cjs",
-      "sha256": "782e4e537c84377f02dce5ec2892ab660402b3a71605d22ffa4c8470d73492b5",
-      "bytes": 12593
+      "sha256": "80173984272d5b7e8deb341bd2b3769ce0511d5fd0cda525f8e7d4ecc9e24ea5",
+      "bytes": 12984
     },
     {
       "path": "desktop/ui-verify-run.cjs",
@@ -1731,8 +2071,8 @@
     },
     {
       "path": "desktop/ui-verify.cjs",
-      "sha256": "61e628b53e9a43db3c51988fc24ff7e563ca2218dc3d009020bc57bcc5c07143",
-      "bytes": 54353
+      "sha256": "e9706476ca2a9658389efc64f617b2c66f1d94e58216bfbac6f8fb7e01383921",
+      "bytes": 58017
     },
     {
       "path": "desktop/verify-routing.cjs",
@@ -1801,8 +2141,8 @@
     },
     {
       "path": "docs/COLLAB_VIEW.md",
-      "sha256": "61225b59d595febeb6a966710528d12d55064eca5a9dc01dee3894d70b3c2302",
-      "bytes": 3191
+      "sha256": "3544b1e6e7a0a94a38a6e8b4fbe407c91e5747d73b4aaf8d83ea69f564c64dae",
+      "bytes": 4344
     },
     {
       "path": "docs/CROSS_HOST_FEATURES.md",
@@ -1868,6 +2208,11 @@
       "path": "docs/MODEL_CONNECTIONS.md",
       "sha256": "8f419eb3706f2c0e50206e0f03cad8724670f1420603f98189ce7bf4a9f4e021",
       "bytes": 1974
+    },
+    {
+      "path": "docs/PET_DESKTOP.md",
+      "sha256": "5a8a6931ff9289d703b2351d446c646e98a93815c1c9e9ffa427850f58f577a1",
+      "bytes": 2539
     },
     {
       "path": "docs/PRIVACY.md",
@@ -1995,5 +2340,5 @@
       "bytes": 1693
     }
   ],
-  "revision_note": "2026-11-07 collaborative view: animated character avatars, reference graph, path sanitization"
+  "revision_note": "2026-11-07 multi-outfit roster, scenes, unified panel and floating desktop pet"
 }

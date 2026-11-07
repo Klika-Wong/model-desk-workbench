@@ -1,162 +1,235 @@
-/* 协作视图：角色是可拖动的节点，连线表示「这一条参考了谁的发言」。
-   右侧时间线记实际发言，不用漫画气泡假装它们在表演。 */
-.stage-card { display: flex; flex-direction: column; gap: 14px; }
+/* 协作视图：关系画布 + 统一控制面板。
+   去掉硬边框，改用柔和阴影与内部分隔线；角色用 spritesheet 播放九种动作。 */
+.stage-card {
+  display: flex; flex-direction: column; gap: 14px;
+  border: 0; border-radius: 18px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .05), 0 22px 46px -34px rgba(15, 23, 42, .5);
+}
 .stage-toolbar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
-.stage-toolbar label { display: flex; flex-direction: column; gap: 5px; font-size: 12px; color: var(--ink-2); }
-.stage-toolbar select { min-width: 200px; max-width: 320px; }
 .stage-pet { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-2); }
 .stage-pet input { margin: 0; }
 
-.collab-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 14px; align-items: stretch; }
-.collab-canvas-wrap { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
-.collab-tip { margin: 0; font-size: 11px; }
+/* 参与模型：复选框列表，名字完整显示，不再靠截断的 select */
+.model-picker-wrap { flex: 1; min-width: 0; }
+.picker-head { display: flex; align-items: baseline; gap: 12px; font-size: 12px; color: var(--ink-2); margin-bottom: 6px; }
+.model-picker { display: flex; flex-wrap: wrap; gap: 6px; }
+.model-pick {
+  display: inline-flex; align-items: flex-start; gap: 7px; max-width: 100%;
+  padding: 6px 10px; border-radius: 10px; background: var(--surface-2);
+  font-size: 12px; color: var(--ink-2); cursor: pointer;
+}
+.model-pick:hover { background: var(--accent-soft); }
+.model-pick input { margin: 2px 0 0; flex: none; }
+.model-pick span { white-space: normal; overflow-wrap: anywhere; line-height: 1.4; }
+.model-pick:has(input:checked) { background: color-mix(in srgb, var(--accent) 12%, var(--surface)); color: var(--ink); }
+
+.collab-layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 14px; align-items: stretch; }
+.collab-canvas-wrap { min-width: 0; display: flex; flex-direction: column; gap: 7px; }
+.collab-tip { margin: 0; font-size: 11px; line-height: 1.5; }
 
 .stage-floor {
-  position: relative; height: 360px; padding: 0; overflow: hidden;
-  border: 1px solid var(--line); border-radius: 14px;
+  position: relative; height: 400px; padding: 0; overflow: hidden;
+  border: 0; border-radius: 18px;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line) 65%, transparent);
   background: radial-gradient(ellipse at 50% 108%, var(--surface-2), var(--surface) 72%);
+  transition: background .3s;
 }
+.stage-floor[data-scene="work"] {
+  background:
+    repeating-linear-gradient(0deg, transparent 0 31px, color-mix(in srgb, var(--line) 45%, transparent) 31px 32px),
+    linear-gradient(180deg, color-mix(in srgb, var(--surface-2) 85%, #223047), var(--surface));
+}
+.stage-floor[data-scene="slack"] {
+  background:
+    radial-gradient(circle at 14% 20%, color-mix(in srgb, #ffd7a8 26%, transparent) 0 46px, transparent 47px),
+    radial-gradient(circle at 84% 16%, color-mix(in srgb, #a8e6ff 24%, transparent) 0 34px, transparent 35px),
+    radial-gradient(circle at 72% 84%, color-mix(in srgb, #ffc7dd 18%, transparent) 0 58px, transparent 59px),
+    linear-gradient(170deg, var(--surface), var(--surface-2));
+}
+.scene-label {
+  position: absolute; top: 12px; right: 14px; z-index: 3;
+  padding: 3px 10px; font-size: 10px; letter-spacing: .08em;
+  border-radius: 999px; color: var(--muted);
+  background: color-mix(in srgb, var(--surface) 78%, transparent);
+}
+
 .stage-links { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
-.collab-link {
-  fill: none; stroke: color-mix(in srgb, var(--accent) 34%, var(--line));
-  stroke-width: 1.6; stroke-dasharray: 5 5; transition: opacity .2s, stroke .2s;
-}
+.collab-link { fill: none; stroke: color-mix(in srgb, var(--accent) 34%, var(--line)); stroke-width: 1.6; stroke-dasharray: 5 5; transition: opacity .2s, stroke .2s; }
 .collab-link.is-active { stroke: var(--accent); stroke-width: 2.4; stroke-dasharray: 7 6; animation: link-flow .8s linear infinite; }
 .collab-link.is-dim { opacity: .16; }
 .collab-link.is-selected { stroke: var(--accent); stroke-width: 2.2; opacity: 1; }
 .collab-arrow-tip { fill: var(--accent); }
+.collab-pulse { fill: var(--accent); filter: drop-shadow(0 0 5px var(--accent)); }
 @keyframes link-flow { to { stroke-dashoffset: -26; } }
-@media (prefers-reduced-motion: reduce) { .collab-link.is-active { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .collab-link.is-active { animation: none; } .pet-sprite { animation: none; } }
 
-/* 角色节点：绝对定位，可拖动；形象本身是透明、自带动效的拟人角色。 */
+/* 角色节点 */
 .stage-actor {
-  position: absolute; z-index: 2; width: 132px; transform: translate(-50%, -50%);
+  position: absolute; z-index: 2; width: 176px; transform: translate(-50%, -50%);
   display: flex; flex-direction: column; align-items: center; gap: 2px;
   cursor: grab; user-select: none;
 }
-.stage-actor.is-dragging { cursor: grabbing; z-index: 5; }
+.stage-actor.is-dragging { cursor: grabbing; z-index: 6; }
 .stage-actor-avatar {
-  position: relative; width: 116px; height: 116px; display: grid; place-items: center;
-  border: 0; background: transparent; overflow: visible; font-size: 56px;
-  transition: filter .2s, transform .2s;
+  --pet-w: 116px; --pet-h: 125.67px;
+  position: relative; width: var(--pet-w); height: var(--pet-h);
+  display: grid; place-items: center; border: 0; background: transparent;
+  overflow: visible; font-size: 52px; transition: filter .2s, transform .2s;
 }
 .stage-actor:hover .stage-actor-avatar { transform: translateY(-3px); }
-.stage-actor.is-selected .stage-actor-avatar {
-  filter: drop-shadow(0 0 9px color-mix(in srgb, var(--accent) 65%, transparent));
-}
-.stage-actor[data-state="thinking"] .stage-actor-avatar { filter: drop-shadow(0 0 8px color-mix(in srgb, var(--accent) 45%, transparent)); }
-.stage-actor[data-state="speaking"] .stage-actor-avatar { filter: drop-shadow(0 0 11px color-mix(in srgb, var(--accent) 70%, transparent)); }
+.stage-actor.is-selected .stage-actor-avatar { filter: drop-shadow(0 0 10px color-mix(in srgb, var(--accent) 65%, transparent)); }
+.stage-actor[data-state="thinking"] .stage-actor-avatar,
+.stage-actor[data-state="speaking"] .stage-actor-avatar { filter: drop-shadow(0 0 9px color-mix(in srgb, var(--accent) 55%, transparent)); }
 .stage-actor[data-state="failed"] .stage-actor-avatar { filter: grayscale(.8); }
-.avatar-figure { width: 100%; height: 100%; object-fit: contain; pointer-events: none; filter: hue-rotate(var(--char-hue, 0deg)); }
-/* 不同来源的角色在画布里占比差很多，按类型归一到差不多的视觉大小。 */
-.stage-actor-avatar[data-avatar-choice="crab"] .avatar-figure { transform: scale(1.75); }
-.stage-actor-avatar[data-avatar-choice="dafeiyu"] .avatar-figure {
-  width: 140%; height: 100%; object-fit: cover; object-position: center 45%; transform: scale(1.1);
+
+/* spritesheet：8 帧一行、9 行动作，只用 CSS 播，不引动画引擎 */
+.pet-sprite {
+  width: var(--pet-w); height: var(--pet-h);
+  background-image: var(--pet-sheet); background-repeat: no-repeat;
+  background-size: calc(var(--pet-w) * 8) calc(var(--pet-h) * 9);
+  background-position-x: 0;
+  background-position-y: calc(var(--pet-row, 0) * var(--pet-h) * -1);
+  animation: pet-play 1.44s steps(8) infinite;
+  transform: scaleX(var(--pet-flip, 1));
 }
+@keyframes pet-play {
+  from { background-position-x: 0; }
+  to { background-position-x: calc(var(--pet-w) * -8); }
+}
+.avatar-figure { width: 100%; height: 100%; object-fit: contain; pointer-events: none; filter: hue-rotate(var(--char-hue, 0deg)); }
+.stage-actor-avatar[data-avatar-choice="crab"] .avatar-figure { transform: scale(1.7); }
+.stage-actor-avatar[data-avatar-choice="dafeiyu"] .avatar-figure { width: 140%; object-fit: cover; object-position: center 45%; transform: scale(1.1); }
 .agent-avatar[data-avatar-choice="crab"] .avatar-figure { transform: scale(1.6); }
-.agent-avatar[data-avatar-choice="dafeiyu"] .avatar-figure { object-fit: cover; object-position: center 45%; transform: scale(1.15); }
-.stage-actor-avatar.is-emoji {
-  border-radius: 50%; border: 1px solid var(--line);
+.stage-actor-avatar.is-emoji, .agent-avatar.is-emoji {
+  width: 84px; height: 84px; border-radius: 50%;
   background: radial-gradient(circle at 50% 30%,
     color-mix(in srgb, hsl(var(--avatar-hue, 210) 72% 62%) 12%, var(--surface)),
     color-mix(in srgb, hsl(var(--avatar-hue, 210) 62% 52%) 22%, var(--surface-2)) 80%);
 }
-.stage-actor-avatar.is-brand { border-radius: 50%; }
+.stage-actor-avatar.is-brand, .agent-avatar.is-brand { width: 84px; height: 84px; border-radius: 50%; }
 
-.actor-swap {
-  position: absolute; top: 4px; right: 14px; z-index: 3;
-  width: 23px; height: 23px; line-height: 1; border-radius: 50%;
-  border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink-2);
-  font-size: 12px; cursor: pointer; opacity: 0; transition: opacity .15s;
+/* 多个形象直接摆在角色下面，点一下就换；＋ 打开完整形象库 */
+.actor-outfits { display: flex; align-items: center; justify-content: center; gap: 4px; margin-top: 2px; }
+.outfit, .outfit-more {
+  width: 34px; height: 34px; padding: 0; display: grid; place-items: center;
+  border-radius: 9px; border: 1px solid var(--line); background: var(--surface);
+  cursor: pointer; overflow: hidden; font-size: 17px; color: var(--ink-2);
 }
-.stage-actor:hover .actor-swap, .actor-swap:focus-visible { opacity: 1; }
-.actor-swap:hover { border-color: var(--accent); color: var(--accent); }
+.outfit img { width: 100%; height: 100%; object-fit: contain; }
+.outfit:hover, .outfit-more:hover { border-color: var(--accent); }
+.outfit.is-active { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent); }
+.outfit-more { border-style: dashed; }
+.outfit-picker {
+  position: absolute; z-index: 8; top: calc(100% - 4px); left: 50%; transform: translateX(-50%);
+  width: 246px; padding: 10px; border-radius: 14px;
+  background: var(--surface); color: var(--ink);
+  box-shadow: 0 0 0 1px var(--line), 0 18px 40px -18px rgba(15, 23, 42, .6);
+}
+.outfit-picker-head { font-size: 11px; font-weight: 600; margin-bottom: 8px; }
+.outfit-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.outfit-item {
+  display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 5px 3px;
+  border: 1px solid var(--line); border-radius: 9px; background: var(--surface-2);
+  cursor: pointer; font-size: 9px; line-height: 1.25; color: var(--ink-2); text-align: center;
+}
+.outfit-item img { width: 46px; height: 50px; object-fit: contain; }
+.outfit-glyph { width: 46px; height: 50px; display: grid; place-items: center; font-size: 26px; }
+.outfit-item span:last-child { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.outfit-item:hover, .outfit-item.is-active { border-color: var(--accent); background: var(--accent-soft); }
+.outfit-picker .hint { margin: 8px 0 0; font-size: 9px; }
 
 .actor-poke-bubble {
-  position: absolute; top: -12px; left: 50%; transform: translateX(-50%); z-index: 4;
+  position: absolute; top: -10px; left: 50%; transform: translateX(-50%); z-index: 7;
   padding: 4px 9px; white-space: nowrap; font-size: 11px;
-  border: 1px solid var(--accent); border-radius: 999px;
-  background: var(--surface); color: var(--accent); box-shadow: var(--shadow-1);
+  border-radius: 999px; background: var(--surface); color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent), 0 8px 18px -12px rgba(15, 23, 42, .8);
 }
-
 .stage-actor-name {
-  max-width: 132px; font-size: 12px; font-weight: 600; color: var(--ink);
-  padding: 2px 9px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface);
-  cursor: text; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  max-width: 176px; min-height: 20px; font-size: 12px; font-weight: 600; color: var(--ink);
+  padding: 2px 10px; border-radius: 9px; background: color-mix(in srgb, var(--surface) 88%, var(--accent));
+  cursor: text; text-align: center; line-height: 1.35; white-space: normal; overflow-wrap: anywhere;
 }
-.stage-actor-name:hover { color: var(--accent); border-color: var(--accent); }
-.stage-name-input { width: 130px; font-size: 12px; text-align: center; }
+.stage-actor-name:hover { color: var(--accent); }
+.stage-name-input { width: 168px; font-size: 12px; text-align: center; }
 .stage-actor-state { font-size: 11px; color: var(--muted); }
 .actor-meta { font-size: 10px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .stage-actor[data-state="thinking"] .stage-actor-state,
 .stage-actor[data-state="speaking"] .stage-actor-state { color: var(--accent); }
 .stage-actor[data-state="done"] .stage-actor-state { color: var(--ok-ink); }
 .stage-actor[data-state="failed"] .stage-actor-state { color: var(--danger); }
-/* 摘要绝对定位：出现时不改变节点高度，角色不会突然跳位。 */
 .stage-actor-bubble {
   position: absolute; top: calc(100% + 4px); left: 50%; transform: translateX(-50%);
-  width: 132px; max-height: 62px; overflow: auto;
+  width: 168px; max-height: 52px; overflow: hidden;
   padding: 5px 8px; font-size: 10px; line-height: 1.5; color: var(--ink-2);
-  border: 1px solid var(--line); border-radius: 8px; background: var(--surface);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  border-radius: 9px; background: var(--surface); box-shadow: 0 0 0 1px var(--line);
+  white-space: nowrap; text-overflow: ellipsis;
 }
 
-/* 右侧：本轮发言与引用记录 */
-.collab-log {
-  display: flex; flex-direction: column; min-height: 0; max-height: 360px;
-  border: 1px solid var(--line); border-radius: 12px; background: var(--surface);
+/* 统一控制面板：场景 / 状态 / 记录 / 输入都在一处 */
+.side-panel {
+  display: flex; flex-direction: column; min-height: 0; height: 400px; overflow-y: auto;
+  border: 0; border-radius: 18px; background: var(--surface);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .05), 0 22px 46px -34px rgba(15, 23, 42, .5);
 }
-.collab-log-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
-.collab-log-head h3 { margin: 0; font-size: 12px; font-weight: 600; }
-.collab-turns { margin: 0; padding: 8px; list-style: none; overflow: auto; display: flex; flex-direction: column; gap: 6px; }
-.collab-turn {
-  display: flex; gap: 8px; padding: 7px 8px; cursor: pointer;
-  border: 1px solid var(--line); border-radius: 9px; background: var(--surface-2);
+.panel-section { padding: 10px 12px; }
+.panel-section + .panel-section { border-top: 1px solid var(--line); }
+.panel-grow { flex: 1; min-height: 90px; display: flex; flex-direction: column; }
+.panel-title { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.panel-title h3 { margin: 0; font-size: 12px; font-weight: 600; }
+.scene-switch { display: flex; gap: 5px; }
+.scene-switch button {
+  flex: 1; padding: 5px 4px; font-size: 11px; cursor: pointer;
+  border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2); color: var(--ink-2);
 }
-.collab-turn:hover, .collab-turn.is-selected { border-color: var(--accent); background: var(--accent-soft); }
+.scene-switch button:hover { border-color: var(--accent); }
+.scene-switch button.active { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.status-list { display: flex; flex-direction: column; gap: 4px; max-height: 124px; overflow: auto; }
+.status-row { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 9px; cursor: pointer; }
+.status-row:hover, .status-row.is-selected { background: var(--accent-soft); }
+.status-thumb { flex: none; width: 30px; height: 32px; display: grid; place-items: center; font-size: 20px; }
+.status-thumb img { width: 100%; height: 100%; object-fit: contain; }
+.status-info { min-width: 0; flex: 1; }
+.status-name { font-size: 11px; font-weight: 600; line-height: 1.35; white-space: normal; overflow-wrap: anywhere; }
+.status-meta { font-size: 10px; color: var(--muted); }
+.collab-turns { margin: 0; padding: 0; list-style: none; overflow: auto; display: flex; flex-direction: column; gap: 5px; }
+.collab-turn { display: flex; gap: 8px; padding: 7px 8px; cursor: pointer; border-radius: 10px; background: var(--surface-2); }
+.collab-turn:hover, .collab-turn.is-selected { background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
 .turn-idx { flex: none; padding-top: 2px; font-size: 10px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .turn-body { min-width: 0; flex: 1; }
 .turn-head { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; font-size: 11px; }
-.turn-head strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.turn-head strong { white-space: normal; overflow-wrap: anywhere; line-height: 1.35; }
 .turn-ref { flex: none; font-size: 10px; color: var(--accent); }
-.turn-text {
-  margin: 4px 0 0; font-size: 11px; line-height: 1.55; color: var(--ink-2);
-  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
-}
-.collab-empty { padding: 8px; font-size: 11px; line-height: 1.6; color: var(--muted); }
+.turn-text { margin: 4px 0 0; font-size: 11px; line-height: 1.55; color: var(--ink-2);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.collab-empty { padding: 6px 2px; font-size: 11px; line-height: 1.6; color: var(--muted); }
+.panel-input { padding-top: 10px; }
+.stage-input-row { display: flex; gap: 6px; }
+.stage-input-row input { flex: 1; min-width: 0; }
+.stage-input-row button { flex: none; padding-left: 10px; padding-right: 10px; }
 
 /* 品牌币：仍是可切换的一档 */
-.brand-coin {
-  width: 100%; height: 100%; border-radius: 50%; display: grid; place-items: center;
-  background: radial-gradient(circle at 34% 26%, #ffffff 0%, #f2f5fa 72%, #e6ebf3 100%);
-  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, .07), inset 0 -8px 16px rgba(15, 23, 42, .05);
-}
+.brand-coin { width: 100%; height: 100%; border-radius: 50%; display: grid; place-items: center;
+  background: radial-gradient(circle at 34% 26%, #fff 0%, #f2f5fa 72%, #e6ebf3 100%);
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, .07), inset 0 -8px 16px rgba(15, 23, 42, .05); }
 .brand-glyph { display: block; }
-.brand-glyph.is-mono {
-  width: 54%; height: 54%; background-color: var(--brand, #334155);
-  -webkit-mask: var(--brand-logo) center / contain no-repeat;
-  mask: var(--brand-logo) center / contain no-repeat;
-}
+.brand-glyph.is-mono { width: 54%; height: 54%; background-color: var(--brand, #334155);
+  -webkit-mask: var(--brand-logo) center / contain no-repeat; mask: var(--brand-logo) center / contain no-repeat; }
 .brand-glyph.is-color { width: 58%; height: 58%; background: var(--brand-logo) center / contain no-repeat; }
 
-.stage-input-row { display: flex; gap: 8px; }
-.stage-input-row input { flex: 1; }
-
-/* 桌宠模式：收成右下角一只，连线与时间线一并隐藏。 */
+/* 桌宠模式 */
 .stage-floor.pet-mode {
   position: fixed; right: 24px; bottom: 24px; z-index: 60;
-  width: 168px; height: 182px; min-height: 0; padding: 0; border-radius: 14px;
-  background: var(--surface); box-shadow: var(--shadow-1);
+  width: 176px; height: 200px; min-height: 0; padding: 0; border-radius: 18px;
+  background: var(--surface); box-shadow: 0 0 0 1px var(--line), 0 18px 42px -20px rgba(15, 23, 42, .7);
 }
-.stage-floor.pet-mode .stage-actor { left: 50% !important; top: 48% !important; width: 150px; }
-.stage-floor.pet-mode .stage-actor-avatar { width: 100px; height: 100px; }
-.stage-floor.pet-mode .stage-actor-bubble { max-width: 145px; max-height: 48px; }
-body.collab-pet-on .stage-links,
-body.collab-pet-on .collab-log,
-body.collab-pet-on .collab-tip { display: none; }
+.stage-floor.pet-mode .stage-actor { left: 50% !important; top: 44% !important; width: 160px; }
+.stage-floor.pet-mode .stage-actor-avatar { --pet-w: 96px; --pet-h: 104px; }
+.stage-floor.pet-mode .stage-actor-bubble { max-width: 150px; }
+body.collab-pet-on .stage-links, body.collab-pet-on .side-panel, body.collab-pet-on .collab-tip,
+body.collab-pet-on .scene-label { display: none; }
 body.collab-pet-on .collab-layout { grid-template-columns: 1fr; }
 
 @media (max-width: 1000px) {
   .collab-layout { grid-template-columns: 1fr; }
-  .collab-log { max-height: 220px; }
+  .side-panel { max-height: 320px; }
 }

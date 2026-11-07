@@ -17,6 +17,7 @@ const MOCK_WORKSPACE = 'desktop-shell-prototype';
 const backendScript = path.join(__dirname, 'mock-backend.cjs');
 const smokeMode = process.env.MODEL_DESK_SMOKE === '1' || process.argv.includes('--smoke');
 let mainWindow = null;
+let petWindowCtl = null;
 let panelWindow = null;
 let panelView = null;
 let panelAttached = false;
@@ -276,8 +277,12 @@ async function selectProject(folder) {
 }
 
 function assertTrustedSender(event) {
-  const expectedUrl = pathToFileURL(path.join(__dirname, 'index.html')).href;
-  if (!event.senderFrame || event.senderFrame.url !== expectedUrl) {
+  // 主窗口与独立桌宠窗口都是本地打包页面，共用同一套派发接口。
+  const allowed = new Set([
+    pathToFileURL(path.join(__dirname, 'index.html')).href,
+    pathToFileURL(path.join(__dirname, 'pet.html')).href,
+  ]);
+  if (!event.senderFrame || !allowed.has(event.senderFrame.url)) {
     throw new Error('Untrusted desktop window.');
   }
 }
@@ -794,6 +799,7 @@ app.whenReady().then(async () => {
       return;
     }
     await createWindow();
+    petWindowCtl = require('./pet-window.cjs').registerPetWindow(app.getPath('userData'));
     if (pendingShow) showWorkbench();
     // 窗口出来后若服务没起就自己拉起，界面靠轮询自然更新。
     ensurePanelService().catch(() => {});
@@ -1275,6 +1281,7 @@ function showWorkbench() {
 }
 function requestExit() {
   exitRequested = true;
+  if (petWindowCtl) petWindowCtl.close();
   if (mainWindow && !mainWindow.isDestroyed()) { showWorkbench(); mainWindow.close(); }
   else app.quit();
 }

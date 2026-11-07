@@ -106,6 +106,9 @@ contextBridge.exposeInMainWorld('workbench', {
   chatLoad: async (project) => ({ ok: true, data: { messages: project?.includes('different-fixture') ? [] : [{ role: 'user', text: '上次的第一句' }], dropped: 0, corrupted: false } }),
   chatSave: async (messages, project) => { calls.push({ api: 'chatSave', input: messages, project }); return { ok: true, data: { saved: (messages || []).length } }; },
   chatClear: async (project) => { calls.push({ api: 'chatClear', project }); return { ok: !chatClearFails, data: { cleared: !chatClearFails } }; },
+  petOpen: async () => { calls.push({api:'petOpen'}); return {ok:true,data:{locked:false,alwaysOnTop:true}}; },
+  petState: async () => ({ok:true,data:{locked:false,alwaysOnTop:true}}),
+  petControl: async (action, value) => { calls.push({api:'petControl',action,value}); return {ok:true,data:{locked:action==='lock'?Boolean(value):false,alwaysOnTop:action==='top'?Boolean(value):true}}; },
   dispatchModels: async () => ({ ok: true, data: { baseUrl: 'http://127.0.0.1:18765', defaultModel: 'm-local', models: [{ id: 'm-local', name: '本地示例模型', provider: 'local', local: true }, { id: 'm-cloud', name: '云端示例模型', provider: 'cloud', local: false }, { id: 'm-deepseek', name: 'DeepSeek-V3', provider: 'deepseek', local: false }] } }),
   copyAiGuide: async () => { calls.push({api:'copyAiGuide'}); return {ok:true,data:{copied:true}}; },
   modelSettingsLoad: async (base,id) => {

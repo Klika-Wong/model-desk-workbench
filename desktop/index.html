@@ -83,23 +83,45 @@
   </section>
 </div>
 <div id="stage-page" hidden>
-  <header class="page-header"><div><p class="eyebrow">协作视图</p><h1>谁在跟谁说话</h1><p class="intro">一轮讨论里，每位都能看到前面所有人的发言。这里把引用关系、发言顺序和当前状态画出来，不替模型编造内容。</p></div><div class="header-actions"><label class="stage-pet"><input id="stage-pet" type="checkbox"> 收成桌宠</label><button id="stage-refresh" type="button">刷新模型</button></div></header>
+  <header class="page-header"><div><p class="eyebrow">协作视图</p><h1>谁在跟谁说话</h1><p class="intro">一轮讨论里，每位都能看到前面所有人的发言。这里把引用关系、发言顺序和当前状态画出来；对话输入、模型状态、本轮记录都在同一个面板里。</p></div><div class="header-actions"><button id="stage-pet-open" type="button" class="primary">悬浮到桌面</button><label class="stage-pet"><input id="stage-pet" type="checkbox"> 页内小窗</label><button id="stage-refresh" type="button">刷新模型</button></div></header>
   <section class="card stage-card">
-    <div class="stage-toolbar"><label>参与的模型<select id="stage-models" multiple size="3" aria-label="选择参与的模型"></select></label><span id="stage-picked" class="hint"></span></div>
+    <div class="stage-toolbar">
+      <div class="model-picker-wrap">
+        <div class="picker-head"><span>参与的模型</span><span id="stage-picked" class="hint"></span></div>
+        <div id="stage-models" class="model-picker" role="group" aria-label="选择参与的模型"></div>
+      </div>
+    </div>
     <div class="collab-layout">
       <div class="collab-canvas-wrap">
-        <div id="stage-floor" class="stage-floor" aria-label="模型引用关系">
+        <div id="stage-floor" class="stage-floor" data-scene="discuss" aria-label="模型引用关系">
           <svg id="stage-links" class="stage-links" aria-hidden="true"></svg>
+          <span id="stage-scene-label" class="scene-label">讨论中</span>
         </div>
-        <p class="hint collab-tip">拖动形象调整位置 · 单击看引用关系 · 双击戳一下 · 点名字改 ID · 点 ⇄ 换形象</p>
+        <p class="hint collab-tip">点形象下方可切换多个专属形象 · 单击看引用关系 · 双击戳一下 · 拖动调整位置 · 点名字改 ID</p>
       </div>
-      <aside class="collab-log" aria-label="本轮发言与引用记录">
-        <div class="collab-log-head"><h3>本轮记录</h3><span id="stage-turn-count" class="hint">还没有发言</span></div>
-        <ol id="stage-turns" class="collab-turns"><li class="collab-empty">开始一轮讨论后，这里按顺序记下每位参考了谁、说了什么。</li></ol>
+      <aside class="side-panel" aria-label="讨论控制面板">
+        <section class="panel-section">
+          <div class="panel-title"><h3>场景</h3><span class="hint">只改动作与背景</span></div>
+          <div id="stage-scenes" class="scene-switch">
+            <button type="button" data-scene="discuss" class="active">讨论中</button>
+            <button type="button" data-scene="work">工作中</button>
+            <button type="button" data-scene="slack">摸鱼中</button>
+          </div>
+        </section>
+        <section class="panel-section">
+          <div class="panel-title"><h3>模型状态</h3><span id="stage-actor-count" class="hint">0 个</span></div>
+          <div id="stage-status-list" class="status-list"></div>
+        </section>
+        <section class="panel-section panel-grow">
+          <div class="panel-title"><h3>本轮记录</h3><span id="stage-turn-count" class="hint">还没有发言</span></div>
+          <ol id="stage-turns" class="collab-turns"><li class="collab-empty">开始一轮讨论后，这里按顺序记下每位参考了谁、说了什么。</li></ol>
+        </section>
+        <section class="panel-section panel-input">
+          <div class="stage-input-row"><input id="stage-question" maxlength="2000" placeholder="给它们一句问题"><button id="stage-ask" type="button" class="primary">开始讨论</button></div>
+          <p id="stage-status" class="hint" aria-live="polite"></p>
+        </section>
       </aside>
     </div>
-    <div class="stage-input-row"><input id="stage-question" maxlength="2000" placeholder="输入一个问题，例如：这个项目下一步该做什么？"><button id="stage-ask" type="button" class="primary">开始一轮讨论</button></div>
-    <p id="stage-status" class="hint" aria-live="polite"></p>
   </section>
 </div>
 <div id="tasks-page" hidden>
