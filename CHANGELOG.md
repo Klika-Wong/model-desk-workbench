@@ -1,5 +1,15 @@
 # 更新记录
 
+## 缺陷复查与权限收敛（2026-11-07 23:20）
+
+- 修复「刷新模型丢用户勾选」：`loadModels()` 原本在清空 DOM 之后才读 `checkedIds()`，导致每次刷新都回退默认全选；新增回归断言 `collab-model-selection-persists`。
+- 修复「被戳 / 被拖 / 发言被引用时的动作被连线重绘冲掉」：引入 `actor.visualState` 与 `setVisual / clearVisual / applyActorVisual`，临时动作优先于真实状态；断言重画连线后跳跃动作仍在。
+- 收紧桌宠窗口来源校验：`pet:open` 原本的正则 `$` 只作用于第二个分支，非 file: 页面与 `index.html.evil` 都能过；改为 `isTrustedPetUrl()` 并加单测。
+- 收敛桌宠窗口权限：新增 `pet-preload.cjs`，只暴露 `getState / dispatchModels / dispatchSend / dispatchLog / dispatchStatus / petOpen / petState / petControl` 八个接口，不再带出记忆 / 架构 / 设置等写通道。真实主进程 IPC 实测桌宠窗口的 `window.workbench` 确实只有这八个。
+- 点画布空白处自动收起形象库浮层。
+- 验证：单测 **175/175**、真机 UI **34 项**全过，控制台无报错。
+
+
 ## 多形象、场景与独立悬浮桌宠（2026-11-07 晚）
 
 - 模型 ID 不再被截断：参与模型改为复选框列表，名字自动换行并带完整标题；角色名、状态列表、发言记录同样完整显示。

@@ -51,7 +51,7 @@ function create() {
     transparent: true, frame: false, alwaysOnTop: state.alwaysOnTop,
     skipTaskbar: true, resizable: false, hasShadow: false, show: false,
     webPreferences: {
-      preload: path.join(__dirname, 'preload.cjs'),
+      preload: path.join(__dirname, 'pet-preload.cjs'),
       contextIsolation: true, nodeIntegration: false, sandbox: true,
       backgroundThrottling: false,
     },
@@ -67,6 +67,12 @@ function create() {
   return petWindow;
 }
 
+// 只接受本地打包的两个页面；`index.html` 后面拼接的假路径不能混进来。
+function isTrustedPetUrl(url) {
+  if (typeof url !== 'string' || !url.startsWith('file:')) return false;
+  return /\/(?:index|pet)\.html$/.test(url.split('?')[0]);
+}
+
 function trusted(event) {
   if (!petWindow || petWindow.isDestroyed()) return false;
   return event.sender === petWindow.webContents;
@@ -77,7 +83,7 @@ function registerPetWindow(userDataPath) {
   load();
   ipcMain.handle('pet:open', (event) => {
     // 只允许主窗口或桌宠自己打开，避免任意渲染进程弹窗。
-    if (event.senderFrame && !/index\.html|pet\.html$/.test(event.senderFrame.url)) {
+    if (event.senderFrame && !isTrustedPetUrl(event.senderFrame.url)) {
       return { ok: false, error: 'Untrusted desktop window.' };
     }
     try { create(); return { ok: true, data: Object.assign({}, state) }; }
@@ -118,4 +124,4 @@ function registerPetWindow(userDataPath) {
   return { close: () => { if (petWindow && !petWindow.isDestroyed()) petWindow.close(); } };
 }
 
-module.exports = { registerPetWindow, defaultPosition, sanitizeState };
+module.exports = { registerPetWindow, defaultPosition, sanitizeState, isTrustedPetUrl };

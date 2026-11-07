@@ -277,7 +277,8 @@ async function selectProject(folder) {
 }
 
 function assertTrustedSender(event) {
-  // 主窗口与独立桌宠窗口都是本地打包页面，共用同一套派发接口。
+  // 主窗口与独立桌宠窗口都是本地打包页面。桌宠另用 pet-preload.cjs，
+  // 只暴露读状态与派发对话所需的最小 API，拿不到记忆/架构/设置等写通道。
   const allowed = new Set([
     pathToFileURL(path.join(__dirname, 'index.html')).href,
     pathToFileURL(path.join(__dirname, 'pet.html')).href,

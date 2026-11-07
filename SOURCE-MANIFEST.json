@@ -1071,8 +1071,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "456e179b21ff3bbfb1eacf5b73e1515f6f5e0bda388b128d798af3b9a44ef2d3",
-      "bytes": 6933
+      "sha256": "e927e4636fb38205b232fa9d1c5969f727b9a8936f805997f6e4abd4dbb0b5eb",
+      "bytes": 8085
     },
     {
       "path": "LICENSE",
@@ -1751,8 +1751,8 @@
     },
     {
       "path": "desktop/main.cjs",
-      "sha256": "87962948aa117fa861079637cecbc5a30212f0ab1bec3256481b23e487c57bd3",
-      "bytes": 71069
+      "sha256": "3665cb7dcbdbd0cdfca19796a45370bdf2fec454e469d8ad53dbece63a2a780e",
+      "bytes": 71175
     },
     {
       "path": "desktop/memory-bootstrap.cjs",
@@ -1965,19 +1965,24 @@
       "bytes": 1571
     },
     {
+      "path": "desktop/pet-preload.cjs",
+      "sha256": "cc76fc292b8a86ef8af64c79be6ccc5255e1df4f9b4cafa2f7e0fad9cc5beeeb",
+      "bytes": 758
+    },
+    {
       "path": "desktop/pet-ui.js",
       "sha256": "4b34bffc30154e906f4139ff0eeb23076625bcd8ee5d0f3fa4e67736cc797061",
       "bytes": 10478
     },
     {
       "path": "desktop/pet-window.cjs",
-      "sha256": "71eec261b278a33267c47a8de6ae21dc40e1e762a38ea285900f57d5b4d5b6f0",
-      "bytes": 5326
+      "sha256": "4e067702b8437aec5d486b728caad7c7f6db2e09c59af1ce1d855082437b4bed",
+      "bytes": 5598
     },
     {
       "path": "desktop/pet-window.test.cjs",
-      "sha256": "30741a2ce0e95e1f5c94d3c3bbc463c00fbdb8b4b70c381968ca2a4218e48e3a",
-      "bytes": 1331
+      "sha256": "fdc2b0f3b721adb346d7755a6949260bb9ae7d4c8c6229b980aef639597465b2",
+      "bytes": 1793
     },
     {
       "path": "desktop/pet.css",
@@ -2016,8 +2021,8 @@
     },
     {
       "path": "desktop/stage-ui.js",
-      "sha256": "458d53f46431f04f2445ddda24b9e46766ab4c37a3f0fb3d81ff05319a64100d",
-      "bytes": 28814
+      "sha256": "92d261aeefdc8ece9f3d6786951536c945671ce9870a3c4013c9867c43bfacf9",
+      "bytes": 29261
     },
     {
       "path": "desktop/stage.css",
@@ -2071,8 +2076,8 @@
     },
     {
       "path": "desktop/ui-verify.cjs",
-      "sha256": "e9706476ca2a9658389efc64f617b2c66f1d94e58216bfbac6f8fb7e01383921",
-      "bytes": 58017
+      "sha256": "f00a68b5b26a56081f8660dc0a40fc271d0b5167ca7aec381494c5248a89cc65",
+      "bytes": 59081
     },
     {
       "path": "desktop/verify-routing.cjs",
@@ -2211,8 +2216,8 @@
     },
     {
       "path": "docs/PET_DESKTOP.md",
-      "sha256": "5a8a6931ff9289d703b2351d446c646e98a93815c1c9e9ffa427850f58f577a1",
-      "bytes": 2539
+      "sha256": "7e436e780ad2321264d0ffb0245e3ccdd16bd5e7061cd04bdb91a875ab93df4b",
+      "bytes": 3168
     },
     {
       "path": "docs/PRIVACY.md",
@@ -2340,5 +2345,5 @@
       "bytes": 1693
     }
   ],
-  "revision_note": "2026-11-07 multi-outfit roster, scenes, unified panel and floating desktop pet"
+  "revision_note": "2026-11-07 defect review: selection persistence, visual state, pet URL guard and minimal pet preload"
 }

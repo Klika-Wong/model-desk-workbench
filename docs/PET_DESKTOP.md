@@ -43,3 +43,13 @@
 
 174 项单测与 33 项真机 UI 检查全过；另用真窗口检查了 sprite 渲染、8 个表情、3 个模型、
 表情面板、对话面板与锁定切换。真机验证使用桩 preload，不代表真实付费调用。
+
+## 权限边界（23:20 复查补）
+
+桌宠窗口使用独立的 `desktop/pet-preload.cjs`，`window.workbench` 只暴露八个接口：
+`getState`、`dispatchModels`、`dispatchSend`、`dispatchLog`、`dispatchStatus`、
+`petOpen`、`petState`、`petControl`。主窗口的 `preload.cjs` 不动。
+`pet:open` 只接受本地 `file:` 下以 `/index.html` 或 `/pet.html` 结尾的来源
+（`isTrustedPetUrl()`），远程页面或路径拼接都进不来。
+主进程的 `assertTrustedSender` 仍把 `pet.html` 列入白名单，因为派发链路需要它，
+但实际可调用的通道已被 preload 限制到最小集合。

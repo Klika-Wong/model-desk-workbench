@@ -322,9 +322,8 @@ async function main() {
     const pickerOpen = Boolean(firstActor.querySelector('.outfit-picker'));
     const pickerItems = firstActor.querySelectorAll('.outfit-picker .outfit-item').length;
     const beforePet = localStorage.getItem('pet-avatar:' + pickedId);
-    const generic = [...firstActor.querySelectorAll('.outfit-picker .outfit-item')].find((i) => !i.title.startsWith('通用') && !i.title.includes('Q 版') && !i.title.includes('标准版'));
-    const third = firstActor.querySelectorAll('.outfit-picker .outfit-item')[3];
-    (third || generic).click();
+    const second = firstActor.querySelectorAll('.outfit-picker .outfit-item')[1];
+    second.click();
     await new Promise(r => setTimeout(r, 200));
     const afterPet = localStorage.getItem('pet-avatar:' + pickedId);
 
@@ -353,7 +352,9 @@ async function main() {
     firstActor.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, cancelable: true }));
     await new Promise(r => setTimeout(r, 150));
     const pokeBubbles = [...document.querySelectorAll('.actor-poke-bubble')].filter((b) => !b.hidden).length;
+    window.__stageUi.drawLinks();
     const pokeState = firstActor.querySelector('.stage-actor-avatar').dataset.avatarState;
+    const pokeRow = (firstActor.querySelector('[data-sprite]') || { style: { getPropertyValue: () => '' } }).style.getPropertyValue('--pet-row');
 
     // 拖动一个角色：位置要落盘
     const dragEl = document.querySelector('.stage-actor[data-model-id="m-cloud"]');
@@ -387,7 +388,7 @@ async function main() {
     localStorage.removeItem('collab-pos:m-cloud');
     return { visible, othersHidden, pickCount, checkedCount, idComplete, actors, sprites, distinctSheets, deepseekRoster,
       outfitChips, ownChips, headerText, hasPetOpen, petStatus, pickerOpen, pickerItems, beforePet, afterPet, workScene, sceneLabel,
-      stored, renamed, selected, pokeBubbles, pokeState, savedPos, bubbles, links, turns, statusRows, refTags, chatLabels };
+      stored, renamed, selected, pokeBubbles, pokeState, pokeRow, savedPos, bubbles, links, turns, statusRows, refTags, chatLabels };
   })()`);
   if (!stage.visible) throw new Error('协作视图没有显示');
   if (!stage.othersHidden) throw new Error('协作视图打开时其他页面没有隐藏');
@@ -408,6 +409,7 @@ async function main() {
   if (stage.renamed !== '小鲸') throw new Error(`改名后节点文字没更新：${stage.renamed}`);
   if (stage.selected !== 1) throw new Error(`单击没有选中唯一角色：${stage.selected}`);
   if (stage.pokeBubbles !== 1 || stage.pokeState !== 'poke') throw new Error(`双击没有触发反应：${stage.pokeBubbles}/${stage.pokeState}`);
+  if (stage.pokeRow !== '4') throw new Error(`重画连线把「被戳」动作冲掉了：--pet-row=${stage.pokeRow}`);
   if (!stage.savedPos) throw new Error('拖动后位置没有存到本机');
   if (stage.bubbles < 1) throw new Error(`一轮讨论后没有输出摘要：${stage.bubbles}`);
   if (stage.links < 1) throw new Error(`没有画出引用关系连线：${stage.links}`);
@@ -440,6 +442,23 @@ async function main() {
   await wait(500);
   fs.writeFileSync(path.join(__dirname, 'stage-pet.png'), (await win.capturePage()).toPNG());
   await js("document.querySelector('#stage-pet').checked = false; document.querySelector('#stage-pet').dispatchEvent(new Event('change')); true;");
+
+  // 刷新模型后要保留用户勾选（曾因在清空 DOM 之后才读选择而丢失）
+  const pickerPersist = await js(`(async () => {
+    const box = document.querySelector('#stage-models input[value="m-cloud"]');
+    box.checked = false;
+    box.dispatchEvent(new Event('change', { bubbles: true }));
+    await new Promise(r => setTimeout(r, 200));
+    const beforeNodes = document.querySelectorAll('.stage-actor').length;
+    await window.__stageUi.refresh();
+    await new Promise(r => setTimeout(r, 300));
+    const after = document.querySelector('#stage-models input[value="m-cloud"]');
+    return { kept: !after.checked, beforeNodes, afterNodes: document.querySelectorAll('.stage-actor').length };
+  })()`);
+  if (!pickerPersist.kept || pickerPersist.beforeNodes !== pickerPersist.afterNodes) {
+    throw new Error(`刷新模型丢了勾选：${JSON.stringify(pickerPersist)}`);
+  }
+  result.checks.push('collab-model-selection-persists');
 
   // 导航高亮唯一性：切页后不能有两个按钮同时亮（粘连）
   const navSticky = await js(`(async () => {

@@ -61,10 +61,34 @@
     return null;
   }
 
+  // 临时动作（被戳 / 被拖 / 发言被引用）优先于真实状态，且不能被 drawLinks 冲掉。
+  function visualState(actor) { return actor.visualState || actor.el.dataset.state || 'waiting'; }
+  function applyActorVisual(actor, facing) {
+    if (!AVATARS) return;
+    AVATARS.updateState(actor.avatar, currentPet(actor.model), visualState(actor), scene, facing);
+  }
+  function setVisual(actor, state, ms) {
+    if (actor.visualTimer) clearTimeout(actor.visualTimer);
+    actor.visualState = state;
+    actor.visualTimer = null;
+    applyActorVisual(actor);
+    if (ms) {
+      actor.visualTimer = setTimeout(() => {
+        actor.visualState = null; actor.visualTimer = null;
+        applyActorVisual(actor);
+      }, ms);
+    }
+  }
+  function clearVisual(actor) {
+    if (actor.visualTimer) clearTimeout(actor.visualTimer);
+    actor.visualState = null; actor.visualTimer = null;
+    applyActorVisual(actor);
+  }
+
   function renderAvatar(actor, state, facing) {
     if (!AVATARS) { actor.avatar.textContent = '🐳'; return; }
     AVATARS.mount(actor.avatar, actor.model, currentPet(actor.model), {
-      imgClass: 'avatar-figure', state: state || actor.el.dataset.state || 'waiting', scene, facing,
+      imgClass: 'avatar-figure', state: state || visualState(actor), scene, facing,
     });
   }
 
@@ -188,7 +212,7 @@
     if (!actor) return;
     actor.el.dataset.state = state;
     actor.stateEl.textContent = STATE_LABEL[state] || state;
-    AVATARS?.updateState(actor.avatar, currentPet(actor.model), state, scene);
+    applyActorVisual(actor);
     if ((state === 'done' || state === 'failed') && text) {
       actor.bubble.hidden = false;
       actor.bubble.textContent = text.length > 26 ? text.slice(0, 26) + '…' : text;
@@ -253,7 +277,7 @@
         const src = actors.get(live.from);
         if (src) facing = actorCenter(src).x < actorCenter(actor).x ? 'left' : 'right';
       }
-      AVATARS?.updateState(actor.avatar, currentPet(actor.model), actor.el.dataset.state || 'waiting', scene, facing);
+      applyActorVisual(actor, facing);
     }
   }
 
@@ -338,15 +362,11 @@
   function poke(actor) {
     if (!AVATARS) return;
     if (actor.pokeTimer) clearTimeout(actor.pokeTimer);
-    const state = actor.el.dataset.state || 'waiting';
-    AVATARS.updateState(actor.avatar, currentPet(actor.model), 'poke', scene);
-    actor.avatar.dataset.avatarState = 'poke';
+    setVisual(actor, 'poke', 1700);
     actor.pokeBubble.textContent = POKE_LINES[Math.floor(Math.random() * POKE_LINES.length)];
     actor.pokeBubble.hidden = false;
     actor.pokeTimer = setTimeout(() => {
       actor.pokeBubble.hidden = true;
-      AVATARS.updateState(actor.avatar, currentPet(actor.model), state, scene);
-      actor.avatar.dataset.avatarState = state;
       actor.pokeTimer = null;
     }, 1700);
   }
@@ -366,7 +386,7 @@
       if (!start) return;
       const dx = event.clientX - start.x, dy = event.clientY - start.y;
       if (!moved && Math.hypot(dx, dy) < 5) return;
-      if (!moved) { moved = true; AVATARS?.updateState(actor.avatar, currentPet(actor.model), 'drag', scene); }
+      if (!moved) { moved = true; setVisual(actor, 'drag'); }
       const rect = floor.getBoundingClientRect();
       const x = Math.min(0.93, Math.max(0.07, start.pos.x + dx / rect.width));
       const y = Math.min(0.86, Math.max(0.14, start.pos.y + dy / rect.height));
@@ -379,7 +399,7 @@
       start = null; el.classList.remove('is-dragging');
       if (moved) {
         write(posKey(actor.model.id), JSON.stringify(actor.pos));
-        AVATARS?.updateState(actor.avatar, currentPet(actor.model), el.dataset.state || 'waiting', scene);
+        clearVisual(actor);
         drawLinks(); lastDragEnd = Date.now();
       }
       moved = false;
@@ -416,7 +436,7 @@
       el.append(pokeBubble, avatar, name, stateEl, meta, outfits, bubble);
       floor.append(el);
       const actor = { model, el, avatar, name, stateEl, meta, outfits, bubble, pokeBubble,
-        pokeTimer: null, reactTimer: null, picker: null, pos: null };
+        pokeTimer: null, visualState: null, visualTimer: null, picker: null, pos: null };
       actor.pos = savedPos(id) || { x: (i + 0.5) / n, y: 0.38 };
       el.style.left = (actor.pos.x * 100) + '%'; el.style.top = (actor.pos.y * 100) + '%';
       actors.set(id, actor);
@@ -437,7 +457,7 @@
     if (sceneLabel) sceneLabel.textContent = SCENE_LABEL[next];
     for (const b of document.querySelectorAll('#stage-scenes button')) b.classList.toggle('active', b.dataset.scene === next);
     for (const actor of actors.values()) {
-      AVATARS?.updateState(actor.avatar, currentPet(actor.model), actor.el.dataset.state || 'waiting', scene);
+      applyActorVisual(actor);
     }
     statusLine.textContent = `场景：${SCENE_LABEL[next]}。只改变角色的动作与背景，不改变真实任务状态。`;
   }
@@ -455,11 +475,12 @@
   async function loadModels() {
     const btn = $('stage-refresh');
     if (btn) btn.disabled = true;
+    // 先记下当前勾选，再清空占位；否则刷新模型会把用户的选择重置成默认。
+    const before = new Set(checkedIds());
     modelPick.replaceChildren();
     const loading = document.createElement('span');
     loading.className = 'hint'; loading.textContent = '正在读取模型…';
     modelPick.append(loading);
-    const before = new Set(checkedIds());
     try {
       const reply = await window.workbench.dispatchModels();
       if (!reply || !reply.ok) throw new Error((reply && reply.error) || '读取失败');
@@ -552,13 +573,7 @@
         // 发言被引用的人会招手 / 跳跃，对应「它的话正在被使用」。
         for (const from of refs) {
           const src = actors.get(from);
-          if (!src) continue;
-          AVATARS?.updateState(src.avatar, currentPet(src.model), 'poke', scene);
-          clearTimeout(src.reactTimer);
-          src.reactTimer = setTimeout(() => {
-            AVATARS?.updateState(src.avatar, currentPet(src.model), src.el.dataset.state || 'waiting', scene);
-            src.reactTimer = null;
-          }, 1500);
+          if (src) setVisual(src, 'poke', 1500);
         }
         drawLinks();
         const prompt = window.__chatMulti.buildDiscussionPrompt({ question: q, spoken });
@@ -573,6 +588,14 @@
       statusLine.textContent = `本轮结束：${spoken.length}/${list.length} 位有输出。点一条记录看它参考了谁。`;
     } finally { running = false; askBtn.disabled = false; }
   }
+
+  // 点画布其它地方就收起形象库，避免浮层一直挡着角色。
+  document.addEventListener('click', (event) => {
+    if (event.target.closest('.outfit-picker, .outfit-more')) return;
+    for (const actor of actors.values()) {
+      if (actor.picker) { actor.picker.remove(); actor.picker = null; }
+    }
+  });
 
   if ($('stage-pet-open')) $('stage-pet-open').addEventListener('click', async () => {
     const reply = await window.workbench.petOpen?.();
