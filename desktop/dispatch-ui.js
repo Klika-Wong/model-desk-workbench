@@ -95,8 +95,9 @@
       for (const model of models) {
         const option = document.createElement('option');
         option.value = model.id;
-        option.textContent = `${model.name}${model.local ? ' · 本地' : ' · 云端'}`;
+        option.textContent = `${window.__modelAlias ? window.__modelAlias.of(model) : model.name}${model.local ? ' · 本地' : ' · 云端'}`;
         option.dataset.local = String(model.local);
+        option.dataset.name = model.name;
         modelSelect.append(option);
       }
       if (defaultModel && models.some((m) => m.id === defaultModel)) modelSelect.value = defaultModel;
@@ -279,5 +280,13 @@
   }, 800));
 
   syncProject().then(refreshEnabled);
-  window.__dispatchUi = { refreshEnabled, loadModels, state: () => ({ taskId: currentTaskId, polling: Boolean(polling) }) };
+  function refreshModelLabels() {
+    for (const opt of modelSelect.options) {
+      const original = opt.dataset.name;
+      if (!original) continue;
+      const shown = window.__modelAlias ? window.__modelAlias.get(opt.value, original) : original;
+      opt.textContent = `${shown}${opt.dataset.local === 'true' ? ' · 本地' : ' · 云端'}`;
+    }
+  }
+  window.__dispatchUi = { refreshEnabled, loadModels, refreshModelLabels, state: () => ({ taskId: currentTaskId, polling: Boolean(polling) }) };
 })();

@@ -1,0 +1,162 @@
+/* 协作视图：角色是可拖动的节点，连线表示「这一条参考了谁的发言」。
+   右侧时间线记实际发言，不用漫画气泡假装它们在表演。 */
+.stage-card { display: flex; flex-direction: column; gap: 14px; }
+.stage-toolbar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
+.stage-toolbar label { display: flex; flex-direction: column; gap: 5px; font-size: 12px; color: var(--ink-2); }
+.stage-toolbar select { min-width: 200px; max-width: 320px; }
+.stage-pet { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-2); }
+.stage-pet input { margin: 0; }
+
+.collab-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 14px; align-items: stretch; }
+.collab-canvas-wrap { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.collab-tip { margin: 0; font-size: 11px; }
+
+.stage-floor {
+  position: relative; height: 360px; padding: 0; overflow: hidden;
+  border: 1px solid var(--line); border-radius: 14px;
+  background: radial-gradient(ellipse at 50% 108%, var(--surface-2), var(--surface) 72%);
+}
+.stage-links { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
+.collab-link {
+  fill: none; stroke: color-mix(in srgb, var(--accent) 34%, var(--line));
+  stroke-width: 1.6; stroke-dasharray: 5 5; transition: opacity .2s, stroke .2s;
+}
+.collab-link.is-active { stroke: var(--accent); stroke-width: 2.4; stroke-dasharray: 7 6; animation: link-flow .8s linear infinite; }
+.collab-link.is-dim { opacity: .16; }
+.collab-link.is-selected { stroke: var(--accent); stroke-width: 2.2; opacity: 1; }
+.collab-arrow-tip { fill: var(--accent); }
+@keyframes link-flow { to { stroke-dashoffset: -26; } }
+@media (prefers-reduced-motion: reduce) { .collab-link.is-active { animation: none; } }
+
+/* 角色节点：绝对定位，可拖动；形象本身是透明、自带动效的拟人角色。 */
+.stage-actor {
+  position: absolute; z-index: 2; width: 132px; transform: translate(-50%, -50%);
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  cursor: grab; user-select: none;
+}
+.stage-actor.is-dragging { cursor: grabbing; z-index: 5; }
+.stage-actor-avatar {
+  position: relative; width: 116px; height: 116px; display: grid; place-items: center;
+  border: 0; background: transparent; overflow: visible; font-size: 56px;
+  transition: filter .2s, transform .2s;
+}
+.stage-actor:hover .stage-actor-avatar { transform: translateY(-3px); }
+.stage-actor.is-selected .stage-actor-avatar {
+  filter: drop-shadow(0 0 9px color-mix(in srgb, var(--accent) 65%, transparent));
+}
+.stage-actor[data-state="thinking"] .stage-actor-avatar { filter: drop-shadow(0 0 8px color-mix(in srgb, var(--accent) 45%, transparent)); }
+.stage-actor[data-state="speaking"] .stage-actor-avatar { filter: drop-shadow(0 0 11px color-mix(in srgb, var(--accent) 70%, transparent)); }
+.stage-actor[data-state="failed"] .stage-actor-avatar { filter: grayscale(.8); }
+.avatar-figure { width: 100%; height: 100%; object-fit: contain; pointer-events: none; filter: hue-rotate(var(--char-hue, 0deg)); }
+/* 不同来源的角色在画布里占比差很多，按类型归一到差不多的视觉大小。 */
+.stage-actor-avatar[data-avatar-choice="crab"] .avatar-figure { transform: scale(1.75); }
+.stage-actor-avatar[data-avatar-choice="dafeiyu"] .avatar-figure {
+  width: 140%; height: 100%; object-fit: cover; object-position: center 45%; transform: scale(1.1);
+}
+.agent-avatar[data-avatar-choice="crab"] .avatar-figure { transform: scale(1.6); }
+.agent-avatar[data-avatar-choice="dafeiyu"] .avatar-figure { object-fit: cover; object-position: center 45%; transform: scale(1.15); }
+.stage-actor-avatar.is-emoji {
+  border-radius: 50%; border: 1px solid var(--line);
+  background: radial-gradient(circle at 50% 30%,
+    color-mix(in srgb, hsl(var(--avatar-hue, 210) 72% 62%) 12%, var(--surface)),
+    color-mix(in srgb, hsl(var(--avatar-hue, 210) 62% 52%) 22%, var(--surface-2)) 80%);
+}
+.stage-actor-avatar.is-brand { border-radius: 50%; }
+
+.actor-swap {
+  position: absolute; top: 4px; right: 14px; z-index: 3;
+  width: 23px; height: 23px; line-height: 1; border-radius: 50%;
+  border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink-2);
+  font-size: 12px; cursor: pointer; opacity: 0; transition: opacity .15s;
+}
+.stage-actor:hover .actor-swap, .actor-swap:focus-visible { opacity: 1; }
+.actor-swap:hover { border-color: var(--accent); color: var(--accent); }
+
+.actor-poke-bubble {
+  position: absolute; top: -12px; left: 50%; transform: translateX(-50%); z-index: 4;
+  padding: 4px 9px; white-space: nowrap; font-size: 11px;
+  border: 1px solid var(--accent); border-radius: 999px;
+  background: var(--surface); color: var(--accent); box-shadow: var(--shadow-1);
+}
+
+.stage-actor-name {
+  max-width: 132px; font-size: 12px; font-weight: 600; color: var(--ink);
+  padding: 2px 9px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface);
+  cursor: text; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.stage-actor-name:hover { color: var(--accent); border-color: var(--accent); }
+.stage-name-input { width: 130px; font-size: 12px; text-align: center; }
+.stage-actor-state { font-size: 11px; color: var(--muted); }
+.actor-meta { font-size: 10px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.stage-actor[data-state="thinking"] .stage-actor-state,
+.stage-actor[data-state="speaking"] .stage-actor-state { color: var(--accent); }
+.stage-actor[data-state="done"] .stage-actor-state { color: var(--ok-ink); }
+.stage-actor[data-state="failed"] .stage-actor-state { color: var(--danger); }
+/* 摘要绝对定位：出现时不改变节点高度，角色不会突然跳位。 */
+.stage-actor-bubble {
+  position: absolute; top: calc(100% + 4px); left: 50%; transform: translateX(-50%);
+  width: 132px; max-height: 62px; overflow: auto;
+  padding: 5px 8px; font-size: 10px; line-height: 1.5; color: var(--ink-2);
+  border: 1px solid var(--line); border-radius: 8px; background: var(--surface);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* 右侧：本轮发言与引用记录 */
+.collab-log {
+  display: flex; flex-direction: column; min-height: 0; max-height: 360px;
+  border: 1px solid var(--line); border-radius: 12px; background: var(--surface);
+}
+.collab-log-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+.collab-log-head h3 { margin: 0; font-size: 12px; font-weight: 600; }
+.collab-turns { margin: 0; padding: 8px; list-style: none; overflow: auto; display: flex; flex-direction: column; gap: 6px; }
+.collab-turn {
+  display: flex; gap: 8px; padding: 7px 8px; cursor: pointer;
+  border: 1px solid var(--line); border-radius: 9px; background: var(--surface-2);
+}
+.collab-turn:hover, .collab-turn.is-selected { border-color: var(--accent); background: var(--accent-soft); }
+.turn-idx { flex: none; padding-top: 2px; font-size: 10px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.turn-body { min-width: 0; flex: 1; }
+.turn-head { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; font-size: 11px; }
+.turn-head strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.turn-ref { flex: none; font-size: 10px; color: var(--accent); }
+.turn-text {
+  margin: 4px 0 0; font-size: 11px; line-height: 1.55; color: var(--ink-2);
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+.collab-empty { padding: 8px; font-size: 11px; line-height: 1.6; color: var(--muted); }
+
+/* 品牌币：仍是可切换的一档 */
+.brand-coin {
+  width: 100%; height: 100%; border-radius: 50%; display: grid; place-items: center;
+  background: radial-gradient(circle at 34% 26%, #ffffff 0%, #f2f5fa 72%, #e6ebf3 100%);
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, .07), inset 0 -8px 16px rgba(15, 23, 42, .05);
+}
+.brand-glyph { display: block; }
+.brand-glyph.is-mono {
+  width: 54%; height: 54%; background-color: var(--brand, #334155);
+  -webkit-mask: var(--brand-logo) center / contain no-repeat;
+  mask: var(--brand-logo) center / contain no-repeat;
+}
+.brand-glyph.is-color { width: 58%; height: 58%; background: var(--brand-logo) center / contain no-repeat; }
+
+.stage-input-row { display: flex; gap: 8px; }
+.stage-input-row input { flex: 1; }
+
+/* 桌宠模式：收成右下角一只，连线与时间线一并隐藏。 */
+.stage-floor.pet-mode {
+  position: fixed; right: 24px; bottom: 24px; z-index: 60;
+  width: 168px; height: 182px; min-height: 0; padding: 0; border-radius: 14px;
+  background: var(--surface); box-shadow: var(--shadow-1);
+}
+.stage-floor.pet-mode .stage-actor { left: 50% !important; top: 48% !important; width: 150px; }
+.stage-floor.pet-mode .stage-actor-avatar { width: 100px; height: 100px; }
+.stage-floor.pet-mode .stage-actor-bubble { max-width: 145px; max-height: 48px; }
+body.collab-pet-on .stage-links,
+body.collab-pet-on .collab-log,
+body.collab-pet-on .collab-tip { display: none; }
+body.collab-pet-on .collab-layout { grid-template-columns: 1fr; }
+
+@media (max-width: 1000px) {
+  .collab-layout { grid-template-columns: 1fr; }
+  .collab-log { max-height: 220px; }
+}

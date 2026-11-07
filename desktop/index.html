@@ -7,12 +7,13 @@
 <link rel="stylesheet" href="designer.css"><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="memory.css"><link rel="stylesheet" href="theme.css"><link rel="stylesheet" href="conn.css"><link rel="stylesheet" href="task-feed.css"><link rel="stylesheet" href="command.css"><link rel="stylesheet" href="wallpaper.css"><link rel="stylesheet" href="shell-overrides.css">
 <link rel="stylesheet" href="model-cards.css">
 <link rel="stylesheet" href="workspace-ui.css">
+<link rel="stylesheet" href="stage.css">
 </head><body>
 <button id="toggle-sidebar" class="sidebar-toggle" aria-label="隐藏或显示侧栏" title="切换侧栏（Ctrl+B）">◧</button><aside class="sidebar">
   <div class="brand"><span class="brand-mark">M</span><div><strong>模型工作台</strong><small>你的项目 · 各自有序</small></div></div>
   <div class="sidebar-section-head"><p class="side-label">导航</p><button id="sidebar-refresh" class="icon-button" aria-label="刷新当前页" title="刷新当前页">⟳</button><details id="layout-menu"><summary title="侧栏布局" aria-label="侧栏布局">⋯</summary><div class="layout-menu-items"><button id="dock-sidebar" type="button">移到右侧</button><button id="reset-layout" type="button">重置布局</button></div></details></div>
   <button class="nav-button active" id="nav-memory" type="button">▦　记忆空间</button>
-  <button class="nav-button" id="nav-chat" type="button">✦　对话</button><button class="nav-button" id="nav-tasks" type="button">◷　运行与连接</button>
+  <button class="nav-button" id="nav-chat" type="button">✦　对话</button><button class="nav-button" id="nav-stage" type="button">◉　模型状态</button><button class="nav-button" id="nav-tasks" type="button">◷　运行与连接</button>
   <button class="nav-button" id="nav-designer" type="button">◇　架构画布</button><button class="nav-button" id="nav-panel" type="button">▤　模型与额度</button>
   <button id="sidebar-search" class="sidebar-search" type="button" aria-label="搜索命令、空间和记忆">⌕ <span>搜索空间、记忆或命令</span><kbd>Ctrl K</kbd></button><div class="side-heading"><p class="side-label">我的记忆空间</p><button id="new-space" class="icon-button" aria-label="新建记忆空间" type="button">＋</button></div>
   <div id="space-list" class="space-list"></div>
@@ -81,6 +82,26 @@
     <p id="chat-status" class="hint" aria-live="polite"></p>
   </section>
 </div>
+<div id="stage-page" hidden>
+  <header class="page-header"><div><p class="eyebrow">协作视图</p><h1>谁在跟谁说话</h1><p class="intro">一轮讨论里，每位都能看到前面所有人的发言。这里把引用关系、发言顺序和当前状态画出来，不替模型编造内容。</p></div><div class="header-actions"><label class="stage-pet"><input id="stage-pet" type="checkbox"> 收成桌宠</label><button id="stage-refresh" type="button">刷新模型</button></div></header>
+  <section class="card stage-card">
+    <div class="stage-toolbar"><label>参与的模型<select id="stage-models" multiple size="3" aria-label="选择参与的模型"></select></label><span id="stage-picked" class="hint"></span></div>
+    <div class="collab-layout">
+      <div class="collab-canvas-wrap">
+        <div id="stage-floor" class="stage-floor" aria-label="模型引用关系">
+          <svg id="stage-links" class="stage-links" aria-hidden="true"></svg>
+        </div>
+        <p class="hint collab-tip">拖动形象调整位置 · 单击看引用关系 · 双击戳一下 · 点名字改 ID · 点 ⇄ 换形象</p>
+      </div>
+      <aside class="collab-log" aria-label="本轮发言与引用记录">
+        <div class="collab-log-head"><h3>本轮记录</h3><span id="stage-turn-count" class="hint">还没有发言</span></div>
+        <ol id="stage-turns" class="collab-turns"><li class="collab-empty">开始一轮讨论后，这里按顺序记下每位参考了谁、说了什么。</li></ol>
+      </aside>
+    </div>
+    <div class="stage-input-row"><input id="stage-question" maxlength="2000" placeholder="输入一个问题，例如：这个项目下一步该做什么？"><button id="stage-ask" type="button" class="primary">开始一轮讨论</button></div>
+    <p id="stage-status" class="hint" aria-live="polite"></p>
+  </section>
+</div>
 <div id="tasks-page" hidden>
   <header class="page-header"><div><p class="eyebrow">运行与连接</p><h1>项目动态</h1><p class="intro">按当前项目查看真实任务状态；点击任务查看记录详情。</p></div><div class="header-actions"><button id="open-mini" type="button">悬浮任务窗</button></div></header>
   <section class="card project-summary"><div class="row"><div><p class="eyebrow">当前项目</p><h2 id="project" class="path">尚未选择项目</h2><p id="project-path" class="hint"></p></div><button id="choose" type="button">选择项目</button></div></section>
@@ -120,9 +141,9 @@
 <dialog id="webai-dialog"><div class="dialog-heading"><h2>打开第三方网页 AI</h2><button type="button" data-close="webai-dialog" aria-label="关闭">×</button></div><p class="hint">这里是<strong>第三方网站</strong>，不经过本工作台，也不消耗本机模型或任何余额。默认不启用，只有你点开才会打开。</p><ul class="webai-risks"><li>本工作台只当浏览器容器：<strong>不自动填问题、不抓取回复</strong>。</li><li>你输入的内容会直接发给该网站，<strong>不要粘贴项目机密、密钥或个人隐私</strong>。</li><li>用自动化去模拟登录、抓取回答，可能违反对方条款并导致账号受限——本入口不提供这种能力。</li><li>登录态保存在独立分区，与工作台其他页面隔离，互不共用 cookie。</li></ul><label class="webai-pick"><input type="radio" name="webai-target" value="https://chat.deepseek.com/" checked> DeepSeek 网页版</label><label class="webai-pick"><input type="radio" name="webai-target" value="https://chatgpt.com/"> ChatGPT 网页版</label><p id="webai-error" class="form-error" role="alert"></p><footer><button type="button" data-close="webai-dialog">取消</button><button id="webai-confirm" type="button" class="primary">我明白风险，打开</button></footer></dialog>
 <div id="palette" class="palette" hidden><div class="palette-box" role="dialog" aria-modal="true" aria-label="命令面板"><input id="palette-input" type="text" placeholder="搜索命令、空间或记忆…" autocomplete="off" aria-controls="palette-list" aria-autocomplete="list"><ul id="palette-list" role="listbox" aria-label="命令结果"></ul><p class="palette-foot"><kbd>Ctrl</kbd>+<kbd>K</kbd> 打开 · <kbd>↑</kbd><kbd>↓</kbd> 选择 · <kbd>Enter</kbd> 执行 · <kbd>Esc</kbd> 关闭 · <kbd>Ctrl</kbd>+<kbd>/</kbd> 全部快捷键</p></div></div>
 <dialog id="shortcuts-dialog"><div class="dialog-heading"><h2>快捷键与高效操作</h2><button id="close-shortcuts" type="button">关闭</button></div><div id="shortcuts-body" class="shortcuts"></div></dialog>
-<script src="designer.js"></script><script src="performance-ui.js"></script><script src="workspace-layout.js"></script><script src="renderer.js"></script><script src="memory-ui.js"></script><script src="task-feed.js"></script><script src="connection-view.js"></script><script src="chat-prompt.js"></script><script src="chat-multi.js"></script><script src="dispatch-state.js"></script><script src="dispatch-ui.js"></script><script src="chat-ui.js"></script><script src="model-cards.js"></script><script src="models-ui.js"></script><script src="model-settings-ui.js"></script><script src="shell.js"></script><script src="wallpaper.js"></script><script src="command-palette.js"></script>
+<script src="designer.js"></script><script src="performance-ui.js"></script><script src="workspace-layout.js"></script><script src="renderer.js"></script><script src="memory-ui.js"></script><script src="task-feed.js"></script><script src="connection-view.js"></script><script src="model-alias.js"></script><script src="avatars.js"></script><script src="chat-prompt.js"></script><script src="chat-multi.js"></script><script src="dispatch-state.js"></script><script src="dispatch-ui.js"></script><script src="chat-ui.js"></script><script src="model-cards.js"></script><script src="models-ui.js"></script><script src="model-settings-ui.js"></script><script src="shell.js"></script><script src="wallpaper.js"></script><script src="command-palette.js"></script>
 <script src="ai-guide-ui.js"></script>
-<script src="workspace-ui.js"></script>
+<script src="workspace-ui.js"></script><script src="stage-ui.js"></script>
 </body></html>
 
 

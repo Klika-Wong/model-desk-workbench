@@ -8,7 +8,8 @@ let terminalStatus = 'completed';
 let chatClearFails = false;
 let holdPerformance = false, performanceReplies = [];
 let logCalls = 0;
-let selectedProject = 'E:\\多Agent工作台升级规划';
+let activityOn = false;
+let selectedProject = 'E:\\fixture-workspace';
 let panelFixture = false;
 let holdNextPanel = false;
 let heldPanelReply = null;
@@ -105,7 +106,7 @@ contextBridge.exposeInMainWorld('workbench', {
   chatLoad: async (project) => ({ ok: true, data: { messages: project?.includes('different-fixture') ? [] : [{ role: 'user', text: '上次的第一句' }], dropped: 0, corrupted: false } }),
   chatSave: async (messages, project) => { calls.push({ api: 'chatSave', input: messages, project }); return { ok: true, data: { saved: (messages || []).length } }; },
   chatClear: async (project) => { calls.push({ api: 'chatClear', project }); return { ok: !chatClearFails, data: { cleared: !chatClearFails } }; },
-  dispatchModels: async () => ({ ok: true, data: { baseUrl: 'http://127.0.0.1:18765', defaultModel: 'm-local', models: [{ id: 'm-local', name: '本地示例模型', provider: 'local', local: true }, { id: 'm-cloud', name: '云端示例模型', provider: 'cloud', local: false }] } }),
+  dispatchModels: async () => ({ ok: true, data: { baseUrl: 'http://127.0.0.1:18765', defaultModel: 'm-local', models: [{ id: 'm-local', name: '本地示例模型', provider: 'local', local: true }, { id: 'm-cloud', name: '云端示例模型', provider: 'cloud', local: false }, { id: 'm-deepseek', name: 'DeepSeek-V3', provider: 'deepseek', local: false }] } }),
   copyAiGuide: async () => { calls.push({api:'copyAiGuide'}); return {ok:true,data:{copied:true}}; },
   modelSettingsLoad: async (base,id) => {
     if(holdSettingsLoad)await new Promise(resolve=>settingsLoadReplies.push(resolve));
@@ -140,11 +141,17 @@ contextBridge.exposeInMainWorld('workbench', {
     return { ok: true, data: { answer: '正在输出' + '。'.repeat(Math.min(logCalls, 3)), exitCode: null } };
   },
   dispatchCancel: async (id) => { calls.push({api:'dispatchCancel',id}); return {ok:sendOk}; },
+  dispatchModelActivity: async (modelId) => {
+    calls.push({ api: 'dispatchModelActivity', modelId });
+    if (!activityOn) return { ok: true, data: { task: null, state: '', count: 0 } };
+    return { ok: true, data: { task: { id: 'task-1', model_id: modelId, status: 'running', started_at: new Date().toISOString(), updated_at: new Date().toISOString() }, state: 'running', count: 1 } };
+  },
 });
 
 contextBridge.exposeInMainWorld('__stubCalls', { all: () => calls.slice(), setSendOk: (value) => { sendOk = value === true; logCalls = 0; },
   enableOfflineCache:()=>{offlineCacheFixture=true;},
   logCalls: () => logCalls,
+  setActivity: (value) => { activityOn = value === true; },
   failStatus: count => { statusFailures=count; },
   terminalStatus: value => { terminalStatus=value; },
   failChatClear: value => { chatClearFails=value; },

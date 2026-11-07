@@ -10,6 +10,8 @@
     executing: '运行中', completed: '已完成', accepted: '已验收', cancelled: '已取消', failed: '失败', blocked: '需处理',
   };
   const statusText = (value) => STATUS_TEXT[String(value || '').toLowerCase()] || String(value || '未知');
+  // 模型显示名统一走 __modelAlias（自定义 ID > 原名），保证各处一致。
+  const aliasOf = (model) => (window.__modelAlias ? window.__modelAlias.of(model) : ((model && (model.name || model.id)) || ''));
 
   const log = $('chat-log');
   const input = $('chat-input');
@@ -142,6 +144,17 @@
     try { return window.__memoryUi?.currentSpaceId?.() || null; } catch { return null; }
   };
 
+  // 只刷新模型下拉的显示文字（改形象 ID 后调用），不重建选项、不影响当前选择。
+  function refreshModelLabels() {
+    for (const sel of [modelSelect, multiSelect]) {
+      if (!sel) continue;
+      for (const opt of sel.options) {
+        const model = loadedModels.find((m) => m.id === opt.value);
+        if (model) opt.textContent = `${aliasOf(model)}${model.local ? ' · 本地' : ' · 云端'}`;
+      }
+    }
+  }
+
   function refresh() {
     const multiOn = Boolean(multiToggle && multiToggle.checked) || Boolean(discussionToggle && discussionToggle.checked);
     if (multiSelect) multiSelect.hidden = !multiOn;
@@ -225,7 +238,7 @@
       for (const model of models) {
         const option = document.createElement('option');
         option.value = model.id;
-        option.textContent = `${model.name}${model.local ? ' · 本地' : ' · 云端'}`;
+        option.textContent = `${aliasOf(model)}${model.local ? ' · 本地' : ' · 云端'}`;
         modelSelect.append(option);
       }
       if (defaultModel && models.some((m) => m.id === defaultModel)) modelSelect.value = defaultModel;
@@ -237,7 +250,7 @@
         for (const model of models) {
           const option = document.createElement('option');
           option.value = model.id;
-          option.textContent = `${model.name}${model.local ? ' · 本地' : ' · 云端'}`;
+          option.textContent = `${aliasOf(model)}${model.local ? ' · 本地' : ' · 云端'}`;
           multiSelect.append(option);
         }
         const kept = [...multiSelect.options].filter((o) => previouslySelected.has(o.value));
@@ -494,7 +507,7 @@
       messages.push({ role: 'user', text });
       persist();
       bubble('user', text);
-      node = bubble('assistant', '正在派发…', '');
+      node = bubble('assistant', '正在派发…', '', aliasOf(loadedModels.find((m) => m.id === modelId) || { id: modelId }));
       say('正在派发…');
       if (history.included > 0) {
         const historyNote = document.createElement('div');
@@ -514,9 +527,9 @@
       // 桌宠陪聊：单个模型也显示一个桌宠节点，状态跟随"思考→说话→已回复"。
       if (petToggle && petToggle.checked && stage) {
         const model = loadedModels.find((m) => m.id === modelId);
-        activePet = { modelId, modelName: model ? model.name : modelId };
+        activePet = { modelId, modelName: model ? aliasOf(model) : modelId };
         petSpoken = false;
-        renderStage([{ id: modelId, name: activePet.modelName }]);
+        renderStage([model || { id: modelId, name: activePet.modelName }]);
         setAgentState(modelId, 'thinking');
         // A07：8 秒日志仍无正文就如实说「等待中：日志暂无正文」。
         clearPetStalled();
@@ -666,7 +679,7 @@
     const text = input.value.trim();
     if (!historyReady || clearing || !text || !consent.checked || consent.disabled || pendingTask || sending || multiGroupRunning) return;
     if (!projectPath) { say('请先选择项目文件夹。', true); return; }
-    const chosen = multi.pickModels(loadedModels, multiSelect ? [...multiSelect.selectedOptions].map((option) => option.value) : []);
+    const chosen = multi.pickModels(loadedModels, multiSelect ? [...multiSelect.selectedOptions].map((option) => option.value) : []).map((m) => ({ ...m, name: aliasOf(m) }));
     if (chosen.length < 2) { say('多视角至少需要两个可用模型：先读模型，再勾两个。', true); return; }
 
     const gen = multiGeneration;
@@ -706,55 +719,35 @@
   }
 
   // ---------- 讨论场景：多个 Agent 角色可视化 ----------
-  // 桌宠形象：每个模型一个可配置形象。默认按 model id 稳定分配 emoji，点击头像循环切换（emoji 池 + 大肥鱼 GIF），存本机。
-  const PET_GIFS = {
-    waiting: 'assets/pets/idle.gif',
-    thinking: 'assets/pets/thinking.gif',
-    speaking: 'assets/pets/speaking.gif',
-    stalled: 'assets/pets/idle.gif',
-    done: 'assets/pets/idle.gif',
-  };
-  const PET_GIF_ID = 'dafeiyu';
-  const PET_EMOJIS = ['🐳', '🦊', '🐱', '🐼', '🐸', '🦉', '🐙', '🐹', '🐰', '🐯'];
-  const PET_OPTIONS = [PET_GIF_ID, ...PET_EMOJIS.map((e) => 'emoji:' + e)];
+  // 形象统一走 __avatars：默认拟人角色，状态切换换成对应动作图；点头像循环换形象。
+  const AVATARS = window.__avatars;
+  const petModels = new Map();
 
   function petKey(modelId) { return 'pet-avatar:' + modelId; }
 
-  function hashEmoji(modelId) {
-    let h = 0;
-    const s = String(modelId);
-    for (let i = 0; i < s.length; i += 1) h = (h * 31 + s.charCodeAt(i)) >>> 0;
-    return PET_EMOJIS[h % PET_EMOJIS.length];
-  }
-
   function currentPet(modelId) {
-    try { return localStorage.getItem(petKey(modelId)) || ('emoji:' + hashEmoji(modelId)); } catch { return 'emoji:' + hashEmoji(modelId); }
+    const model = petModels.get(modelId) || { id: modelId };
+    const fallback = AVATARS ? AVATARS.defaultChoice(model) : 'emoji:🐳';
+    try { return localStorage.getItem(petKey(modelId)) || fallback; } catch { return fallback; }
   }
 
   function renderAvatar(avatar, modelId) {
-    avatar.replaceChildren();
     const node = avatar.closest('.agent-node');
     const state = node ? node.dataset.state : 'waiting';
-    const pet = currentPet(modelId);
-    avatar.title = '点击切换形象';
-    avatar.dataset.modelId = modelId;
-    if (pet === PET_GIF_ID) {
-      const img = document.createElement('img');
-      img.className = 'agent-pet';
-      img.src = PET_GIFS[state] || PET_GIFS.waiting;
-      img.alt = '';
-      img.onerror = () => { img.remove(); avatar.textContent = hashEmoji(modelId); };
-      avatar.append(img);
-    } else {
-      avatar.textContent = pet.slice('emoji:'.length);
+    const model = petModels.get(modelId) || { id: modelId };
+    if (AVATARS) {
+      avatar.dataset.modelId = modelId;
+      avatar.dataset.kind = AVATARS.mount(avatar, model, currentPet(modelId), { imgClass: 'avatar-figure agent-pet', state });
+      return;
     }
+    avatar.textContent = '🐳';
   }
 
   function cyclePet(modelId, avatar) {
-    const cur = currentPet(modelId);
-    const idx = PET_OPTIONS.indexOf(cur);
-    const next = PET_OPTIONS[(idx + 1) % PET_OPTIONS.length];
-    try { localStorage.setItem(petKey(modelId), next); } catch {}
+    const model = petModels.get(modelId) || { id: modelId };
+    const options = AVATARS ? AVATARS.optionsFor(model) : ['emoji:🐳'];
+    const idx = options.indexOf(currentPet(modelId));
+    try { localStorage.setItem(petKey(modelId), options[(idx + 1) % options.length]); } catch {}
     renderAvatar(avatar, modelId);
   }
 
@@ -762,6 +755,7 @@
     if (!stage) return;
     stage.replaceChildren();
     for (const model of models) {
+      petModels.set(model.id, model);
       const node = document.createElement('div');
       node.className = 'agent-node';
       node.dataset.state = 'waiting';
@@ -790,8 +784,13 @@
     const stateEl = node.querySelector('.agent-state');
     const label = { waiting: '等待中', thinking: '思考中…', speaking: '发言中', stalled: '等待中：日志暂无正文', done: '已发言' };
     if (stateEl) stateEl.textContent = labelOverride || label[state] || state;
-    const pet = node.querySelector('.agent-pet');
-    if (pet) pet.src = PET_GIFS[state] || PET_GIFS.waiting;
+    const pet = node.querySelector('img[data-avatar]');
+    if (pet && AVATARS) {
+      const avatar = node.querySelector('.agent-avatar');
+      const next = AVATARS.stateFile(avatar && avatar.dataset.avatarChoice, state);
+      if (next && pet.getAttribute('src') !== next) pet.src = next;
+      if (avatar) avatar.dataset.avatarState = state;
+    }
     if (state === 'done' && withBubble) {
       let bubble = node.querySelector('.agent-bubble');
       if (!bubble) { bubble = document.createElement('div'); bubble.className = 'agent-bubble'; node.append(bubble); }
@@ -873,7 +872,7 @@
       return;
     }
     if (!projectPath) { say('请先选择项目文件夹。', true); return; }
-    const chosen = multi.pickModels(loadedModels, multiSelect ? [...multiSelect.selectedOptions].map((o) => o.value) : []);
+    const chosen = multi.pickModels(loadedModels, multiSelect ? [...multiSelect.selectedOptions].map((o) => o.value) : []).map((m) => ({ ...m, name: aliasOf(m) }));
     if (chosen.length < 2) { say('讨论至少需要两个可用模型：先读模型，再勾两个。', true); return; }
 
     const gen = multiGeneration;
@@ -913,7 +912,7 @@
   }
 
   // 导航：切到对话时隐藏其他页，切走时隐藏自己。
-  const PAGES = ['memory-page', 'tasks-page', 'designer-page', 'chat-page', 'models-page'];
+  const PAGES = ['memory-page', 'tasks-page', 'designer-page', 'chat-page', 'models-page', 'stage-page'];
   function showChat() {
     syncProject().then(() => { if (projectPath && !historyReady) switchConversation(projectPath); });
     window.__modelsUi?.hide();
@@ -931,7 +930,7 @@
     resetPet();
   }
   $('nav-chat').addEventListener('click', () => { hideChat(); showChat(); });
-  for (const id of ['nav-memory', 'nav-tasks', 'nav-designer', 'nav-panel']) {
+  for (const id of ['nav-memory', 'nav-tasks', 'nav-designer', 'nav-panel', 'nav-stage']) {
     const button = $(id);
     if (button) button.addEventListener('click', hideChat);
   }
@@ -1029,5 +1028,5 @@
     say('已选择模型。确认发送范围后再发送消息。');
     return true;
   }
-  window.__chatUi = { send, selectModel, hidePage: hideChat, state: () => ({ messages: messages.length, pendingTask }) };
+  window.__chatUi = { send, selectModel, hidePage: hideChat, refreshModelLabels, state: () => ({ messages: messages.length, pendingTask }) };
 })();

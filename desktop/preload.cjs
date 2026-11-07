@@ -50,4 +50,5 @@ contextBridge.exposeInMainWorld('workbench', Object.freeze({
   dispatchStatus: (taskId) => ipcRenderer.invoke('dispatch:status', taskId),
   dispatchLog: (taskId) => ipcRenderer.invoke('dispatch:log', taskId),
   dispatchCancel: (taskId) => ipcRenderer.invoke('dispatch:cancel', taskId),
+  dispatchModelActivity: (modelId) => ipcRenderer.invoke('dispatch:model-activity', modelId),
 }));

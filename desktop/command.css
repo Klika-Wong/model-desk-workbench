@@ -180,11 +180,24 @@ html.panel-embedded main.workspace { overflow: hidden; }
 }
 .agent-node { display: flex; flex-direction: column; align-items: center; gap: 7px; width: 132px; }
 .agent-avatar {
-  width: 110px; height: 62px; display: grid; place-items: center;
-  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
-  overflow: hidden; cursor: pointer; transition: border-color .15s;
+  width: 96px; height: 108px; display: grid; place-items: center; font-size: 40px; line-height: 1;
+  background: transparent; border: 0; border-radius: 0;
+  overflow: visible; cursor: pointer; transition: transform .15s, filter .15s;
 }
-.agent-avatar:hover { border-color: var(--accent); }
+.agent-avatar:hover { transform: translateY(-3px); }
+.agent-node[data-state="thinking"] .agent-avatar,
+.agent-node[data-state="speaking"] .agent-avatar { filter: drop-shadow(0 0 8px color-mix(in srgb, var(--accent) 55%, transparent)); }
+.agent-avatar.is-emoji {
+  width: 84px; height: 84px; border-radius: 50%; border: 1px solid var(--line);
+  background: radial-gradient(circle at 50% 30%,
+    color-mix(in srgb, hsl(var(--avatar-hue, 210) 72% 62%) 12%, var(--surface)),
+    color-mix(in srgb, hsl(var(--avatar-hue, 210) 62% 52%) 22%, var(--surface-2)) 80%);
+}
+.agent-avatar.is-brand {
+  width: 84px; height: 84px; border-radius: 50%; border: 0; background: transparent; overflow: visible;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand, #94a3b8) 42%, transparent), 0 10px 20px -16px rgba(15, 23, 42, .55);
+}
+.avatar-figure { width: 100%; height: 100%; object-fit: contain; pointer-events: none; filter: hue-rotate(var(--char-hue, 0deg)); }
 .agent-pet { width: 100%; height: 100%; object-fit: contain; }
 .agent-name { font-size: 12px; color: var(--ink-2); text-align: center; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .agent-state { font-size: 11px; color: var(--muted); }

@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 
 const { composeMiniPayload, labelOf } = require('./mini-tasks.cjs');
 
-const project = 'E:\\多Agent工作台升级规划';
+const project = 'E:\\fixture-workspace';
 const connected = {
   state: 'connected',
   tasks: 3,

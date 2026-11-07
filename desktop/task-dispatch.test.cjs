@@ -6,7 +6,7 @@ const assert = require('node:assert/strict');
 const { buildTaskRequest, dispatchTask, parsePort, projectHeader } = require('./task-dispatch.cjs');
 
 const BT = String.fromCharCode(92);
-const PROJECT = `E:${BT}多Agent工作台升级规划`;
+const PROJECT = `E:${BT}fixture-workspace`;
 
 test('请求体按面板约定生成，默认走手动路由与模型默认执行器', () => {
   const body = buildTaskRequest({ prompt: '回答 2+2', modelId: '5b0f8b9318c0', title: '连通性', project: PROJECT });

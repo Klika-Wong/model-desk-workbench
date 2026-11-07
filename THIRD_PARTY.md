@@ -27,3 +27,20 @@ DSH（DeepSeek Harness）、Pi Agent、Codex、WorkBuddy、Python、Node 和 pnp
 WorkBuddy 适配使用用户本机已安装应用提供的原生能力；账户、积分、模型访问和第三方服务条件由对应平台管理，不随本项目的 MIT 许可授予。
 
 本项目自身源码采用 [MIT 许可证](LICENSE)，Copyright (c) 2026 Gambler134201。此许可不替代上述第三方依赖或外部应用的许可。
+
+## 界面形象素材（2026-11-07 新增）
+
+| 素材 | 来源 | 许可 | 位置 |
+| --- | --- | --- | --- |
+| Q 版拟人少女、像素螃蟹的六态动画 | [Ice-teapop/desktop-pet](https://github.com/Ice-teapop/desktop-pet) | MIT（文件；许可证全文 `LICENSE-deskpet`） | `desktop/assets/characters/` |
+| 大肥鱼 / 鲸鱼娘桌宠 GIF | [PC2005-cloud/dsh-pet](https://github.com/PC2005-cloud/dsh-pet) | **CC BY-NC-SA 4.0**：署名、非商业、改编同协议 | `desktop/assets/pets/` |
+| 17 个模型品牌标识 | [lobehub/lobe-icons](https://github.com/lobehub/lobe-icons) | MIT（代码）；标识本身仍是各品牌商标 | `desktop/assets/brands/` |
+
+**授权边界**：MIT 只覆盖这些 SVG / sprite 文件，**不覆盖角色 IP**。拟人少女的原型是《原神》芙宁娜同人形象，
+角色权利归原权利方；本项目仅作本机、非商业、个人使用的原型，不暗示官方背书。上游仓库亦声明
+Clawd 形象未获原作者授权，本项目**没有采用 Clawd 素材**，只取了作者原创的像素螃蟹主题。
+大肥鱼 GIF 的 CC BY-NC-SA 4.0 比 MIT 严格，同样限制商业使用。
+
+**公开发布或商业化前**：必须把 `char-*.svg` 换成自有 / CC0 的拟人素材，把 `assets/pets/` 三个 GIF
+换成自有素材，并相应更新或删除对应 NOTICE。完整条款、压缩方式与替换步骤见三个目录里的 `NOTICE.md`。
+

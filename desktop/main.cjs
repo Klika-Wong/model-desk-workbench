@@ -1151,6 +1151,22 @@ ipcMain.handle('dispatch:status', (event, taskId) => {
     };
   });
 });
+// 按模型查最近任务：供模型状态页跟随真实状态。只读，不改任务。
+ipcMain.handle('dispatch:model-activity', (event, modelId) => {
+  assertTrustedSender(event);
+  return asyncReply(async () => {
+    const project = requireSelectedProject(null);
+    const baseUrl = await requirePanelBase();
+    const tasks = await taskDispatch.listTasks({ baseUrl, project });
+    const wanted = String(modelId || '');
+    const mine = tasks.filter((t) => t && String(t.model_id || '') === wanted);
+    const at = (t) => { const n = Date.parse(t.started_at || t.created_at || t.updated_at || ''); return Number.isFinite(n) ? n : 0; };
+    mine.sort((a, b) => at(b) - at(a));
+    const latest = mine[0] || null;
+    return { task: latest, state: latest ? (latest.status || latest.phase || '') : '', count: mine.length };
+  });
+});
+
 ipcMain.handle('dispatch:cancel', (event, taskId) => {
   assertTrustedSender(event);
   return asyncReply(async () => {

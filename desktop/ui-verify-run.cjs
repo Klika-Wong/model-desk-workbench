@@ -21,7 +21,8 @@ child.stderr.setEncoding('utf8');
 child.stdout.on('data', (chunk) => { stdout += chunk; });
 child.stderr.on('data', (chunk) => { stderr += chunk; });
 
-const timer = setTimeout(() => child.kill(), 90000);
+// 协作视图会真跑一轮多模型讨论，串行派发需要更长时间；给足预算，别误判超时。
+const timer = setTimeout(() => child.kill(), 150000);
 
 child.on('exit', (code) => {
   clearTimeout(timer);

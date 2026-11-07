@@ -6,7 +6,7 @@ const path = require('node:path');
 const { buildTaskRequest, dispatchTask, listTasks, fetchTaskLog } = require('./task-dispatch.cjs');
 
 const BT = String.fromCharCode(92);
-const PROJECT = `E:${BT}多Agent工作台升级规划`;
+const PROJECT = `E:${BT}fixture-workspace`;
 const BASE = 'http://127.0.0.1:18765';
 const MODEL = '5b0f8b9318c0'; // 本地 DeepSeek-R1 7B
 const REAL = process.argv.includes('--real');
