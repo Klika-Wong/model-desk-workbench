@@ -56,8 +56,17 @@
     radial-gradient(ellipse 34px 22px at 70% 64%, color-mix(in srgb, #f0b77a 26%, transparent), transparent 72%),
     linear-gradient(180deg, color-mix(in srgb, #f0b77a 10%, transparent), transparent 86%);
   border: 1px dashed color-mix(in srgb, #e4a86c 40%, transparent); border-radius: 20px;
-  pointer-events: none; opacity: .8;
+  pointer-events: none; opacity: .8; transition: opacity .25s;
 }
+.stage-floor[data-busy="0"]::after { opacity: 0; }
+.stage-floor[data-busy="1"]::after { opacity: .8; }
+/* 空闲时整块画布统一底色：不分左右、不画工位格，否则右半那条暖色带看着像一块莫名的脏斑。 */
+.stage-floor[data-busy="0"] {
+  background:
+    color-mix(in srgb, var(--accent) 4%, transparent),
+    radial-gradient(ellipse at 50% 108%, var(--surface-2), var(--surface) 72%);
+}
+.stage-floor[data-busy="0"]::before { opacity: 0; }
 .zone-divider { position: absolute; left: 56%; top: 8%; bottom: 8%; width: 0; z-index: 1;
   border-left: 1px dashed color-mix(in srgb, var(--line-strong) 80%, transparent); pointer-events: none; }
 .zone-label {
@@ -67,10 +76,15 @@
   background: color-mix(in srgb, var(--surface) 80%, transparent);
 }
 .zone-label small { font-weight: 400; font-size: 9px; letter-spacing: 0; }
-.stage-floor[data-busy="0"] .zone-work { opacity: .42; }
+/* 空闲时整块画布都是休息区：收掉分区线、摸鱼角标签与地毯，只留一个「空闲」提示。
+   有人生成时才分出左右两区。 */
+.stage-floor[data-busy="0"] .zone-work { opacity: .5; }
+.stage-floor[data-busy="0"] .zone-rest,
+.stage-floor[data-busy="0"] .zone-divider { opacity: 0; pointer-events: none; }
 .stage-floor[data-busy="1"] .zone-work { opacity: 1; }
-.stage-floor[data-busy="1"] .zone-work small { font-size: 0; }
-.stage-floor[data-busy="1"] .zone-work small::after { content: '生成中 / 正在输出'; font-size: 9px; }
+.stage-floor[data-busy="1"] .zone-rest,
+.stage-floor[data-busy="1"] .zone-divider { opacity: 1; }
+.zone-rest, .zone-divider { transition: opacity .25s; }
 .zone-label.zone-work { left: 12px; }
 .zone-label.zone-rest { right: 12px; }
 
@@ -122,11 +136,16 @@
   background-image: var(--pet-sheet); background-repeat: no-repeat;
   background-size: calc(var(--pet-w) * 8) calc(var(--pet-h) * 9);
   background-position: 0 calc(var(--pet-row, 0) * var(--pet-h) * -1);
-  animation: pet-play 1.9s steps(8) infinite;
+  animation-name: pet-play;
+  animation-duration: var(--pet-dur, 1.76s);
+  animation-timing-function: steps(var(--pet-frames, 8), end);
+  animation-iteration-count: infinite;
 }
 @keyframes pet-play {
   from { transform: translate3d(0, 0, 0) scaleX(var(--pet-flip, 1)); }
-  to { transform: translate3d(calc(var(--pet-w) * -8), 0, 0) scaleX(var(--pet-flip, 1)); }
+  /* 位移只走「有效帧数」那么远：8 列网格里 idle 只有 6 帧、wave 只有 4 帧，
+     走到第 8 列就会露出空白格，角色看起来在闪。 */
+  to { transform: translate3d(calc(var(--pet-w) * var(--pet-frames, 8) * -1), 0, 0) scaleX(var(--pet-flip, 1)); }
 }
 .avatar-figure { width: 100%; height: 100%; object-fit: contain; pointer-events: none; filter: hue-rotate(var(--char-hue, 0deg)); }
 .stage-actor-avatar[data-avatar-choice="crab"] .avatar-figure { transform: scale(1.7); }
@@ -332,7 +351,19 @@ body.collab-pet-on .collab-layout { grid-template-columns: 1fr; }
 .ctx-sep { height: 1px; margin: 7px 0; background: var(--line); }
 html[data-theme="dark"] .brand-coin { background: radial-gradient(circle at 34% 26%, #33363e 0%, #2a2d35 72%, #24272e 100%); }
 html[data-theme="dark"] .stage-floor::before { opacity: .95; }
+/* 深色下这条特异性比 .stage-floor[data-busy="0"]::before 高，必须显式压回来，
+   否则空闲时工位网格仍然可见。 */
+html[data-theme="dark"] .stage-floor[data-busy="0"]::before { opacity: 0; }
+html[data-theme="dark"] .stage-floor[data-busy="1"]::before { opacity: .95; }
+html[data-theme="dark"] .stage-floor[data-busy="0"] {
+  background:
+    color-mix(in srgb, var(--accent) 4%, transparent),
+    radial-gradient(ellipse at 50% 108%, var(--surface-2), var(--surface) 72%);
+}
+html[data-theme="dark"] .stage-floor[data-busy="0"]::after { opacity: 0; }
+html[data-theme="dark"] .stage-floor[data-busy="1"]::after { opacity: 1; }
 html[data-theme="dark"] .stage-floor::after {
+  transition: opacity .25s;
   border-color: color-mix(in srgb, #c9a479 34%, transparent);
   background:
     radial-gradient(ellipse 34px 22px at 30% 64%, rgba(201, 164, 121, .18), transparent 72%),

@@ -12,7 +12,7 @@ const WIDTH = 250;
 const HEIGHT = 300;
 let petWindow = null;
 let configPath = null;
-let state = { x: null, y: null, locked: false, alwaysOnTop: true, outfit: null, modelId: null };
+let state = { x: null, y: null, locked: false, alwaysOnTop: true, outfit: null, modelId: null, opaque: false };
 // 拖拽基准：窗口跟着鼠标动时，渲染进程的 clientX/Y 会反向变化，必须用屏幕绝对坐标。
 let dragOrigin = null;
 let dragWinStart = null;
@@ -26,13 +26,14 @@ function scheduleSave(delay) {
 
 // 配置文件可能被手改坏或来自旧版本，读进来先收紧，别让怪值进窗口构造参数。
 function sanitizeState(raw) {
-  const clean = { x: null, y: null, locked: false, alwaysOnTop: true, outfit: null, modelId: null };
+  const clean = { x: null, y: null, locked: false, alwaysOnTop: true, outfit: null, modelId: null, opaque: false };
   if (!raw || typeof raw !== 'object') return clean;
   if (Number.isFinite(raw.x) && Number.isFinite(raw.y) && Math.abs(raw.x) < 100000 && Math.abs(raw.y) < 100000) {
     clean.x = Math.round(raw.x); clean.y = Math.round(raw.y);
   }
   clean.locked = raw.locked === true;
   clean.alwaysOnTop = raw.alwaysOnTop !== false;
+  clean.opaque = raw.opaque === true;
   if (typeof raw.outfit === 'string') clean.outfit = raw.outfit.slice(0, 80);
   if (typeof raw.modelId === 'string') clean.modelId = raw.modelId.slice(0, 80);
   return clean;
@@ -58,13 +59,16 @@ function create() {
   const pos = (typeof state.x === 'number' && typeof state.y === 'number') ? { x: state.x, y: state.y } : defaultPosition();
   petWindow = new BrowserWindow({
     width: WIDTH, height: HEIGHT, x: pos.x, y: pos.y,
-    transparent: true, frame: false, alwaysOnTop: state.alwaysOnTop,
-    backgroundColor: '#00000000',
+    // 透明窗口在 Windows DWM 下需要持续重组表面，是已知的闪烁来源。
+    // 允许切成不透明（牺牲圆角透明），软件渲染的机器上更稳。
+    transparent: !state.opaque, frame: false, alwaysOnTop: state.alwaysOnTop,
+    backgroundColor: state.opaque ? '#202227' : '#00000000',
     skipTaskbar: true, resizable: false, hasShadow: false, show: false,
     webPreferences: {
       preload: path.join(__dirname, 'pet-preload.cjs'),
       contextIsolation: true, nodeIntegration: false, sandbox: true,
-      backgroundThrottling: false,
+      // 之前设为 false：被遮挡时也满速跑动画，软件渲染下会和其他窗口抢 CPU。
+      backgroundThrottling: true,
     },
   });
   // 位置可能来自旧显示器配置，落在屏幕外就拉回主屏，否则用户「拖不到」。
@@ -119,6 +123,19 @@ function registerPetWindow(userDataPath) {
     if (action === 'lock') {
       state.locked = Boolean(value); save();
       return { ok: true, data: { locked: state.locked } };
+    }
+    if (action === 'opaque') {
+      state.opaque = value === true;
+      save();
+      // transparent 只能在建窗时指定，改它必须重建窗口。
+      if (petWindow && !petWindow.isDestroyed()) {
+        const [x, y] = petWindow.getPosition();
+        state.x = x; state.y = y;
+        petWindow.destroy();
+        petWindow = null;
+        create();
+      }
+      return { ok: true, data: { opaque: state.opaque } };
     }
     if (action === 'top') {
       state.alwaysOnTop = Boolean(value);

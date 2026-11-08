@@ -34,6 +34,14 @@ const ROSTER = {
 
 // spritesheet 九行：待机 / 右移 / 左移 / 招手 / 跳跃 / 失败 / 等待 / 工作 / 审查
 const ACTIONS = { idle: 0, moveRight: 1, moveLeft: 2, wave: 3, jump: 4, fail: 5, wait: 6, work: 7, review: 8 };
+// 每行动作的实际帧数。素材是 8 列网格，但不是每行都填满：
+// idle/wait/work/review 只有 6 帧，wave 只有 4 帧，jump 只有 5 帧。
+// 按 8 帧播会扫到空白格，角色每轮闪两下甚至半轮消失。
+const ACTION_FRAMES = {
+  idle: 6, moveRight: 8, moveLeft: 8, wave: 4, jump: 5, fail: 8, wait: 6, work: 6, review: 6,
+};
+// 每帧停留时长：约 0.22s，多帧动作自然慢一点，少帧动作快一点。
+const FRAME_MS = 220;
 const STATE_ACTION = {
   waiting: 'idle', thinking: 'work', speaking: 'work', done: 'wave',
   failed: 'fail', stalled: 'wait', poke: 'jump', drag: 'moveRight',
@@ -192,10 +200,20 @@ function stateFile(choice, state) {
 }
 
 // 状态 + 场景 → 动作行。场景只覆盖视觉动作，不改变真实状态。
-function actionRow(choice, state, scene) {
+function actionName(choice, state, scene) {
   const sceneAction = SCENE_ACTION[scene || 'discuss'];
-  const name = sceneAction || STATE_ACTION[state] || 'idle';
-  return ACTIONS[name] === undefined ? 0 : ACTIONS[name];
+  return sceneAction || STATE_ACTION[state] || 'idle';
+}
+function actionRow(choice, state, scene) {
+  const row = ACTIONS[actionName(choice, state, scene)];
+  return row === undefined ? 0 : row;
+}
+function actionFrames(choice, state, scene) {
+  const frames = ACTION_FRAMES[actionName(choice, state, scene)];
+  return frames || 8;
+}
+function actionDuration(choice, state, scene) {
+  return (actionFrames(choice, state, scene) * FRAME_MS) + 'ms';
 }
 
 function mount(el, model, choice, opts) {
@@ -221,6 +239,8 @@ function mount(el, model, choice, opts) {
     sprite.className = 'pet-sprite';
     sprite.dataset.sprite = '1';
     sprite.style.setProperty('--pet-row', String(actionRow(choice, state, scene)));
+    sprite.style.setProperty('--pet-frames', String(actionFrames(choice, state, scene)));
+    sprite.style.setProperty('--pet-dur', actionDuration(choice, state, scene));
     sprite.style.setProperty('--pet-flip', options.facing === 'left' ? '-1' : '1');
     const strip = document.createElement('div');
     strip.className = 'pet-strip';
@@ -269,7 +289,12 @@ function updateState(el, choice, state, scene, facing) {
   const sprite = el.querySelector('[data-sprite]');
   if (sprite) {
     const row = String(actionRow(choice, state, scene));
-    if (sprite.style.getPropertyValue('--pet-row') !== row) sprite.style.setProperty('--pet-row', row);
+    if (sprite.style.getPropertyValue('--pet-row') !== row) {
+      // 帧数与时长必须跟行一起换：不同动作的有效帧数不同，沿用旧值就会扫到空白格。
+      sprite.style.setProperty('--pet-frames', String(actionFrames(choice, state, scene)));
+      sprite.style.setProperty('--pet-dur', actionDuration(choice, state, scene));
+      sprite.style.setProperty('--pet-row', row);
+    }
     if (facing) {
       const flip = facing === 'left' ? '-1' : '1';
       if (sprite.style.getPropertyValue('--pet-flip') !== flip) sprite.style.setProperty('--pet-flip', flip);
@@ -285,9 +310,9 @@ function updateState(el, choice, state, scene, facing) {
 
 const api = {
   BRAND_ID, CHARACTER_ID, CRAB_ID, GIF_ID, EMOJIS, CHARACTERS, BRANDS, ROSTER,
-  ACTIONS, STATE_ACTION, SCENE_ACTION, R,
+  ACTIONS, ACTION_FRAMES, STATE_ACTION, SCENE_ACTION, R,
   keyOf, brandOf, optionsFor, choicesFor, rosterFor, defaultChoice, resolve,
-  stateFile, actionRow, hashEmoji, hueOf, mount, updateState,
+  stateFile, actionRow, actionName, actionFrames, actionDuration, hashEmoji, hueOf, mount, updateState,
 };
 
 if (typeof module !== 'undefined' && module.exports) module.exports = api;

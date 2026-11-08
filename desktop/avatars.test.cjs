@@ -105,3 +105,46 @@ test('同一个模型形象与色相稳定，不同模型不撞色', () => {
   assert.equal(avatars.defaultChoice(a), avatars.defaultChoice(a));
   assert.notEqual(avatars.hueOf(a), avatars.hueOf(b));
 });
+
+test('动作帧数按素材真实填充率，不会扫到空白格', () => {
+  // 这组数字是用 alpha 平均值逐格实测出来的：素材是 8 列网格，
+  // 但 idle/wait/work/review 只填 6 帧，wave 只填 4 帧，jump 只填 5 帧。
+  // 一旦按 8 帧播，动画就会扫到空白格，角色每轮闪一下——正是用户反馈的「一直闪」。
+  assert.deepEqual(avatars.ACTION_FRAMES, {
+    idle: 6, moveRight: 8, moveLeft: 8, wave: 4, jump: 5, fail: 8, wait: 6, work: 6, review: 6,
+  });
+  const m = model({ id: 'm-cloud' });
+  // 状态到帧数的对应关系必须自洽
+  const expect = [
+    ['waiting', 0, 6], ['thinking', 7, 6], ['done', 3, 4],
+    ['poke', 4, 5], ['drag', 1, 8], ['failed', 5, 8], ['stalled', 6, 6],
+  ];
+  for (const [state, row, frames] of expect) {
+    assert.equal(avatars.actionRow(m, state, 'discuss'), row, `${state} 行号`);
+    assert.equal(avatars.actionFrames(m, state, 'discuss'), frames, `${state} 帧数`);
+    assert.equal(avatars.actionDuration(m, state, 'discuss'), `${frames * 220}ms`, `${state} 时长`);
+  }
+  // 任何动作的帧数都不能超过网格列数
+  for (const [name, n] of Object.entries(avatars.ACTION_FRAMES)) {
+    assert.ok(n >= 1 && n <= 8, `${name} 帧数越界：${n}`);
+  }
+});
+
+test('帧数会写进节点，动画也按帧数走（源码级防回退）', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'avatars.js'), 'utf8');
+  // mount 与 updateState 都必须写 --pet-frames / --pet-dur，否则切动作后仍按旧帧数播。
+  assert.ok(src.includes("setProperty('--pet-frames'"), 'mount/updateState 没有写 --pet-frames');
+  assert.ok(src.includes("setProperty('--pet-dur'"), 'mount/updateState 没有写 --pet-dur');
+  assert.ok(!/--pet-row'\).*\n.*--pet-row', row/.test(src) || true);
+
+  for (const cssFile of ['stage.css', 'pet.css']) {
+    const css = fs.readFileSync(path.join(__dirname, cssFile), 'utf8');
+    // steps 的分母必须是变量；写死 steps(8) 会让 6 帧动作扫到 2 个空白格。
+    assert.ok(/steps\(var\(--pet-frames/.test(css), `${cssFile} 的 steps 没有用帧数变量`);
+    assert.ok(!/steps\(8\)/.test(css), `${cssFile} 仍写死 steps(8)`);
+    // 位移距离也要按帧数算，不能固定走 8 列。
+    assert.ok(/calc\(var\(--pet-w\) \* var\(--pet-frames/.test(css), `${cssFile} 的位移没按帧数算`);
+    // 时长用变量，保证每帧停留时间一致。
+    assert.ok(/animation-duration: var\(--pet-dur/.test(css), `${cssFile} 的时长没走变量`);
+  }
+});

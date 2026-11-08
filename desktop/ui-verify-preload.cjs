@@ -106,6 +106,7 @@ contextBridge.exposeInMainWorld('workbench', {
   chatLoad: async (project) => ({ ok: true, data: { messages: project?.includes('different-fixture') ? [] : [{ role: 'user', text: '上次的第一句' }], dropped: 0, corrupted: false } }),
   chatSave: async (messages, project) => { calls.push({ api: 'chatSave', input: messages, project }); return { ok: true, data: { saved: (messages || []).length } }; },
   chatClear: async (project) => { calls.push({ api: 'chatClear', project }); return { ok: !chatClearFails, data: { cleared: !chatClearFails } }; },
+  renderInfo: async () => ({ gpuCompositing: 'enabled', gpuRasterization: 'enabled', webgl: 'enabled', scaleFactor: 1, displaySize: [1280, 800], platform: 'win32' }),
   petOpen: async () => { calls.push({api:'petOpen'}); return {ok:true,data:{locked:false,alwaysOnTop:true}}; },
   petState: async () => ({ok:true,data:{locked:false,alwaysOnTop:true}}),
   petControl: async (action, value) => { calls.push({api:'petControl',action,value}); return {ok:true,data:{locked:action==='lock'?Boolean(value):false,alwaysOnTop:action==='top'?Boolean(value):true}}; },

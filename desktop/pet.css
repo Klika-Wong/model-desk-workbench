@@ -27,11 +27,16 @@ body { font-family: "Segoe UI", "Microsoft YaHei", sans-serif; -webkit-user-sele
   background-image: var(--pet-sheet); background-repeat: no-repeat;
   background-size: calc(var(--pet-w) * 8) calc(var(--pet-h) * 9);
   background-position: 0 calc(var(--pet-row, 0) * var(--pet-h) * -1);
-  animation: pet-play 1.9s steps(8) infinite;
+  animation-name: pet-play;
+  animation-duration: var(--pet-dur, 1.76s);
+  animation-timing-function: steps(var(--pet-frames, 8), end);
+  animation-iteration-count: infinite;
 }
 @keyframes pet-play {
   from { transform: translate3d(0, 0, 0) scaleX(var(--pet-flip, 1)); }
-  to { transform: translate3d(calc(var(--pet-w) * -8), 0, 0) scaleX(var(--pet-flip, 1)); }
+  /* 位移只走「有效帧数」那么远：8 列网格里 idle 只有 6 帧、wave 只有 4 帧，
+     走到第 8 列就会露出空白格，角色看起来在闪。 */
+  to { transform: translate3d(calc(var(--pet-w) * var(--pet-frames, 8) * -1), 0, 0) scaleX(var(--pet-flip, 1)); }
 }
 
 .pet-bubble {

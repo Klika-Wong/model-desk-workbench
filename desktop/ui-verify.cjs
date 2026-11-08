@@ -521,6 +521,14 @@ async function main() {
     await wait(100);
     const focusReturned = document.activeElement === kbActor;
 
+    // 序列帧必须按「有效帧数」播：素材 8 列里 idle 只有 6 帧、wave 只有 4 帧。
+    // 一旦退回写死 steps(8)，动画会扫到空白格，角色每轮消失——用户报的就是这个「闪」。
+    const strip0 = document.querySelector('.pet-strip');
+    const sprite0 = strip0 ? strip0.closest('.pet-sprite') : null;
+    const stripFrames = sprite0 ? sprite0.style.getPropertyValue('--pet-frames') : '';
+    const stripTiming = strip0 ? getComputedStyle(strip0).animationTimingFunction : '';
+    const stripDur = strip0 ? getComputedStyle(strip0).animationDuration : '';
+
     // 降低动效：开起来后循环序列帧与呼吸动画都必须停，用于排查闪烁
     const root = document.documentElement;
     root.dataset.reduceMotion = '1';
@@ -552,7 +560,7 @@ async function main() {
     clearBtn.click();
     await wait(150);
     const afterSecond = JSON.parse(localStorage.getItem('collab-messages') || '[]').length;
-    return { samePath, dlgHidden, turnsBefore, turnsAfter, storedBefore, storedAfter, rowsAfter, nodesAfter, edgesAfterRebuild, idleRows, idleAnimated, stripAnim, breatheAnim, stripAnimBack, menuFocused, menuRole, focusReturned, petDecor, dividerHidden, afterFirst, afterSecond, armedLabel };
+    return { samePath, dlgHidden, turnsBefore, turnsAfter, storedBefore, storedAfter, rowsAfter, nodesAfter, edgesAfterRebuild, idleRows, idleAnimated, stripFrames, stripTiming, stripDur, stripAnim, breatheAnim, stripAnimBack, menuFocused, menuRole, focusReturned, petDecor, dividerHidden, afterFirst, afterSecond, armedLabel };
    } catch (e) { return { jsError: String((e && e.stack) || e) }; }
   })()`);
   if (ux.jsError) throw new Error('UX 回归段异常：' + ux.jsError);
@@ -564,6 +572,14 @@ async function main() {
   if (ux.rowsAfter !== ux.nodesAfter) throw new Error(`重建舞台后状态行重复：${ux.rowsAfter}/${ux.nodesAfter}`);
   if (ux.edgesAfterRebuild < 1) throw new Error('重建舞台后历史交流没有对应连线');
   if (!ux.idleAnimated) throw new Error(`待机小动作没生效，动作行一直是：${ux.idleRows}`);
+  // 关系断言：steps 的分母、动画时长、位移范围都必须跟当前动作的有效帧数一致。
+  // 只认「三者对齐」，不锁死具体帧数——不同状态对应不同动作（待机 6 帧、已发言 4 帧等）。
+  if (!['4', '5', '6', '8'].includes(ux.stripFrames)) throw new Error(`帧数不是任何动作的有效值：${ux.stripFrames}`);
+  const stepMatch = String(ux.stripTiming).match(/steps\((\d+)/);
+  if (!stepMatch || stepMatch[1] !== ux.stripFrames) throw new Error(`步进没按帧数走：${ux.stripTiming} vs ${ux.stripFrames}`);
+  // 浏览器会把 1320ms 规范成 1.32s，统一按秒比。
+  const durSec = parseFloat(ux.stripDur);
+  if (!(Math.abs(durSec - Number(ux.stripFrames) * 0.22) < 0.011)) throw new Error(`时长没按帧数算：${ux.stripDur}（应为 ${Number(ux.stripFrames) * 0.22}s）`);
   if (ux.stripAnim !== 'none' || ux.breatheAnim !== 'none') throw new Error(`降低动效没停掉动画：${ux.stripAnim}/${ux.breatheAnim}`);
   if (ux.stripAnimBack === 'none') throw new Error('关掉降低动效后序列帧没有恢复');
   if (!ux.menuFocused || ux.menuRole !== 'menu') throw new Error(`菜单没有接管键盘焦点：${ux.menuFocused}/${ux.menuRole}`);
@@ -571,7 +587,7 @@ async function main() {
   if (ux.petDecor !== 'none' || ux.dividerHidden !== 'none') throw new Error(`页内小窗残留分区装饰：${ux.petDecor}/${ux.dividerHidden}`);
   if (ux.afterFirst !== ux.storedBefore || !ux.armedLabel.includes('再点一次')) throw new Error(`清空没有二次确认：${JSON.stringify(ux)}`);
   if (ux.afterSecond !== 0) throw new Error(`二次确认后没有清空历史：${ux.afterSecond}`);
-  result.checks.push('collab-no-link-rebuild', 'collab-dialogue-dismiss', 'collab-history-consistency', 'collab-clear-confirm', 'collab-consent-gate', 'collab-menu-keyboard', 'collab-pet-mode-clean', 'collab-idle-motion', 'collab-reduce-motion');
+  result.checks.push('collab-no-link-rebuild', 'collab-dialogue-dismiss', 'collab-history-consistency', 'collab-clear-confirm', 'collab-consent-gate', 'collab-menu-keyboard', 'collab-pet-mode-clean', 'collab-idle-motion', 'collab-reduce-motion', 'collab-sprite-frame-count');
 
   // 留两张图：默认关系图、桌宠模式。
   const spriteReady = await js(`(async () => {

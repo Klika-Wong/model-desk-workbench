@@ -404,8 +404,17 @@
         }
       });
     };
-    // 分区标签跟真实占用走：没人在生成时工作区标「空闲」，避免「工作区」里站着三个待机角色。
-    if (floor) floor.dataset.busy = work.length ? '1' : '0';
+    // 分区跟着真实占用走：没人在生成时整块画布就是休息区，不摆「工作区」的架子；
+    // 只有真有人开始生成，才划出左右两区。否则会出现「工作区 · 空闲」里站满待机角色。
+    if (floor) {
+      const busy = work.length > 0;
+      floor.dataset.busy = busy ? '1' : '0';
+      const workHint = floor.querySelector('.zone-work small');
+      if (workHint) workHint.textContent = busy ? '生成中 / 正在输出' : '空闲';
+      // 没人在生成时整块是休息区，标签就不该继续叫「工作区」。
+      const workName = floor.querySelector('.zone-work .zone-name');
+      if (workName) workName.textContent = busy ? '工作区' : '休息中';
+    }
 
     take(left, slots.left, slots.right);
     if (discussing) take(right, slots.right, slots.left);
@@ -456,6 +465,7 @@
     followRaf = 0; followUntil = 0;
   }
   function followLayout(ms) {
+    if (motionReduced()) { updateLinkGeometry(); return; }
     followUntil = Date.now() + (ms || 520);
     if (followRaf) return;
     const tick = () => {
@@ -746,13 +756,17 @@
     return kind;
   }
 
+  // 降低动效开启时整页保持静止：连待机小动作也停，这样「还闪不闪」才是干净的判断。
+  function motionReduced() {
+    return document.documentElement.dataset.reduceMotion === '1';
+  }
   function scheduleIdleBeat() {
     if (idleBeatTimer) clearTimeout(idleBeatTimer);
     idleBeatTimer = null;
-    if (page.hidden) return;
+    if (page.hidden || motionReduced()) return;
     idleBeatTimer = setTimeout(() => {
       idleBeatTimer = null;
-      if (!page.hidden && !running) idlePoke();
+      if (!page.hidden && !running && !motionReduced()) idlePoke();
       scheduleIdleBeat();
     }, 4200 + Math.random() * 6200);
   }
@@ -1130,6 +1144,15 @@
   });
   if ($('stage-refresh')) $('stage-refresh').addEventListener('click', loadModels);
   if (petToggle) petToggle.addEventListener('change', applyPetMode);
+  // 「降低动效」切换后立刻停掉或恢复待机节拍，不用重开页面。
+  for (const box of document.querySelectorAll('[data-motion-toggle]')) {
+    box.addEventListener('change', () => {
+      if (box.checked) {
+        if (idleBeatTimer) { clearTimeout(idleBeatTimer); idleBeatTimer = null; }
+        stopFollow();
+      } else if (!page.hidden) scheduleIdleBeat();
+    });
+  }
   if (consentBox) consentBox.addEventListener('change', () => {
     askBtn.disabled = !consentBox.checked;
     if (!consentBox.checked) statusLine.textContent = '未勾选确认时不会派发任何模型。';

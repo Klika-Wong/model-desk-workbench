@@ -4,12 +4,13 @@ const assert = require('node:assert/strict');
 const pet = require('./pet-window.cjs');
 
 test('桌宠配置：坏数据不会进窗口构造参数', () => {
-  assert.deepEqual(pet.sanitizeState(null), { x: null, y: null, locked: false, alwaysOnTop: true, outfit: null, modelId: null });
+  assert.deepEqual(pet.sanitizeState(null), { x: null, y: null, locked: false, alwaysOnTop: true, outfit: null, modelId: null, opaque: false });
   const weird = pet.sanitizeState({ x: 'NaN', y: Infinity, locked: 'yes', alwaysOnTop: 0 });
   assert.equal(weird.x, null);
   assert.equal(weird.y, null);
   assert.equal(weird.locked, false, '字符串 true 不算锁定');
   assert.equal(weird.alwaysOnTop, true, '只有显式 false 才取消置顶');
+  assert.equal(weird.opaque, false, '只有显式 true 才切成不透明');
 });
 
 test('桌宠配置：合法位置、形象与模型要保留并收紧长度', () => {
@@ -20,6 +21,8 @@ test('桌宠配置：合法位置、形象与模型要保留并收紧长度', ()
   assert.equal(s.locked, true);
   assert.equal(s.alwaysOnTop, false);
   assert.equal(s.outfit, 'roster:deepseek-chibi');
+  assert.equal(pet.sanitizeState({ opaque: 'yes' }).opaque, false, '字符串不算开启不透明');
+  assert.equal(pet.sanitizeState({ opaque: true }).opaque, true);
   assert.equal(pet.sanitizeState({ outfit: 'x'.repeat(300) }).outfit.length, 80);
 });
 

@@ -1,4 +1,4 @@
-const { app, BrowserWindow, WebContentsView, dialog, ipcMain, clipboard, Tray, Menu } = require('electron');
+const { app, BrowserWindow, WebContentsView, dialog, ipcMain, clipboard, Tray, Menu, screen } = require('electron');
 const { spawn } = require('node:child_process');
 const { randomBytes, createHash } = require('node:crypto');
 const fs = require('node:fs');
@@ -12,6 +12,13 @@ const {saveModelSettings} = require('./model-settings.cjs');
 const { composeMiniPayload } = require('./mini-tasks.cjs');
 const chatStore = require('./chat-store.cjs');
 const panelService = require('./panel-service.cjs');
+
+// Windows 的原生遮挡计算会在窗口被遮挡时停止渲染、恢复时重新提交整窗表面。
+// 个别机器上这会表现为「切回来闪一下」。默认遵循系统行为（省电、后台不空转），
+// 需要排查这类闪烁时可用 WORKBENCH_DISABLE_OCCLUSION=1 启动关掉它。
+if (process.platform === 'win32' && process.env.WORKBENCH_DISABLE_OCCLUSION === '1') {
+  app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
+}
 
 const MOCK_WORKSPACE = 'desktop-shell-prototype';
 const backendScript = path.join(__dirname, 'mock-backend.cjs');
@@ -292,7 +299,11 @@ async function createWindow({ show = true } = {}) {
   const window = new BrowserWindow({
     width: 1380,
     height: 900,
-    show,
+    // 一律先隐藏：等首帧真正绘制完再显示。否则窗口会先露一下未绘制的底色，
+    // 深色主题下那次「白闪」尤其明显。
+    show: false,
+    // 兜底底色用中性深灰，即使露出边缘也不会刺眼地白一下。
+    backgroundColor: '#17181c',
     minWidth: 800,
     minHeight: 700,
     title: 'Model Desk — Desktop Shell Prototype',
@@ -304,6 +315,12 @@ async function createWindow({ show = true } = {}) {
       backgroundThrottling: !smokeMode,
     },
   });
+  // ready-to-show 时首帧已经画好，此时再 show 才不会有白底一闪。
+  window.once('ready-to-show', () => {
+    window.__painted = true;
+    if (window.__wantShow) { window.show(); window.focus(); }
+  });
+  if (show) window.__wantShow = true;
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   window.webContents.on('will-prevent-unload', (event) => {
     const choice = dialog.showMessageBoxSync(window, { type: 'question', title: '尚有未保存的修改',
@@ -668,6 +685,22 @@ async function runSmoke() {
   }
 }
 
+// 渲染诊断：让用户看到自己这台机器到底在走硬件加速还是软件渲染。
+// 软件渲染 + 高 DPI 时，任何持续动画都会明显吃满 CPU，表现为「卡、闪」。
+ipcMain.handle('app:render-info', (event) => {
+  assertTrustedSender(event);
+  const f = app.getGPUFeatureStatus();
+  const d = screen.getPrimaryDisplay();
+  return {
+    gpuCompositing: f.gpu_compositing,
+    gpuRasterization: f.rasterization,
+    webgl: f.webgl,
+    gpuFeatureStatus: f,
+    scaleFactor: d.scaleFactor,
+    displaySize: [d.size.width, d.size.height],
+    platform: process.platform,
+  };
+});
 ipcMain.handle('workbench:get-state', (event) => {
   assertTrustedSender(event);
   return getState();
@@ -1278,7 +1311,10 @@ ipcMain.handle('mini:tasks', event => {
 function showWorkbench() {
   if (!mainWindow || mainWindow.isDestroyed()) return;
   if (mainWindow.isMinimized()) mainWindow.restore();
-  mainWindow.show(); mainWindow.focus(); pendingShow = false;
+  // 首帧还没画完就 show 会白闪一下，交给 ready-to-show 处理。
+  if (mainWindow.__painted) { mainWindow.show(); mainWindow.focus(); }
+  else { mainWindow.__wantShow = true; }
+  pendingShow = false;
 }
 function requestExit() {
   exitRequested = true;
