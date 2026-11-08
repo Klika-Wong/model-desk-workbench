@@ -12,10 +12,45 @@ const WIDTH = 250;
 const HEIGHT = 300;
 let petWindow = null;
 let configPath = null;
-let state = { x: null, y: null, locked: false, alwaysOnTop: true, outfit: null, modelId: null, opaque: false };
-// 拖拽基准：窗口跟着鼠标动时，渲染进程的 clientX/Y 会反向变化，必须用屏幕绝对坐标。
-let dragOrigin = null;
-let dragWinStart = null;
+let state = { x: null, y: null, locked: false, alwaysOnTop: true, outfit: null, modelId: null, opaque: false, hidden: false };
+// 拖拽基准：按下时光标在窗口内的位置。每次移动都用「光标屏幕坐标 − 该偏移」直接算窗口位置，
+// 不累加增量、也不依赖起始窗口坐标，所以不会像「起点+累计位移」那样把开头的丢帧变成永久偏移。
+let dragOffset = null;
+// 可点击区域（相对窗口，DIP）：渲染层上报角色 / 工具栏 / 气泡的合并包围盒。
+// 透明窗口默认整个矩形都吃鼠标，不开这个的话点桌宠旁边的窗口会点不到。
+let hitbox = null;
+let hitTimer = null;
+let ignoring = false;
+let lastProbe = null;
+
+function applyIgnore(next) {
+  if (!petWindow || petWindow.isDestroyed() || next === ignoring) return;
+  ignoring = next;
+  try { petWindow.setIgnoreMouseEvents(next, { forward: true }); } catch {}
+}
+
+function syncIgnoreFromCursor() {
+  if (!petWindow || petWindow.isDestroyed() || !hitbox) return;
+  if (dragOffset) return; // 拖动中保持可点，否则会把自己锁住
+  const p = screen.getCursorScreenPoint();
+  const [wx, wy] = petWindow.getPosition();
+  const lx = p.x - wx;
+  const ly = p.y - wy;
+  const inside = lx >= hitbox.x && lx <= hitbox.x + hitbox.w
+    && ly >= hitbox.y && ly <= hitbox.y + hitbox.h;
+  lastProbe = { lx, ly, inside, at: Date.now() };
+  applyIgnore(!inside);
+}
+
+function startHitPoll() {
+  stopHitPoll();
+  hitTimer = setInterval(syncIgnoreFromCursor, 80);
+}
+
+function stopHitPoll() {
+  if (hitTimer) clearInterval(hitTimer);
+  hitTimer = null;
+}
 // 位置写盘必须去抖：拖动时 setPosition 每帧触发 moved，同步 writeFileSync 会堵住主进程，
 // drag-move 排队延迟 → 窗口跳跃追赶光标，表现就是「自己乱跑」。
 let saveTimer = null;
@@ -76,15 +111,23 @@ function create() {
   const outside = pos.x + WIDTH < area.x || pos.x > area.x + area.width
     || pos.y + HEIGHT < area.y || pos.y > area.y + area.height;
   if (outside) petWindow.setPosition(defaultPosition().x, defaultPosition().y);
+  petWindow.webContents?.once?.('did-finish-load', () => startHitPoll());
   petWindow.loadFile(path.join(__dirname, 'pet.html'));
-  petWindow.once('ready-to-show', () => petWindow.showInactive());
+  petWindow.once('ready-to-show', () => {
+    // close 可能早于 ready-to-show 到达，此时不能再 show，否则用户会看到「关掉后又冒出来」。
+    if (!petWindow || petWindow.isDestroyed()) return;
+    if (!state.hidden) petWindow.showInactive();
+  });
   petWindow.on('moved', () => {
     if (!petWindow || petWindow.isDestroyed()) return;
     const [x, y] = petWindow.getPosition();
     state.x = x; state.y = y;
-    if (!dragOrigin) scheduleSave(600);  // 拖动中只记内存，松手后统一落盘
+    if (!dragOffset) scheduleSave(600);  // 拖动中只记内存，松手后统一落盘
   });
   petWindow.on('closed', () => {
+    stopHitPoll();
+    hitbox = null;
+    dragOffset = null;
     if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
     save();
     petWindow = null;
@@ -111,7 +154,7 @@ function registerPetWindow(userDataPath) {
     if (event.senderFrame && !isTrustedPetUrl(event.senderFrame.url)) {
       return { ok: false, error: 'Untrusted desktop window.' };
     }
-    try { create(); return { ok: true, data: Object.assign({}, state) }; }
+    try { state.hidden = false; create(); return { ok: true, data: Object.assign({}, state) }; }
     catch (error) { return { ok: false, error: error.message }; }
   });
   ipcMain.handle('pet:state', (event) => {
@@ -142,24 +185,42 @@ function registerPetWindow(userDataPath) {
       petWindow.setAlwaysOnTop(state.alwaysOnTop); save();
       return { ok: true, data: { alwaysOnTop: state.alwaysOnTop } };
     }
+    if (action === 'hitbox') {
+      const r = value || {};
+      const pad = 6;
+      const num = (v, d) => (Number.isFinite(v) ? Math.max(-pad, Math.min(HEIGHT * 2, v)) : d);
+      const x = num(r.x, 0) - pad;
+      const y = Number.isFinite(r.y) ? Math.max(-pad, Math.min(HEIGHT * 2, r.y)) - pad : -pad;
+      const w = (Number.isFinite(r.w) ? Math.max(1, Math.min(WIDTH * 2, r.w)) : WIDTH) + pad * 2;
+      const h = (Number.isFinite(r.h) ? Math.max(1, Math.min(HEIGHT * 2, r.h)) : HEIGHT) + pad * 2;
+      hitbox = { x, y, w, h };
+      return { ok: true };
+    }
+    if (action === 'ignore') {
+      applyIgnore(Boolean(value));
+      return { ok: true, data: { ignore: ignoring } };
+    }
     if (action === 'drag-start') {
       if (state.locked) return { ok: true, data: { locked: true } };
-      dragOrigin = screen.getCursorScreenPoint();
-      dragWinStart = petWindow.getPosition();
+      const v = value || {};
+      const cx = Number.isFinite(v.x) ? v.x : WIDTH / 2;
+      const cy = Number.isFinite(v.y) ? v.y : HEIGHT / 2;
+      dragOffset = { x: Math.max(0, Math.min(WIDTH, cx)), y: Math.max(0, Math.min(HEIGHT, cy)) };
+      applyIgnore(false); // 拖动期间必须能被点
       return { ok: true };
     }
     if (action === 'drag-move') {
-      if (!dragOrigin || !dragWinStart || state.locked) return { ok: true };
+      if (!dragOffset || state.locked) return { ok: true };
       const p = screen.getCursorScreenPoint();
-      // 用「起点窗口位置 + 累计屏幕位移」，不累加增量，避免抖动与方向反转。
-      const nx = dragWinStart[0] + Math.round(p.x - dragOrigin.x);
-      const ny = dragWinStart[1] + Math.round(p.y - dragOrigin.y);
+      // 绝对计算：窗口左上角 = 光标 − 按下时的窗口内偏移。鼠标相对窗口的位置因此恒定。
+      const nx = Math.round(p.x - dragOffset.x);
+      const ny = Math.round(p.y - dragOffset.y);
       const [cx, cy] = petWindow.getPosition();
       if (nx !== cx || ny !== cy) petWindow.setPosition(nx, ny);
       return { ok: true };
     }
     if (action === 'drag-end') {
-      dragOrigin = null; dragWinStart = null;
+      dragOffset = null;
       const [x, y] = petWindow.getPosition();
       state.x = x; state.y = y;
       if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
@@ -184,7 +245,27 @@ function registerPetWindow(userDataPath) {
     if (action === 'close') { petWindow.close(); return { ok: true }; }
     return { ok: false, error: 'Unknown pet action.' };
   });
-  return { close: () => { if (petWindow && !petWindow.isDestroyed()) petWindow.close(); } };
+  return {
+    open: () => create(),
+    // 主窗口收到托盘时把桌宠一起藏起来；从托盘回来再恢复。
+    // 否则用户点了右上角关闭，桌面上还杵着一只，看起来像没关掉。
+    hide: () => {
+      // 没开过就什么都不做，别在「关窗」时顺手把它创建出来。
+      if (!petWindow || petWindow.isDestroyed()) return;
+      state.hidden = true;
+      stopHitPoll();
+      petWindow.hide();
+    },
+    show: () => {
+      if (!state.hidden) return; // 从没被收起过，不需要恢复
+      state.hidden = false;
+      if (petWindow && !petWindow.isDestroyed()) { petWindow.showInactive(); startHitPoll(); }
+      else create();
+    },
+    close: () => { if (petWindow && !petWindow.isDestroyed()) petWindow.close(); },
+    // 只读快照，供诊断与测试确认内部状态
+    snapshot: () => ({ hitbox: hitbox ? Object.assign({}, hitbox) : null, ignoring, dragOffset: dragOffset ? Object.assign({}, dragOffset) : null, lastProbe }),
+  };
 }
 
 module.exports = { registerPetWindow, defaultPosition, sanitizeState, isTrustedPetUrl };

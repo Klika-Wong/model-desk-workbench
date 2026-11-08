@@ -180,8 +180,10 @@
     which.hidden = !which.hidden;
   }
 
-  // 拖动：坐标一律由主进程读屏幕绝对位置。窗口移动会让 clientX/Y 反向变化，
-  // 渲染层自己算 delta 会出现「反方向跑」和来回抖，这里只发开始/移动/结束。
+  // 拖动：主进程读屏幕绝对坐标，渲染层只报告「按下时光标在窗口内的位置」。
+  // 之前只报 start/move/end，主进程在收到 start 时自己采样光标——按下后到 IPC 到达之间
+  // 掉的那几帧位移会被永久丢掉，于是窗口始终比光标偏一截。现在把 offset 直接带过去，
+  // 主进程每次都用「光标 − offset」绝对定位，偏移被彻底消掉。
   pet.addEventListener('pointerdown', (event) => {
     if (locked || event.target.closest('button, input, select, .pet-chatbox, .pet-emotes, .pet-toolbar')) return;
     dragging = true;
@@ -189,7 +191,9 @@
     try { pet.setPointerCapture(event.pointerId); } catch {}
     pet.classList.add('is-dragging');
     setRow('moveRight');
-    window.workbench.petControl('drag-start').then(() => { dragReady = true; }).catch(() => { dragReady = false; });
+    window.workbench.petControl('drag-start', { x: event.clientX, y: event.clientY })
+      .then(() => { dragReady = true; })
+      .catch(() => { dragReady = false; });
   });
   pet.addEventListener('pointermove', () => {
     if (!dragging || !dragReady || dragFrame) return;
@@ -206,6 +210,31 @@
     setRow('idle');
     window.workbench.petControl('drag-end').catch(() => {});
   };
+  // 把「真正能点的地方」告诉主进程（角色 / 工具栏 / 气泡 / 面板的合并包围盒）。
+  // 主进程按光标位置动态开关注透：落在外面就让点击穿透到桌面和其他窗口。
+  let hitboxTimer = null;
+  function reportHitbox() {
+    const boxes = ['#pet-actor', '#pet-toolbar', '#pet-bubble', '#pet-emotes', '#pet-chatbox']
+      .map((sel) => document.querySelector(sel))
+      .filter((el) => el && !el.hidden && getComputedStyle(el).display !== 'none')
+      .map((el) => el.getBoundingClientRect());
+    if (!boxes.length) return;
+    const x = Math.min(...boxes.map((b) => b.left));
+    const y = Math.min(...boxes.map((b) => b.top));
+    const w = Math.max(...boxes.map((b) => b.right)) - x;
+    const h = Math.max(...boxes.map((b) => b.bottom)) - y;
+    window.workbench.petControl('hitbox', { x, y, w, h }).catch(() => {});
+  }
+  function queueHitbox() {
+    if (hitboxTimer) return;
+    hitboxTimer = setTimeout(() => { hitboxTimer = null; reportHitbox(); }, 60);
+  }
+  new MutationObserver(queueHitbox).observe(document.body, {
+    subtree: true, childList: true, attributes: true, attributeFilter: ['hidden', 'class', 'style'],
+  });
+  window.addEventListener('resize', queueHitbox);
+  reportHitbox();
+
   pet.addEventListener('pointerup', endDrag);
   pet.addEventListener('pointercancel', endDrag);
   actor.addEventListener('dblclick', () => {

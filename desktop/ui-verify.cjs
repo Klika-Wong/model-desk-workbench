@@ -521,6 +521,26 @@ async function main() {
     await wait(100);
     const focusReturned = document.activeElement === kbActor;
 
+    // 完整形象库：右键菜单里点进去必须真的打开，而且整体在视口内
+    // （曾经因为「先建库再关菜单」，刚建好的库被 closeContextMenu 当场删掉）。
+    const libActor = document.querySelector('.stage-actor');
+    libActor.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 220, clientY: 260 }));
+    await wait(150);
+    const libBtn = document.querySelector('#stage-context-menu [data-action="library"]');
+    const libLabel = libBtn ? libBtn.textContent : '';
+    if (libBtn) libBtn.click();
+    await wait(300);
+    const picker = document.querySelector('.outfit-picker');
+    const pr = picker ? picker.getBoundingClientRect() : null;
+    const libState = {
+      label: libLabel,
+      opened: Boolean(picker),
+      items: picker ? picker.querySelectorAll('.outfit-item').length : 0,
+      inViewport: pr ? (pr.left >= -1 && pr.top >= -1 && pr.right <= innerWidth + 1 && pr.bottom <= innerHeight + 1) : false,
+      notCenterShifted: pr ? Math.abs((pr.left + pr.right) / 2 - (libActor.getBoundingClientRect().left + libActor.getBoundingClientRect().width / 2)) < 40 : false,
+    };
+    if (picker) picker.remove();
+
     // 序列帧必须按「有效帧数」播：素材 8 列里 idle 只有 6 帧、wave 只有 4 帧。
     // 一旦退回写死 steps(8)，动画会扫到空白格，角色每轮消失——用户报的就是这个「闪」。
     const strip0 = document.querySelector('.pet-strip');
@@ -560,7 +580,7 @@ async function main() {
     clearBtn.click();
     await wait(150);
     const afterSecond = JSON.parse(localStorage.getItem('collab-messages') || '[]').length;
-    return { samePath, dlgHidden, turnsBefore, turnsAfter, storedBefore, storedAfter, rowsAfter, nodesAfter, edgesAfterRebuild, idleRows, idleAnimated, stripFrames, stripTiming, stripDur, stripAnim, breatheAnim, stripAnimBack, menuFocused, menuRole, focusReturned, petDecor, dividerHidden, afterFirst, afterSecond, armedLabel };
+    return { samePath, dlgHidden, turnsBefore, turnsAfter, storedBefore, storedAfter, rowsAfter, nodesAfter, edgesAfterRebuild, idleRows, idleAnimated, stripFrames, stripTiming, stripDur, libState, stripAnim, breatheAnim, stripAnimBack, menuFocused, menuRole, focusReturned, petDecor, dividerHidden, afterFirst, afterSecond, armedLabel };
    } catch (e) { return { jsError: String((e && e.stack) || e) }; }
   })()`);
   if (ux.jsError) throw new Error('UX 回归段异常：' + ux.jsError);
@@ -574,6 +594,10 @@ async function main() {
   if (!ux.idleAnimated) throw new Error(`待机小动作没生效，动作行一直是：${ux.idleRows}`);
   // 关系断言：steps 的分母、动画时长、位移范围都必须跟当前动作的有效帧数一致。
   // 只认「三者对齐」，不锁死具体帧数——不同状态对应不同动作（待机 6 帧、已发言 4 帧等）。
+  if (!ux.libState.opened) throw new Error(`完整形象库打不开：${JSON.stringify(ux.libState)}`);
+  if (ux.libState.items < 6) throw new Error(`形象库条目太少：${ux.libState.items}`);
+  if (!ux.libState.inViewport) throw new Error(`形象库超出视口被裁：${JSON.stringify(ux.libState)}`);
+  if (!ux.libState.notCenterShifted) throw new Error(`形象库没有对齐角色（transform 残留）：${JSON.stringify(ux.libState)}`);
   if (!['4', '5', '6', '8'].includes(ux.stripFrames)) throw new Error(`帧数不是任何动作的有效值：${ux.stripFrames}`);
   const stepMatch = String(ux.stripTiming).match(/steps\((\d+)/);
   if (!stepMatch || stepMatch[1] !== ux.stripFrames) throw new Error(`步进没按帧数走：${ux.stripTiming} vs ${ux.stripFrames}`);
@@ -587,7 +611,7 @@ async function main() {
   if (ux.petDecor !== 'none' || ux.dividerHidden !== 'none') throw new Error(`页内小窗残留分区装饰：${ux.petDecor}/${ux.dividerHidden}`);
   if (ux.afterFirst !== ux.storedBefore || !ux.armedLabel.includes('再点一次')) throw new Error(`清空没有二次确认：${JSON.stringify(ux)}`);
   if (ux.afterSecond !== 0) throw new Error(`二次确认后没有清空历史：${ux.afterSecond}`);
-  result.checks.push('collab-no-link-rebuild', 'collab-dialogue-dismiss', 'collab-history-consistency', 'collab-clear-confirm', 'collab-consent-gate', 'collab-menu-keyboard', 'collab-pet-mode-clean', 'collab-idle-motion', 'collab-reduce-motion', 'collab-sprite-frame-count');
+  result.checks.push('collab-no-link-rebuild', 'collab-dialogue-dismiss', 'collab-history-consistency', 'collab-clear-confirm', 'collab-consent-gate', 'collab-menu-keyboard', 'collab-pet-mode-clean', 'collab-idle-motion', 'collab-reduce-motion', 'collab-sprite-frame-count', 'collab-outfit-library-opens');
 
   // 留两张图：默认关系图、桌宠模式。
   const spriteReady = await js(`(async () => {

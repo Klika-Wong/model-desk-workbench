@@ -48,32 +48,50 @@ const openReply = handlers.get('pet:open')({ senderFrame: { url: 'file:///app/in
 const control = (action, value) => handlers.get('pet:control')({ sender: fakeWindow.webContents }, action, value);
 const last = () => positions[positions.length - 1];
 
-test('桌宠拖拽：按屏幕绝对坐标移动，方向正确且不累加增量', () => {
+test('桌宠拖拽：窗口始终钉在光标下方，不产生累积偏移', () => {
   assert.equal(openReply.ok, true);
+  // 按下时光标在窗口内 (40, 30)。之后窗口左上角必须恒等于「光标 − (40,30)」。
   cursor = { x: 100, y: 100 };
-  control('drag-start');
+  control('drag-start', { x: 40, y: 30 });
   cursor = { x: 180, y: 140 };
   control('drag-move');
-  assert.deepEqual(last(), [580, 540], '向右下拖，窗口应向右下走（不是反向）');
+  assert.deepEqual(last(), [140, 110], '向右下拖，窗口跟随且保持按下时的相对位置');
   cursor = { x: 80, y: 60 };
   control('drag-move');
-  assert.deepEqual(last(), [480, 460], '往回拖时按「起点+累计位移」，不应累加旧增量');
+  assert.deepEqual(last(), [40, 30], '往回拖按绝对公式算，不累加旧位移');
   cursor = { x: 180, y: 140 };
   control('drag-move');
-  assert.deepEqual(last(), [580, 540], '再来一次仍回到同一位置，不漂移');
+  assert.deepEqual(last(), [140, 110], '回到同一光标位置，窗口必须回到同一处（零漂移）');
   const ended = control('drag-end');
   assert.equal(ended.ok, true);
 });
 
+test('桌宠拖拽：没带按下偏移时退到窗口中心，不会瞬移', () => {
+  cursor = { x: 620, y: 610 };
+  control('drag-start');
+  control('drag-move');
+  // 250x300 的窗口，中心偏移是 (125, 150)
+  assert.deepEqual(last(), [495, 460]);
+  control('drag-end');
+});
+
 test('桌宠拖拽：锁定后完全不动', () => {
   cursor = { x: 100, y: 100 };
-  control('drag-start');
+  control('drag-start', { x: 40, y: 30 });
   control('lock', true);
   cursor = { x: 900, y: 700 };
   control('drag-move');
-  assert.deepEqual(last(), [580, 540], '锁定后 drag-move 不得移动窗口');
+  assert.deepEqual(last(), [495, 460], '锁定后 drag-move 不得移动窗口');
   control('drag-end');
   control('lock', false);
+});
+
+test('桌宠：可点击区域接受上报，超出窗口的值会被收紧', () => {
+  assert.equal(control('hitbox', { x: 10, y: 10, w: 200, h: 200 }).ok, true);
+  assert.equal(control('hitbox', { x: -9999, y: -9999, w: 1e9, h: 1e9 }).ok, true);
+  assert.equal(control('hitbox', {}).ok, true);
+  assert.equal(control('ignore', true).ok, true);
+  assert.equal(control('ignore', false).ok, true);
 });
 
 test('桌宠窗口：来源校验挡住远程页面与路径拼接', () => {

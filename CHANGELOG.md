@@ -1,5 +1,37 @@
 # 更新记录
 
+## 桌宠与形象库：四个可用性缺陷（2026-11-08）
+
+**完整形象库点了没反应**：调用顺序写反了。`openOutfitLibrary()` 建好库之后紧接着调
+`closeContextMenu()`，而这个函数会遍历删掉所有 picker —— 刚建好的库在同一帧里被自己人删掉
+（`MutationObserver` 能看到一条 `added → removed`）。改为先关菜单再建库。
+连带修掉三个：库被画布 `overflow: hidden` 裁掉一半（改挂 `body` + `fixed`）、CSS 的
+`translateX(-50%)` 残留导致左偏半个宽度（显式清 `transform`）、首次测量高度为 0 导致误翻到上方
+（rAF + 定时器各校一次）。
+
+**拖拽和鼠标位置有偏移**：旧逻辑是「起点窗口位置 + 累计位移」，而 `drag-start` 是异步 IPC，
+用户按下后立刻拖动时，`pointerdown` 到主进程真正执行之间掉的那几帧位移被永久丢弃，整个拖动过程
+都固定落后一截。改为渲染层随 `drag-start` 上报「按下时光标在窗口内的位置」，主进程每次
+`newPos = cursor - offset` 绝对定位。真窗口实测 `drift = [0, 0]`。
+另发现 `pet-window.json` 里残留 `locked: true`，锁定时窗口完全不动，也会被误认为拖拽 bug。
+
+**点完桌宠后其他窗口点不了**：透明窗口的透明区域默认仍然接收鼠标，而 250×300 的窗口里角色只占
+一部分，点空白处等于点在不可见的窗口上。改为动态穿透：渲染层上报角色/工具栏/气泡/面板的合并
+包围盒，主进程每 80ms 按光标位置 `setIgnoreMouseEvents(!inside, { forward: true })`，拖动期间强制
+保持可点。用主进程轮询而不是渲染层 `mousemove`，因为开启穿透后移动事件依赖 `forward`，并不总是
+可靠。实测 hitbox 200×304，光标移出→穿透、移回→可点。
+
+**关闭后桌面上还会出现**：三个原因叠加 —— ①主窗口「关闭」只是隐藏到托盘，这条路径隐藏了 mini
+窗口却没管桌宠；②`ready-to-show` 可能晚于 `close`，`showInactive()` 又把窗口显示出来；
+③`moved` 里还引用着上一轮改名前的 `dragOrigin`，每次移动抛 `ReferenceError`，位置也存不下来。
+分别改为：主窗口收起时同步 `petWindowCtl.hide()`、恢复时 `show()`；`ready-to-show` 先判断
+`isDestroyed()` 与 `state.hidden`；改用 `dragOffset`。实测关闭后 0 窗口、再等 900ms 仍为 0。
+
+**验证**：单测 **182/182**、真机 UI **44 项**全过、控制台无报错；新增
+`collab-outfit-library-opens`（必须真的打开、条目 ≥ 6、整体在视口内、与角色水平居中对齐）。
+详见 [docs/PET_INTERACTION_FIXES.md](docs/PET_INTERACTION_FIXES.md)。
+
+
 ## 「还闪」的真因：序列帧空帧（2026-11-08）
 
 > 上一轮两个结论都不准确，已在此更正。详见 [docs/SPRITE_FRAME_FIX.md](docs/SPRITE_FRAME_FIX.md)。

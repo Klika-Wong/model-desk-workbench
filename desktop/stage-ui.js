@@ -186,8 +186,41 @@
     const foot = document.createElement('p'); foot.className = 'hint';
     foot.textContent = '手绘 Q 版来自 llm-pet（ZipZipPipe，仅非商业 · 需署名）';
     picker.append(foot);
-    actor.el.append(picker);
+    // 挂到 body 再定位：画布是 overflow:hidden，挂在角色里会被下边界裁掉大半。
+    picker.style.position = 'fixed';
+    picker.style.zIndex = '95';
+    picker.style.visibility = 'hidden';
+    // CSS 里是「相对角色居中」的写法（left:50% + translateX(-50%)），
+    // 换成 fixed 坐标后必须清掉，否则会再左移半个宽度。
+    picker.style.transform = 'none';
+    picker.style.top = '0';
+    document.body.append(picker);
     actor.picker = picker;
+    placePicker(picker, actor.el);
+    // 首次测量时布局还没稳定（高度会读到 0，于是误判「下方放不下」翻到上方）。
+    // rAF 与定时器各校一次，隐藏窗口里 rAF 会被节流，兜底靠定时器。
+    const recenter = () => {
+      if (!picker.isConnected) return;
+      placePicker(picker, actor.el);
+      picker.style.visibility = '';
+    };
+    requestAnimationFrame(recenter);
+    setTimeout(recenter, 30);
+  }
+
+  // 贴着角色放，但整体必须留在视口内：下方放不下就翻到上方。
+  function placePicker(picker, anchorEl) {
+    const r = anchorEl.getBoundingClientRect();
+    const w = picker.offsetWidth || 260;
+    const h = picker.offsetHeight || 320;
+    const margin = 8;
+    let left = r.left + r.width / 2 - w / 2;
+    let top = r.bottom + margin;
+    if (top + h > window.innerHeight - margin) top = r.top - h - margin;
+    left = Math.min(Math.max(margin, left), Math.max(margin, window.innerWidth - w - margin));
+    top = Math.min(Math.max(margin, top), Math.max(margin, window.innerHeight - h - margin));
+    picker.style.left = Math.round(left) + 'px';
+    picker.style.top = Math.round(top) + 'px';
   }
 
   function menuButton(label, action, hint) {
@@ -252,7 +285,13 @@
   function handleContextAction(action) {
     const actor = contextActor;
     if (!actor) return;
-    if (action === 'library') { openOutfitLibrary(actor); closeContextMenu(); return; }
+    if (action === 'library') {
+      // 顺序很重要：closeContextMenu() 会遍历清掉所有 picker。
+      // 先关菜单再建库，否则刚创建的库会被自己人删掉（表现为「点了没反应」）。
+      closeContextMenu();
+      openOutfitLibrary(actor);
+      return;
+    }
     if (action === 'clear') {
       // 清空 40 条本机历史不可恢复，必须二次确认；首次点击保持菜单打开并把按钮改成确认态。
       if (!clearArmed || Date.now() - clearArmed > 4000) {

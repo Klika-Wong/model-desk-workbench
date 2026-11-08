@@ -337,7 +337,15 @@ async function createWindow({ show = true } = {}) {
   if (!smokeMode) {
     mainWindow = window;
   }
-  window.on('close', event => { if (!exitRequested && tray) { event.preventDefault(); window.hide(); if (miniWindow) miniWindow.hide(); } });
+  window.on('close', event => {
+    if (!exitRequested && tray) {
+      event.preventDefault();
+      window.hide();
+      if (miniWindow) miniWindow.hide();
+      // 桌宠也要跟着收起：用户点右上角关闭后，桌面上不该还剩一只。
+      if (petWindowCtl) petWindowCtl.hide();
+    }
+  });
   window.on('closed', () => {
     if (miniWindow && !miniWindow.isDestroyed()) miniWindow.close();
     if (panelView) { try { panelView.webContents.close(); } catch {} panelView = null; panelAttached = false; }
@@ -1314,6 +1322,7 @@ function showWorkbench() {
   // 首帧还没画完就 show 会白闪一下，交给 ready-to-show 处理。
   if (mainWindow.__painted) { mainWindow.show(); mainWindow.focus(); }
   else { mainWindow.__wantShow = true; }
+  if (petWindowCtl) petWindowCtl.show();
   pendingShow = false;
 }
 function requestExit() {
