@@ -31,27 +31,42 @@
   position: relative; height: 400px; padding: 0; overflow: hidden;
   border: 0; border-radius: 18px;
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line) 65%, transparent);
-  background: radial-gradient(ellipse at 50% 108%, var(--surface-2), var(--surface) 72%);
-  transition: background .3s;
-}
-.stage-floor[data-scene="work"] {
+  /* 同一画面分两区：左边工位格，右边暖色休息角 */
   background:
-    repeating-linear-gradient(0deg, transparent 0 31px, color-mix(in srgb, var(--line) 45%, transparent) 31px 32px),
-    linear-gradient(180deg, color-mix(in srgb, var(--surface-2) 85%, #223047), var(--surface));
+    radial-gradient(circle at 86% 80%, color-mix(in srgb, #f0b77a 14%, transparent) 0 66px, transparent 67px),
+    linear-gradient(90deg,
+      color-mix(in srgb, var(--accent) 5%, transparent) 0 56%,
+      color-mix(in srgb, #f0b77a 7%, transparent) 56% 100%),
+    radial-gradient(ellipse at 50% 108%, var(--surface-2), var(--surface) 72%);
 }
-.stage-floor[data-scene="slack"] {
+.stage-floor::before {
+  /* 工作区画成工位格，和右侧休息地毯形成一眼可辨的两个区域。 */
+  content: ''; position: absolute; left: 0; top: 0; width: 56%; height: 100%; pointer-events: none;
   background:
-    radial-gradient(circle at 14% 20%, color-mix(in srgb, #ffd7a8 26%, transparent) 0 46px, transparent 47px),
-    radial-gradient(circle at 84% 16%, color-mix(in srgb, #a8e6ff 24%, transparent) 0 34px, transparent 35px),
-    radial-gradient(circle at 72% 84%, color-mix(in srgb, #ffc7dd 18%, transparent) 0 58px, transparent 59px),
-    linear-gradient(170deg, var(--surface), var(--surface-2));
+    repeating-linear-gradient(90deg, transparent 0 116px,
+      color-mix(in srgb, var(--line) 40%, transparent) 116px 117px),
+    repeating-linear-gradient(0deg, transparent 0 92px,
+      color-mix(in srgb, var(--line) 34%, transparent) 92px 93px);
+  opacity: .7;
+  mask-image: linear-gradient(180deg, #000 0%, #000 62%, transparent 88%);
 }
-.scene-label {
-  position: absolute; top: 12px; right: 14px; z-index: 3;
-  padding: 3px 10px; font-size: 10px; letter-spacing: .08em;
+.stage-floor::after {
+  content: ''; position: absolute; left: 60%; right: 5%; bottom: 14px; height: 76px;
+  background: radial-gradient(ellipse at 50% 60%, color-mix(in srgb, #f0b77a 12%, transparent), transparent 72%);
+  border: 1px dashed color-mix(in srgb, #e4a86c 42%, transparent); border-radius: 20px;
+  pointer-events: none; opacity: .8;
+}
+.zone-divider { position: absolute; left: 56%; top: 8%; bottom: 8%; width: 0; z-index: 1;
+  border-left: 1px dashed color-mix(in srgb, var(--line-strong) 80%, transparent); pointer-events: none; }
+.zone-label {
+  position: absolute; top: 10px; z-index: 3; display: inline-flex; align-items: baseline; gap: 6px;
+  padding: 4px 10px; font-size: 11px; font-weight: 600; letter-spacing: .04em;
   border-radius: 999px; color: var(--muted);
-  background: color-mix(in srgb, var(--surface) 78%, transparent);
+  background: color-mix(in srgb, var(--surface) 80%, transparent);
 }
+.zone-label small { font-weight: 400; font-size: 9px; letter-spacing: 0; }
+.zone-label.zone-work { left: 12px; }
+.zone-label.zone-rest { right: 12px; }
 
 .stage-links { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
 .collab-link { fill: none; stroke: color-mix(in srgb, var(--accent) 34%, var(--line)); stroke-width: 1.6; stroke-dasharray: 5 5; transition: opacity .2s, stroke .2s; }
@@ -65,11 +80,13 @@
 
 /* 角色节点 */
 .stage-actor {
-  position: absolute; z-index: 2; width: 176px; transform: translate(-50%, -50%);
+  position: absolute; z-index: 2; width: 156px; transform: translate(-50%, -50%);
   display: flex; flex-direction: column; align-items: center; gap: 2px;
   cursor: grab; user-select: none;
+  transition: left .45s ease, top .45s ease;
 }
-.stage-actor.is-dragging { cursor: grabbing; z-index: 6; }
+.stage-actor.is-dragging { cursor: grabbing; z-index: 6; transition: none; }
+@media (prefers-reduced-motion: reduce) { .stage-actor { transition: none; } }
 .stage-actor-avatar {
   --pet-w: 116px; --pet-h: 125.67px;
   position: relative; width: var(--pet-w); height: var(--pet-h);
@@ -145,21 +162,22 @@
   box-shadow: 0 0 0 1px var(--accent), 0 8px 18px -12px rgba(15, 23, 42, .8);
 }
 .stage-actor-name {
-  max-width: 176px; min-height: 20px; font-size: 12px; font-weight: 600; color: var(--ink);
+  max-width: 156px; min-height: 20px; font-size: 12px; font-weight: 600; color: var(--ink);
   padding: 2px 10px; border-radius: 9px; background: color-mix(in srgb, var(--surface) 88%, var(--accent));
   cursor: text; text-align: center; line-height: 1.35; white-space: normal; overflow-wrap: anywhere;
 }
 .stage-actor-name:hover { color: var(--accent); }
-.stage-name-input { width: 168px; font-size: 12px; text-align: center; }
+.stage-name-input { width: 150px; font-size: 12px; text-align: center; }
 .stage-actor-state { font-size: 11px; color: var(--muted); }
 .actor-meta { font-size: 10px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.actor-meta:empty { display: none; }
 .stage-actor[data-state="thinking"] .stage-actor-state,
 .stage-actor[data-state="speaking"] .stage-actor-state { color: var(--accent); }
 .stage-actor[data-state="done"] .stage-actor-state { color: var(--ok-ink); }
 .stage-actor[data-state="failed"] .stage-actor-state { color: var(--danger); }
 .stage-actor-bubble {
   position: absolute; top: calc(100% + 4px); left: 50%; transform: translateX(-50%);
-  width: 168px; max-height: 52px; overflow: hidden;
+  width: 156px; max-height: 52px; overflow: hidden;
   padding: 5px 8px; font-size: 10px; line-height: 1.5; color: var(--ink-2);
   border-radius: 9px; background: var(--surface); box-shadow: 0 0 0 1px var(--line);
   white-space: nowrap; text-overflow: ellipsis;
@@ -167,31 +185,42 @@
 
 /* 统一控制面板：场景 / 状态 / 记录 / 输入都在一处 */
 .side-panel {
-  display: flex; flex-direction: column; min-height: 0; height: 400px; overflow-y: auto;
+  /* 整个面板不滚动，只让交流记录一处滚，避免三层滚动条与标题横向裁切。 */
+  display: flex; flex-direction: column; min-height: 0; height: 400px; overflow: hidden;
   border: 0; border-radius: 18px; background: var(--surface);
   box-shadow: 0 1px 2px rgba(15, 23, 42, .05), 0 22px 46px -34px rgba(15, 23, 42, .5);
 }
-.panel-section { padding: 10px 12px; }
+.panel-section { padding: 8px 12px; flex: none; }
 .panel-section + .panel-section { border-top: 1px solid var(--line); }
-.panel-grow { flex: 1; min-height: 90px; display: flex; flex-direction: column; }
-.panel-title { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.panel-grow { flex: 1 1 auto; min-height: 104px; display: flex; flex-direction: column; overflow: hidden; }
+.panel-title { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; margin-bottom: 6px; flex-wrap: wrap; }
+.panel-title .hint { white-space: normal; overflow-wrap: anywhere; }
 .panel-title h3 { margin: 0; font-size: 12px; font-weight: 600; }
-.scene-switch { display: flex; gap: 5px; }
-.scene-switch button {
-  flex: 1; padding: 5px 4px; font-size: 11px; cursor: pointer;
-  border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2); color: var(--ink-2);
-}
-.scene-switch button:hover { border-color: var(--accent); }
-.scene-switch button.active { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 600; }
-.status-list { display: flex; flex-direction: column; gap: 4px; max-height: 124px; overflow: auto; }
-.status-row { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 9px; cursor: pointer; }
+.eco-legend { display: flex; flex-direction: row; flex-wrap: wrap; gap: 3px 12px; font-size: 10px; color: var(--ink-2); }
+.eco-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.eco-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+.eco-dot.work { background: var(--accent); }
+.eco-dot.rest { background: #e4a86c; }
+.eco-auto { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 10px; color: var(--muted); cursor: pointer; }
+.eco-auto input { margin: 0; }
+.stage-offline { margin-top: 7px; }
+.offline-details { font-size: 11px; color: var(--muted); }
+.offline-details summary { cursor: pointer; }
+.offline-list { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+.offline-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 8px; border-radius: 8px; background: var(--surface-2); }
+.offline-row span { overflow-wrap: anywhere; }
+.offline-row button { flex: none; font-size: 10px; padding: 3px 8px; border-radius: 7px; border: 1px solid var(--line); background: var(--surface); color: var(--ink-2); cursor: pointer; }
+.offline-row button:hover { border-color: var(--accent); color: var(--accent); }
+.online-dot { width: 6px; height: 6px; margin-top: 6px; border-radius: 50%; flex: none; background: var(--ok-ink); }
+.status-list { display: flex; flex-direction: column; gap: 4px; overflow: visible; }
+.status-row { display: flex; align-items: center; gap: 8px; padding: 3px 6px; border-radius: 9px; cursor: pointer; }
 .status-row:hover, .status-row.is-selected { background: var(--accent-soft); }
 .status-thumb { flex: none; width: 30px; height: 32px; display: grid; place-items: center; font-size: 20px; }
 .status-thumb img { width: 100%; height: 100%; object-fit: contain; }
 .status-info { min-width: 0; flex: 1; }
 .status-name { font-size: 11px; font-weight: 600; line-height: 1.35; white-space: normal; overflow-wrap: anywhere; }
 .status-meta { font-size: 10px; color: var(--muted); }
-.collab-turns { margin: 0; padding: 0; list-style: none; overflow: auto; display: flex; flex-direction: column; gap: 5px; }
+.collab-turns { margin: 0; padding: 0 2px 0 0; list-style: none; flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 5px; }
 .collab-turn { display: flex; gap: 8px; padding: 7px 8px; cursor: pointer; border-radius: 10px; background: var(--surface-2); }
 .collab-turn:hover, .collab-turn.is-selected { background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
 .turn-idx { flex: none; padding-top: 2px; font-size: 10px; color: var(--muted); font-variant-numeric: tabular-nums; }
@@ -202,10 +231,13 @@
 .turn-text { margin: 4px 0 0; font-size: 11px; line-height: 1.55; color: var(--ink-2);
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .collab-empty { padding: 6px 2px; font-size: 11px; line-height: 1.6; color: var(--muted); }
-.panel-input { padding-top: 10px; }
+.panel-input { padding-top: 10px; flex: none; }
 .stage-input-row { display: flex; gap: 6px; }
 .stage-input-row input { flex: 1; min-width: 0; }
 .stage-input-row button { flex: none; padding-left: 10px; padding-right: 10px; }
+#stage-stop { color: var(--danger); }
+.stage-card [hidden] { display: none !important; }
+.stage-actor:focus-visible { outline: 2px solid var(--accent); outline-offset: 5px; border-radius: 14px; }
 
 /* 品牌币：仍是可切换的一档 */
 .brand-coin { width: 100%; height: 100%; border-radius: 50%; display: grid; place-items: center;
@@ -226,10 +258,52 @@
 .stage-floor.pet-mode .stage-actor-avatar { --pet-w: 96px; --pet-h: 104px; }
 .stage-floor.pet-mode .stage-actor-bubble { max-width: 150px; }
 body.collab-pet-on .stage-links, body.collab-pet-on .side-panel, body.collab-pet-on .collab-tip,
-body.collab-pet-on .scene-label { display: none; }
+body.collab-pet-on .zone-label, body.collab-pet-on .dialogue-box { display: none; }
 body.collab-pet-on .collab-layout { grid-template-columns: 1fr; }
 
 @media (max-width: 1000px) {
   .collab-layout { grid-template-columns: 1fr; }
   .side-panel { max-height: 320px; }
 }
+
+/* 右键菜单：形象与配置都在这里，画布上不再常驻一排框 */
+.stage-context-menu {
+  position: fixed; z-index: 90; width: 232px; padding: 8px;
+  border-radius: 14px; background: var(--surface); color: var(--ink);
+  box-shadow: 0 0 0 1px var(--line), 0 22px 46px -20px rgba(10, 16, 24, .65);
+}
+.stage-context-menu[hidden] { display: none; }
+.ctx-head { font-size: 12px; font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ctx-sub { margin-top: 2px; font-size: 10px; color: var(--muted); }
+.ctx-label { margin: 9px 0 5px; font-size: 10px; color: var(--muted); letter-spacing: .06em; }
+.ctx-outfits { display: flex; gap: 5px; flex-wrap: wrap; }
+.ctx-outfits .outfit { width: 36px; height: 36px; border-radius: 9px; border: 1px solid var(--line);
+  background: var(--surface-2); cursor: pointer; overflow: hidden; padding: 0; font-size: 18px; color: var(--ink-2); }
+.ctx-outfits .outfit img { width: 100%; height: 100%; object-fit: contain; }
+.ctx-outfits .outfit:hover, .ctx-outfits .outfit.is-active { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 26%, transparent); }
+.ctx-item { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; width: 100%;
+  padding: 6px 8px; border: 0; border-radius: 8px; background: transparent;
+  color: var(--ink-2); font-size: 11px; text-align: left; cursor: pointer; }
+.ctx-item small { font-size: 9px; color: var(--muted); }
+.ctx-item:hover { background: var(--accent-soft); color: var(--accent); }
+.ctx-sep { height: 1px; margin: 7px 0; background: var(--line); }
+html[data-theme="dark"] .brand-coin { background: radial-gradient(circle at 34% 26%, #33363e 0%, #2a2d35 72%, #24272e 100%); }
+
+/* galgame 风格对话框：当前这条交流由谁说、说给谁 */
+.dialogue-box {
+  position: absolute; z-index: 4; left: 50%; bottom: 12px; transform: translateX(-50%);
+  width: min(78%, 560px); padding: 9px 14px 10px; border-radius: 14px;
+  background: color-mix(in srgb, var(--surface) 88%, #10131a);
+  color: var(--ink);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 45%, var(--line)),
+              0 14px 32px -18px rgba(6, 10, 18, .8);
+}
+.dialogue-box[hidden] { display: none; }
+.dialogue-box { cursor: pointer; transition: opacity .25s; }
+.dialogue-box::after { content: '× 收起'; float: right; margin-left: 10px; font-size: 10px; color: var(--muted); }
+.dialogue-name { font-size: 11px; font-weight: 650; color: var(--accent); }
+.dialogue-text { margin-top: 3px; font-size: 12px; line-height: 1.55; max-height: 3.1em; overflow: hidden; }
+.dialogue-target { margin-top: 3px; font-size: 10px; color: var(--muted); }
+.dialogue-box[data-kind="task"] { box-shadow: 0 0 0 1px var(--accent), 0 14px 32px -18px rgba(6, 10, 18, .8); }
+.turn-kind { margin-top: 3px; font-size: 10px; color: var(--accent); }
+.collab-edge-tag { fill: var(--muted); font-size: 9px; paint-order: stroke; stroke: var(--surface); stroke-width: 3px; }

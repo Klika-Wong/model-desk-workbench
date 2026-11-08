@@ -13,6 +13,9 @@ const HEIGHT = 300;
 let petWindow = null;
 let configPath = null;
 let state = { x: null, y: null, locked: false, alwaysOnTop: true, outfit: null, modelId: null };
+// 拖拽基准：窗口跟着鼠标动时，渲染进程的 clientX/Y 会反向变化，必须用屏幕绝对坐标。
+let dragOrigin = null;
+let dragWinStart = null;
 
 // 配置文件可能被手改坏或来自旧版本，读进来先收紧，别让怪值进窗口构造参数。
 function sanitizeState(raw) {
@@ -104,10 +107,33 @@ function registerPetWindow(userDataPath) {
       petWindow.setAlwaysOnTop(state.alwaysOnTop); save();
       return { ok: true, data: { alwaysOnTop: state.alwaysOnTop } };
     }
-    if (action === 'move') {
+    if (action === 'drag-start') {
       if (state.locked) return { ok: true, data: { locked: true } };
-      const dx = Number(value && value.dx) || 0;
-      const dy = Number(value && value.dy) || 0;
+      dragOrigin = screen.getCursorScreenPoint();
+      dragWinStart = petWindow.getPosition();
+      return { ok: true };
+    }
+    if (action === 'drag-move') {
+      if (!dragOrigin || !dragWinStart || state.locked) return { ok: true };
+      const p = screen.getCursorScreenPoint();
+      // 用「起点窗口位置 + 累计屏幕位移」，不累加增量，避免抖动与方向反转。
+      petWindow.setPosition(
+        dragWinStart[0] + Math.round(p.x - dragOrigin.x),
+        dragWinStart[1] + Math.round(p.y - dragOrigin.y),
+      );
+      return { ok: true };
+    }
+    if (action === 'drag-end') {
+      dragOrigin = null; dragWinStart = null;
+      const [x, y] = petWindow.getPosition();
+      state.x = x; state.y = y; save();
+      return { ok: true, data: { x, y } };
+    }
+    if (action === 'move') {
+      // 兼容旧调用：按增量移动并钳制单步幅度，防止异常值把窗口甩飞。
+      if (state.locked) return { ok: true, data: { locked: true } };
+      const dx = Math.max(-200, Math.min(200, Number(value && value.dx) || 0));
+      const dy = Math.max(-200, Math.min(200, Number(value && value.dy) || 0));
       const [x, y] = petWindow.getPosition();
       petWindow.setPosition(x + Math.round(dx), y + Math.round(dy));
       return { ok: true };

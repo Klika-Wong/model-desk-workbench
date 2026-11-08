@@ -19,7 +19,12 @@ async function main() {
   win.webContents.on('render-process-gone', (_e, details) => consoleErrors.push(`renderer gone: ${details.reason}`));
   await win.loadFile(path.join(__dirname, 'index.html'));
   await wait(700);
-  const js = (code) => win.webContents.executeJavaScript(code);
+  let jsSeq = 0, jsLast = '';
+  const js = async (code) => {
+    jsSeq += 1; jsLast = String(code).replace(/\s+/g, ' ').slice(0, 400);
+    try { return await win.webContents.executeJavaScript(code); }
+    catch (e) { throw new Error(`[js#${jsSeq}] ${e.message} :: ${jsLast}`); }
+  };
 
   // The native overview is the default entry; selecting a model must never send.
   const models = await js(`(async () => {
@@ -281,8 +286,9 @@ async function main() {
   result.checks.push('chat-injection-source-dialog');
   result.checks.push('chat-streaming-partial-then-final');
 
-  // 协作视图：完整 ID、多形象选择器、场景、关系图与交互
+  // 协作视图：在线模型、生态分区、右键菜单、交流对话流
   const stage = await js(`(async () => {
+   try {
     ['m-local', 'm-cloud', 'm-deepseek'].forEach((id) => {
       localStorage.removeItem('pet-avatar:' + id);
       localStorage.removeItem('collab-pos:' + id);
@@ -298,44 +304,53 @@ async function main() {
     await new Promise(r => setTimeout(r, 300));
     const pickCount = boxes.length;
     const checkedCount = boxes.filter((b) => b.checked).length;
+    const offlineText = document.querySelector('#stage-offline').textContent;
     const fullName = boxes[0].parentElement.querySelector('span');
-    const idComplete = fullName.textContent.length > 0 && fullName.textContent === fullName.title && !getComputedStyle(fullName).textOverflow?.includes('ellipsis');
-    const actors = document.querySelectorAll('.stage-actor').length;
+    const idComplete = fullName.textContent.length > 0 && fullName.textContent === fullName.title;
+    const zones = document.querySelectorAll('.zone-label').length;
+    const autoPlace = Boolean(document.querySelector('#stage-auto-place')?.checked);
+    const noOutfitBar = document.querySelectorAll('.stage-actor .actor-outfits').length === 0;
     const sprites = document.querySelectorAll('.stage-actor .pet-sprite').length;
-    const sheets = [...document.querySelectorAll('.stage-actor .pet-sprite')].map((s) => s.style.getPropertyValue('--pet-sheet'));
+    const sheets = [...document.querySelectorAll('.stage-actor .pet-sprite')].map((x) => x.style.getPropertyValue('--pet-sheet'));
     const distinctSheets = new Set(sheets).size;
     const deepseekRoster = (document.querySelector('.stage-actor[data-model-id="m-deepseek"] .pet-sprite') || { style: { getPropertyValue: () => '' } }).style.getPropertyValue('--pet-sheet').includes('deepseek-');
-    const outfitChips = document.querySelectorAll('.stage-actor:first-of-type .actor-outfits .outfit').length;
-    const ownChips = document.querySelectorAll('.stage-actor:first-of-type .actor-outfits .outfit[data-value^="roster:"]').length;
     const headerText = document.querySelector('#stage-page h1').textContent;
-    // 悬浮桌宠入口：点一下应走 pet:open，状态栏给出明确反馈
+    const firstNode = document.querySelector('.stage-actor');
+    const keyboardReady = firstNode.tabIndex === 0 && firstNode.getAttribute('role') === 'button'
+      && (firstNode.getAttribute('aria-label') || '').includes('回车');
+    const panelScroll = getComputedStyle(document.querySelector('.side-panel')).overflowY;
+    const turnsScroll = getComputedStyle(document.querySelector('.collab-turns')).overflowY;
+    const stopBtnExists = Boolean(document.querySelector('#stage-stop'));
+    // 任意两个角色不允许矩形相交
+    const rects = [...document.querySelectorAll('.stage-actor')].map((n) => n.getBoundingClientRect());
+    let overlaps = 0;
+    for (let i = 0; i < rects.length; i += 1) {
+      for (let j = i + 1; j < rects.length; j += 1) {
+        const a = rects[i], b = rects[j];
+        if (a.left < b.right - 4 && b.left < a.right - 4 && a.top < b.bottom - 4 && b.top < a.bottom - 4) overlaps += 1;
+      }
+    }
+
+    // 悬浮桌宠入口
     const hasPetOpen = Boolean(document.querySelector('#stage-pet-open'));
     if (hasPetOpen) document.querySelector('#stage-pet-open').click();
     await new Promise(r => setTimeout(r, 200));
     const petStatus = document.querySelector('#stage-status').textContent;
 
-    // 形象库：点 ＋ 展开，选项多于两个，点一个要落盘
+    // 右键菜单：形象与配置全在这里
     const firstActor = document.querySelector('.stage-actor');
     const pickedId = firstActor.dataset.modelId;
-    firstActor.querySelector('.outfit-more').click();
+    firstActor.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 160, clientY: 200 }));
     await new Promise(r => setTimeout(r, 150));
-    const pickerOpen = Boolean(firstActor.querySelector('.outfit-picker'));
-    const pickerItems = firstActor.querySelectorAll('.outfit-picker .outfit-item').length;
+    const ctxOpen = !document.querySelector('#stage-context-menu').hidden;
+    const ctxOutfits = document.querySelectorAll('#stage-context-menu .ctx-outfits .outfit').length;
+    const ctxActions = document.querySelectorAll('#stage-context-menu [data-action]').length;
     const beforePet = localStorage.getItem('pet-avatar:' + pickedId);
-    const second = firstActor.querySelectorAll('.outfit-picker .outfit-item')[1];
-    second.click();
-    await new Promise(r => setTimeout(r, 200));
+    document.querySelectorAll('#stage-context-menu .ctx-outfits .outfit')[1].click();
+    await new Promise(r => setTimeout(r, 150));
     const afterPet = localStorage.getItem('pet-avatar:' + pickedId);
 
-    // 场景：只改视觉，不改真实状态
-    document.querySelector('#stage-scenes button[data-scene="work"]').click();
-    await new Promise(r => setTimeout(r, 150));
-    const workScene = document.querySelector('#stage-floor').dataset.scene;
-    const sceneLabel = document.querySelector('#stage-scene-label').textContent;
-    document.querySelector('#stage-scenes button[data-scene="discuss"]').click();
-    await new Promise(r => setTimeout(r, 150));
-
-    // 改 ID：名字要完整显示，且贯穿其他页面
+    // 改 ID / 选中 / 双击戳一下（重画连线不能冲掉动作）
     firstActor.querySelector('.stage-actor-name').click();
     await new Promise(r => setTimeout(r, 120));
     const input = document.querySelector('.stage-name-input');
@@ -344,19 +359,17 @@ async function main() {
     await new Promise(r => setTimeout(r, 200));
     const stored = localStorage.getItem('model-alias:' + pickedId);
     const renamed = firstActor.querySelector('.stage-actor-name').textContent;
-
-    // 单击选中 / 双击戳一下
     firstActor.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     await new Promise(r => setTimeout(r, 120));
     const selected = document.querySelectorAll('.stage-actor.is-selected').length;
     firstActor.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, cancelable: true }));
-    await new Promise(r => setTimeout(r, 150));
-    const pokeBubbles = [...document.querySelectorAll('.actor-poke-bubble')].filter((b) => !b.hidden).length;
+    await new Promise(r => setTimeout(r, 120));
     window.__stageUi.drawLinks();
+    const pokeBubbles = [...document.querySelectorAll('.actor-poke-bubble')].filter((b) => !b.hidden).length;
     const pokeState = firstActor.querySelector('.stage-actor-avatar').dataset.avatarState;
     const pokeRow = (firstActor.querySelector('[data-sprite]') || { style: { getPropertyValue: () => '' } }).style.getPropertyValue('--pet-row');
 
-    // 拖动一个角色：位置要落盘
+    // 拖动固定位置
     const dragEl = document.querySelector('.stage-actor[data-model-id="m-cloud"]');
     const r = dragEl.getBoundingClientRect();
     const pe = (type, x, y) => new PointerEvent(type, { bubbles: true, button: 0, pointerId: 1, clientX: x, clientY: y });
@@ -366,7 +379,7 @@ async function main() {
     await new Promise(r => setTimeout(r, 200));
     const savedPos = localStorage.getItem('collab-pos:m-cloud');
 
-    // 跑一轮讨论：连线、光点、记录、参考标记
+    // 一轮讨论：交付任务 → 1v1 → 1v多，对话框与交流记录
     window.__stubCalls.setSendOk(true);
     document.querySelector('#stage-question').value = '协作视图测试问题';
     document.querySelector('#stage-ask').click();
@@ -376,8 +389,14 @@ async function main() {
     }
     const bubbles = [...document.querySelectorAll('.stage-actor-bubble')].filter((b) => !b.hidden).length;
     const links = document.querySelectorAll('#stage-links path.collab-link').length;
+    const edgeTags = [...document.querySelectorAll('#stage-links text.collab-edge-tag')].map((n) => n.textContent).join('|');
     const turns = document.querySelectorAll('#stage-turns .collab-turn').length;
+    const kinds = [...document.querySelectorAll('#stage-turns .turn-kind')].map((n) => n.textContent).join('|');
+    const dialogueVisible = !document.querySelector('#stage-dialogue').hidden;
+    const dialogueName = document.querySelector('#stage-dialogue-name').textContent;
+    const savedHistory = JSON.parse(localStorage.getItem('collab-messages') || '[]').length;
     const statusRows = document.querySelectorAll('#stage-status-list .status-row').length;
+    const actorNodes = document.querySelectorAll('.stage-actor').length;
     const refTags = [...document.querySelectorAll('#stage-turns .turn-ref')].map((n) => n.textContent);
 
     document.querySelector('#nav-chat').click();
@@ -386,68 +405,151 @@ async function main() {
     localStorage.removeItem('model-alias:' + pickedId);
     localStorage.removeItem('pet-avatar:' + pickedId);
     localStorage.removeItem('collab-pos:m-cloud');
-    return { visible, othersHidden, pickCount, checkedCount, idComplete, actors, sprites, distinctSheets, deepseekRoster,
-      outfitChips, ownChips, headerText, hasPetOpen, petStatus, pickerOpen, pickerItems, beforePet, afterPet, workScene, sceneLabel,
-      stored, renamed, selected, pokeBubbles, pokeState, pokeRow, savedPos, bubbles, links, turns, statusRows, refTags, chatLabels };
+    return { visible, othersHidden, pickCount, checkedCount, offlineText, idComplete, zones, autoPlace, noOutfitBar,
+      sprites, distinctSheets, deepseekRoster, headerText, overlaps, keyboardReady, panelScroll, turnsScroll, stopBtnExists, hasPetOpen, petStatus, ctxOpen, ctxOutfits, ctxActions,
+      beforePet, afterPet, stored, renamed, selected, pokeBubbles, pokeState, pokeRow, savedPos, bubbles, links,
+      edgeTags, turns, kinds, dialogueVisible, dialogueName, savedHistory, statusRows, actorNodes, refTags, chatLabels };
+   } catch (e) { return { jsError: String((e && e.stack) || e) }; }
   })()`);
+  if (stage.jsError) throw new Error('stage 段异常：' + stage.jsError);
   if (!stage.visible) throw new Error('协作视图没有显示');
   if (!stage.othersHidden) throw new Error('协作视图打开时其他页面没有隐藏');
-  if (stage.pickCount < 2) throw new Error(`模型勾选列表为空：${stage.pickCount}`);
-  if (stage.checkedCount !== stage.pickCount) throw new Error(`没有默认全选模型：${stage.checkedCount}/${stage.pickCount}`);
+  if (stage.pickCount !== 3 || stage.checkedCount !== 3) throw new Error(`在线模型参与数不对：${stage.pickCount}/${stage.checkedCount}`);
+  if (!stage.offlineText.includes('离线')) throw new Error(`离线模型没有单独列出：${stage.offlineText}`);
   if (!stage.idComplete) throw new Error('模型 ID 仍被截断或没有完整 title');
   if (stage.headerText.includes('舞台') || stage.headerText.includes('台上')) throw new Error(`标题还留着表演化文案：${stage.headerText}`);
-  if (stage.actors < 2) throw new Error(`角色节点不足：${stage.actors}`);
-  if (stage.sprites < 2) throw new Error(`默认没有渲染动作角色：${stage.sprites}`);
-  if (stage.distinctSheets < 2) throw new Error(`多个模型用了同一张形象：${stage.distinctSheets}`);
+  if (stage.zones !== 2 || !stage.autoPlace) throw new Error(`生态分区或自动归位缺失：${stage.zones}/${stage.autoPlace}`);
+  if (!stage.noOutfitBar) throw new Error('角色下面还常驻着形象框');
+  if (stage.sprites < 2 || stage.distinctSheets < 2) throw new Error(`默认角色不足或撞形象：${stage.sprites}/${stage.distinctSheets}`);
   if (!stage.deepseekRoster) throw new Error('DeepSeek 没有用对应的专属角色');
-  if (stage.outfitChips < 2 || stage.ownChips < 2) throw new Error(`每个模型的专属形象少于两个：${stage.outfitChips}/${stage.ownChips}`);
-  if (!stage.hasPetOpen || !stage.petStatus.includes('悬浮到桌面')) throw new Error(`悬浮桌宠入口无效：${stage.hasPetOpen}/${stage.petStatus}`);
-  if (!stage.pickerOpen || stage.pickerItems < 6) throw new Error(`形象库没打开或选项太少：${stage.pickerOpen}/${stage.pickerItems}`);
-  if (stage.afterPet === stage.beforePet) throw new Error('在形象库里换形象没有存到本机');
-  if (stage.workScene !== 'work' || stage.sceneLabel !== '工作中') throw new Error(`场景切换无效：${stage.workScene}/${stage.sceneLabel}`);
-  if (stage.stored !== '小鲸') throw new Error(`形象 ID 没有存到本机：${stage.stored}`);
-  if (stage.renamed !== '小鲸') throw new Error(`改名后节点文字没更新：${stage.renamed}`);
+  if (stage.overlaps > 0) throw new Error(`角色矩形互相重叠：${stage.overlaps} 对`);
+  if (!stage.keyboardReady) throw new Error('角色不能用键盘聚焦和选中');
+  if (stage.panelScroll !== 'hidden' || stage.turnsScroll !== 'auto') throw new Error(`右侧面板滚动层级没收敛：${stage.panelScroll}/${stage.turnsScroll}`);
+  if (!stage.stopBtnExists) throw new Error('本轮讨论没有停止入口');
+  if (!stage.hasPetOpen || !stage.petStatus.includes('悬浮到桌面')) throw new Error('悬浮桌宠入口无效');
+  if (!stage.ctxOpen || stage.ctxOutfits < 2 || stage.ctxActions < 6) throw new Error(`右键菜单不完整：${stage.ctxOpen}/${stage.ctxOutfits}/${stage.ctxActions}`);
+  if (stage.afterPet === stage.beforePet) throw new Error('右键换形象没有存到本机');
+  if (stage.stored !== '小鲸' || stage.renamed !== '小鲸') throw new Error('改名没有生效');
   if (stage.selected !== 1) throw new Error(`单击没有选中唯一角色：${stage.selected}`);
-  if (stage.pokeBubbles !== 1 || stage.pokeState !== 'poke') throw new Error(`双击没有触发反应：${stage.pokeBubbles}/${stage.pokeState}`);
-  if (stage.pokeRow !== '4') throw new Error(`重画连线把「被戳」动作冲掉了：--pet-row=${stage.pokeRow}`);
+  if (stage.pokeBubbles !== 1 || stage.pokeState !== 'poke' || stage.pokeRow !== '4') throw new Error(`被戳动作被冲掉：${stage.pokeBubbles}/${stage.pokeState}/${stage.pokeRow}`);
   if (!stage.savedPos) throw new Error('拖动后位置没有存到本机');
-  if (stage.bubbles < 1) throw new Error(`一轮讨论后没有输出摘要：${stage.bubbles}`);
-  if (stage.links < 1) throw new Error(`没有画出引用关系连线：${stage.links}`);
-  if (stage.turns < 2) throw new Error(`本轮记录条数不对：${stage.turns}`);
-  if (stage.statusRows < 2) throw new Error(`模型状态列表为空：${stage.statusRows}`);
-  if (!stage.refTags.some((t) => t.includes('参考'))) throw new Error(`记录里没有标注参考关系：${JSON.stringify(stage.refTags)}`);
+  if (stage.bubbles < 1 || stage.links < 1) throw new Error(`讨论后没有摘要或连线：${stage.bubbles}/${stage.links}`);
+  if (!stage.edgeTags.includes('1v1') && !stage.edgeTags.includes('1v多') && !stage.edgeTags.includes('回执')) throw new Error(`连线没标交流类型：${stage.edgeTags}`);
+  if (stage.turns < 4) throw new Error(`交流记录条数不对：${stage.turns}`);
+  if (!stage.kinds.includes('上级交付') || !stage.kinds.includes('1v1')) throw new Error(`交流类型缺失：${stage.kinds}`);
+  if (!stage.dialogueVisible || !stage.dialogueName) throw new Error('galgame 对话框没有显示');
+  if (stage.savedHistory < 4) throw new Error(`交流记录没有持久化：${stage.savedHistory}`);
+  if (stage.statusRows < 2) throw new Error('模型状态列表为空');
+  if (stage.statusRows !== stage.actorNodes) throw new Error(`状态行重复或缺失：${stage.statusRows}/${stage.actorNodes}`);
+  if (!stage.refTags.some((t) => t.includes('参考'))) throw new Error('交流记录里没有参考条数');
   if (!stage.chatLabels.includes('小鲸')) throw new Error(`改 ID 后对话页下拉没同步：${stage.chatLabels}`);
-  result.checks.push('collab-full-id', 'collab-multi-outfits', 'collab-scenes', 'pet-desktop-window', 'collab-alias-sync', 'collab-interaction', 'collab-reference-graph');
+  result.checks.push('collab-online-only', 'collab-ecosystem-zones', 'collab-context-menu', 'collab-dialogue-flow', 'pet-desktop-window', 'collab-reference-graph');
 
-  // 留两张图：关系图（含统一面板）、桌宠模式。
-  await js(`(async () => {
-    // 截图要展示默认状态：清掉测试过程中改过的形象 / 位置 / ID，重新读一次模型。
+  // 本轮 UI 复查的四条回归：性能、对话框、历史一致性、不可逆操作确认
+  const ux = await js(`(async () => {
+   try {
+    const wait = (ms) => new Promise(r => setTimeout(r, ms));
+    document.querySelector('#nav-stage').click();
+    await wait(400);
+
+    // 拖拽时 SVG 节点不能被 replaceChildren 重建（否则 SMIL 光点每帧重播 = 闪）
+    const pathBefore = document.querySelector('#stage-links path.collab-link');
+    const dragEl = document.querySelector('.stage-actor[data-model-id="m-deepseek"]');
+    let samePath = false;
+    if (pathBefore && dragEl) {
+      const r = dragEl.getBoundingClientRect();
+      const pe = (t, x, y) => new PointerEvent(t, { bubbles: true, button: 0, pointerId: 2, clientX: x, clientY: y });
+      dragEl.dispatchEvent(pe('pointerdown', r.left + 30, r.top + 30));
+      dragEl.dispatchEvent(pe('pointermove', r.left + 70, r.top + 45));
+      dragEl.dispatchEvent(pe('pointerup', r.left + 70, r.top + 45));
+      await wait(180);
+      samePath = document.querySelector('#stage-links path.collab-link') === pathBefore;
+    }
+
+    // 对话框点一下就收起，不再一直杵在画布上
+    const dlg = document.querySelector('#stage-dialogue');
+    dlg.hidden = false;
+    dlg.click();
+    await wait(100);
+    const dlgHidden = dlg.hidden;
+
+    // 重建舞台不能偷偷丢掉内存里的交流历史（否则刷新后旧记录幽灵复活）
+    const turnsBefore = document.querySelectorAll('#stage-turns .collab-turn').length;
+    const storedBefore = JSON.parse(localStorage.getItem('collab-messages') || '[]').length;
+    window.__stageUi.buildStage();
+    await wait(300);
+    const turnsAfter = document.querySelectorAll('#stage-turns .collab-turn').length;
+    const storedAfter = JSON.parse(localStorage.getItem('collab-messages') || '[]').length;
+    const rowsAfter = document.querySelectorAll('#stage-status-list .status-row').length;
+    const nodesAfter = document.querySelectorAll('.stage-actor').length;
+
+    // 清空历史是二次确认：第一次只进入确认态，第二次才真删
+    const actor = document.querySelector('.stage-actor');
+    actor.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 200, clientY: 240 }));
+    await wait(120);
+    const clearBtn = document.querySelector('#stage-context-menu [data-action="clear"]');
+    clearBtn.click();
+    await wait(120);
+    const afterFirst = JSON.parse(localStorage.getItem('collab-messages') || '[]').length;
+    const armedLabel = clearBtn.querySelector('span').textContent;
+    clearBtn.click();
+    await wait(150);
+    const afterSecond = JSON.parse(localStorage.getItem('collab-messages') || '[]').length;
+    return { samePath, dlgHidden, turnsBefore, turnsAfter, storedBefore, storedAfter, rowsAfter, nodesAfter, afterFirst, afterSecond, armedLabel };
+   } catch (e) { return { jsError: String((e && e.stack) || e) }; }
+  })()`);
+  if (ux.jsError) throw new Error('UX 回归段异常：' + ux.jsError);
+  if (!ux.samePath) throw new Error('拖拽时连线 SVG 被重建了（会闪）');
+  if (!ux.dlgHidden) throw new Error('点对话框没有收起');
+  if (ux.turnsBefore < 4 || ux.turnsAfter !== ux.turnsBefore || ux.storedAfter !== ux.storedBefore) {
+    throw new Error(`重建舞台丢了历史：${JSON.stringify(ux)}`);
+  }
+  if (ux.rowsAfter !== ux.nodesAfter) throw new Error(`重建舞台后状态行重复：${ux.rowsAfter}/${ux.nodesAfter}`);
+  if (ux.afterFirst !== ux.storedBefore || !ux.armedLabel.includes('再点一次')) throw new Error(`清空没有二次确认：${JSON.stringify(ux)}`);
+  if (ux.afterSecond !== 0) throw new Error(`二次确认后没有清空历史：${ux.afterSecond}`);
+  result.checks.push('collab-no-link-rebuild', 'collab-dialogue-dismiss', 'collab-history-consistency', 'collab-clear-confirm');
+
+  // 留两张图：默认关系图、桌宠模式。
+  const spriteReady = await js(`(async () => {
     ['m-local', 'm-cloud', 'm-deepseek'].forEach((id) => {
       localStorage.removeItem('pet-avatar:' + id);
       localStorage.removeItem('collab-pos:' + id);
       localStorage.removeItem('model-alias:' + id);
     });
+    localStorage.removeItem('collab-messages');
     document.querySelector('#nav-stage').click();
     await new Promise(r => setTimeout(r, 300));
     await window.__stageUi.refresh();
-    await new Promise(r => setTimeout(r, 900));
-    return { turns: document.querySelectorAll('#stage-turns .collab-turn').length,
-      sprites: document.querySelectorAll('.stage-actor .pet-sprite').length,
-      firstSheet: (document.querySelector('.pet-sprite') || { style: { getPropertyValue: () => '' } }).style.getPropertyValue('--pet-sheet') };
+    await new Promise(r => setTimeout(r, 500));
+    // 隐藏窗口的合成器会滞后；重建 DOM 后必须等每张 spritesheet 真正解码完，
+    // 否则抓到的帧里只有名字、没有角色。
+    const urls = [...new Set([...document.querySelectorAll('.pet-sprite')]
+      .map((n) => (getComputedStyle(n).backgroundImage.match(/url[(]["']?([^"')]+)/) || [])[1])
+      .filter(Boolean))];
+    await Promise.all(urls.map((u) => new Promise((res) => {
+      let settled = false;
+      const done = () => { if (!settled) { settled = true; res(); } };
+      const guard = setTimeout(done, 2000);
+      const img = new Image();
+      img.onload = () => { if (img.decode) img.decode().then(() => { clearTimeout(guard); done(); }, () => { clearTimeout(guard); done(); }); else { clearTimeout(guard); done(); } };
+      img.onerror = () => { clearTimeout(guard); done(); };
+      img.src = u;
+    })));
+    await new Promise(r => setTimeout(r, 600));
+    return { sheets: urls.length, sprites: document.querySelectorAll('.pet-sprite').length };
   })()`);
-  // 隐藏窗口的合成器会滞后，连续抓几帧丢掉旧画面再保存。
-  for (let i = 0; i < 6; i += 1) { await wait(350); await win.capturePage(); }
+  if (!spriteReady.sheets || !spriteReady.sprites) throw new Error(`截图前角色素材没就绪：${JSON.stringify(spriteReady)}`);
+  for (let i = 0; i < 8; i += 1) { await wait(300); await win.capturePage(); }
   fs.writeFileSync(path.join(__dirname, 'stage-page.png'), (await win.capturePage()).toPNG());
   await js("document.querySelector('#stage-pet').checked = true; document.querySelector('#stage-pet').dispatchEvent(new Event('change')); true;");
   await wait(500);
   fs.writeFileSync(path.join(__dirname, 'stage-pet.png'), (await win.capturePage()).toPNG());
   await js("document.querySelector('#stage-pet').checked = false; document.querySelector('#stage-pet').dispatchEvent(new Event('change')); true;");
 
-  // 刷新模型后要保留用户勾选（曾因在清空 DOM 之后才读选择而丢失）
+  // 刷新模型后要保留用户勾选
   const pickerPersist = await js(`(async () => {
     const box = document.querySelector('#stage-models input[value="m-cloud"]');
-    box.checked = false;
-    box.dispatchEvent(new Event('change', { bubbles: true }));
+    box.checked = false; box.dispatchEvent(new Event('change', { bubbles: true }));
     await new Promise(r => setTimeout(r, 200));
     const beforeNodes = document.querySelectorAll('.stage-actor').length;
     await window.__stageUi.refresh();

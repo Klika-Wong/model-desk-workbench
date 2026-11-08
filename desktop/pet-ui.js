@@ -36,7 +36,8 @@
   let rowTimer = null;
   let chatTimers = [];
   let dragging = false;
-  let last = null;
+  let dragReady = false;
+  let dragFrame = false;
 
   function renderActor(row) {
     AVATARS.mount(actor, petModel, outfit, { state: 'waiting', scene: 'discuss' });
@@ -179,27 +180,31 @@
     which.hidden = !which.hidden;
   }
 
-  // 拖动：交给主进程移动窗口，锁定时完全不动。
+  // 拖动：坐标一律由主进程读屏幕绝对位置。窗口移动会让 clientX/Y 反向变化，
+  // 渲染层自己算 delta 会出现「反方向跑」和来回抖，这里只发开始/移动/结束。
   pet.addEventListener('pointerdown', (event) => {
     if (locked || event.target.closest('button, input, select, .pet-chatbox, .pet-emotes, .pet-toolbar')) return;
     dragging = true;
-    last = { x: event.clientX, y: event.clientY };
+    dragReady = false;
     try { pet.setPointerCapture(event.pointerId); } catch {}
     pet.classList.add('is-dragging');
     setRow('moveRight');
+    window.workbench.petControl('drag-start').then(() => { dragReady = true; }).catch(() => { dragReady = false; });
   });
-  pet.addEventListener('pointermove', (event) => {
-    if (!dragging || !last) return;
-    const dx = event.clientX - last.x;
-    const dy = event.clientY - last.y;
-    last = { x: event.clientX, y: event.clientY };
-    window.workbench.petControl('move', { dx, dy });
+  pet.addEventListener('pointermove', () => {
+    if (!dragging || !dragReady || dragFrame) return;
+    dragFrame = true;
+    requestAnimationFrame(() => {
+      dragFrame = false;
+      if (dragging && dragReady) window.workbench.petControl('drag-move').catch(() => {});
+    });
   });
   const endDrag = () => {
     if (!dragging) return;
-    dragging = false; last = null;
+    dragging = false; dragReady = false;
     pet.classList.remove('is-dragging');
     setRow('idle');
+    window.workbench.petControl('drag-end').catch(() => {});
   };
   pet.addEventListener('pointerup', endDrag);
   pet.addEventListener('pointercancel', endDrag);

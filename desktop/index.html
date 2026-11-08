@@ -13,7 +13,7 @@
   <div class="brand"><span class="brand-mark">M</span><div><strong>模型工作台</strong><small>你的项目 · 各自有序</small></div></div>
   <div class="sidebar-section-head"><p class="side-label">导航</p><button id="sidebar-refresh" class="icon-button" aria-label="刷新当前页" title="刷新当前页">⟳</button><details id="layout-menu"><summary title="侧栏布局" aria-label="侧栏布局">⋯</summary><div class="layout-menu-items"><button id="dock-sidebar" type="button">移到右侧</button><button id="reset-layout" type="button">重置布局</button></div></details></div>
   <button class="nav-button active" id="nav-memory" type="button">▦　记忆空间</button>
-  <button class="nav-button" id="nav-chat" type="button">✦　对话</button><button class="nav-button" id="nav-stage" type="button">◉　模型状态</button><button class="nav-button" id="nav-tasks" type="button">◷　运行与连接</button>
+  <button class="nav-button" id="nav-chat" type="button">✦　对话</button><button class="nav-button" id="nav-stage" type="button">◉　协作视图</button><button class="nav-button" id="nav-tasks" type="button">◷　运行与连接</button>
   <button class="nav-button" id="nav-designer" type="button">◇　架构画布</button><button class="nav-button" id="nav-panel" type="button">▤　模型与额度</button>
   <button id="sidebar-search" class="sidebar-search" type="button" aria-label="搜索命令、空间和记忆">⌕ <span>搜索空间、记忆或命令</span><kbd>Ctrl K</kbd></button><div class="side-heading"><p class="side-label">我的记忆空间</p><button id="new-space" class="icon-button" aria-label="新建记忆空间" type="button">＋</button></div>
   <div id="space-list" class="space-list"></div>
@@ -83,45 +83,54 @@
   </section>
 </div>
 <div id="stage-page" hidden>
-  <header class="page-header"><div><p class="eyebrow">协作视图</p><h1>谁在跟谁说话</h1><p class="intro">一轮讨论里，每位都能看到前面所有人的发言。这里把引用关系、发言顺序和当前状态画出来；对话输入、模型状态、本轮记录都在同一个面板里。</p></div><div class="header-actions"><button id="stage-pet-open" type="button" class="primary">悬浮到桌面</button><label class="stage-pet"><input id="stage-pet" type="checkbox"> 页内小窗</label><button id="stage-refresh" type="button">刷新模型</button></div></header>
+  <header class="page-header"><div><p class="eyebrow">协作视图</p><h1>谁在跟谁说话</h1><p class="intro">一轮讨论里，每位都能看到前面所有人的发言。这里把引用关系、交流顺序和真实状态画出来；场景、状态、交流记录与提问都在同一个面板里。</p></div><div class="header-actions"><button id="stage-pet-open" type="button" class="primary">悬浮到桌面</button><label class="stage-pet"><input id="stage-pet" type="checkbox"> 页内小窗</label><button id="stage-refresh" type="button">刷新模型</button></div></header>
   <section class="card stage-card">
     <div class="stage-toolbar">
       <div class="model-picker-wrap">
         <div class="picker-head"><span>参与的模型</span><span id="stage-picked" class="hint"></span></div>
-        <div id="stage-models" class="model-picker" role="group" aria-label="选择参与的模型"></div>
+        <div id="stage-models" class="model-picker" role="group" aria-label="选择在线参与的模型"></div>
+        <div id="stage-offline" class="stage-offline" hidden></div>
       </div>
     </div>
     <div class="collab-layout">
       <div class="collab-canvas-wrap">
         <div id="stage-floor" class="stage-floor" data-scene="discuss" aria-label="模型引用关系">
           <svg id="stage-links" class="stage-links" aria-hidden="true"></svg>
-          <span id="stage-scene-label" class="scene-label">讨论中</span>
+          <span class="zone-label zone-work">工作区 <small>生成中 / 正在输出</small></span>
+          <span class="zone-divider" aria-hidden="true"></span>
+          <span class="zone-label zone-rest">摸鱼角 ☕ <small>待机 / 已发言</small></span>
+          <div id="stage-dialogue" class="dialogue-box" hidden aria-live="polite">
+            <div id="stage-dialogue-name" class="dialogue-name"></div>
+            <div id="stage-dialogue-text" class="dialogue-text"></div>
+            <div id="stage-dialogue-target" class="dialogue-target"></div>
+          </div>
         </div>
-        <p class="hint collab-tip">点形象下方可切换多个专属形象 · 单击看引用关系 · 双击戳一下 · 拖动调整位置 · 点名字改 ID</p>
+        <p class="hint collab-tip">角色按真实状态走到工作区或摸鱼角 · 右键（或 Shift+F10）换形象 / 改 ID / 固定位置 / 配置 · 双击戳一下 · 拖动固定位置 · 对话框说完自动收起，点一下可立即收起</p>
       </div>
       <aside class="side-panel" aria-label="讨论控制面板">
         <section class="panel-section">
-          <div class="panel-title"><h3>场景</h3><span class="hint">只改动作与背景</span></div>
-          <div id="stage-scenes" class="scene-switch">
-            <button type="button" data-scene="discuss" class="active">讨论中</button>
-            <button type="button" data-scene="work">工作中</button>
-            <button type="button" data-scene="slack">摸鱼中</button>
+          <div class="panel-title"><h3>状态分区</h3><span class="hint">按真实状态归位</span></div>
+          <div class="eco-legend">
+            <span><i class="eco-dot work"></i> 工作区 · 生成/输出</span>
+            <span><i class="eco-dot rest"></i> 摸鱼角 · 待机/已发言</span>
           </div>
+          <label class="eco-auto"><input id="stage-auto-place" type="checkbox" checked> 自动归位（拖过的保持原位）</label>
         </section>
         <section class="panel-section">
-          <div class="panel-title"><h3>模型状态</h3><span id="stage-actor-count" class="hint">0 个</span></div>
+          <div class="panel-title"><h3>参与模型</h3><span id="stage-actor-count" class="hint">0 个</span></div>
           <div id="stage-status-list" class="status-list"></div>
         </section>
         <section class="panel-section panel-grow">
-          <div class="panel-title"><h3>本轮记录</h3><span id="stage-turn-count" class="hint">还没有发言</span></div>
-          <ol id="stage-turns" class="collab-turns"><li class="collab-empty">开始一轮讨论后，这里按顺序记下每位参考了谁、说了什么。</li></ol>
+          <div class="panel-title"><h3>交流记录</h3><span id="stage-turn-count" class="hint">还没有交流</span></div>
+          <ol id="stage-turns" class="collab-turns"><li class="collab-empty">开始一轮讨论后，这里按顺序列出交付任务、1v1 交流与 1v多 广播。</li></ol>
         </section>
         <section class="panel-section panel-input">
-          <div class="stage-input-row"><input id="stage-question" maxlength="2000" placeholder="给它们一句问题"><button id="stage-ask" type="button" class="primary">开始讨论</button></div>
+          <div class="stage-input-row"><input id="stage-question" maxlength="2000" placeholder="给它们一句问题"><button id="stage-ask" type="button" class="primary">开始讨论</button><button id="stage-stop" type="button" hidden>停止本轮</button></div>
           <p id="stage-status" class="hint" aria-live="polite"></p>
         </section>
       </aside>
     </div>
+    <div id="stage-context-menu" class="stage-context-menu" hidden></div>
   </section>
 </div>
 <div id="tasks-page" hidden>

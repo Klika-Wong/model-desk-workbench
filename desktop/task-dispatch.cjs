@@ -230,7 +230,15 @@ async function listModels({ baseUrl = 'http://127.0.0.1:18765', token = null } =
   if (res.status !== 200 || !res.json) throw new Error(`读取模型清单失败（HTTP ${res.status}）。`);
   const models = (Array.isArray(res.json.models) ? res.json.models : [])
     .filter((m) => m && m.enabled !== false)
-    .map((m) => ({ id: m.id, name: m.name || m.id, provider: m.provider || 'unknown', local: (m.provider || '') === 'local' }));
+    // 只有明确标为未启用 / 执行器未就绪的才算离线；字段缺失不误判（保守视为在线）。
+    .map((m) => ({
+      id: m.id,
+      name: m.name || m.id,
+      provider: m.provider || 'unknown',
+      local: (m.provider || '') === 'local',
+      enabled: m.enabled !== false,
+      ready: m.ready !== false && m.executor_ready !== false && m.executorReady !== false,
+    }));
   return { defaultModel: res.json.default_model || null, models };
 }
 

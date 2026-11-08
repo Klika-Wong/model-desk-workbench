@@ -109,7 +109,7 @@ contextBridge.exposeInMainWorld('workbench', {
   petOpen: async () => { calls.push({api:'petOpen'}); return {ok:true,data:{locked:false,alwaysOnTop:true}}; },
   petState: async () => ({ok:true,data:{locked:false,alwaysOnTop:true}}),
   petControl: async (action, value) => { calls.push({api:'petControl',action,value}); return {ok:true,data:{locked:action==='lock'?Boolean(value):false,alwaysOnTop:action==='top'?Boolean(value):true}}; },
-  dispatchModels: async () => ({ ok: true, data: { baseUrl: 'http://127.0.0.1:18765', defaultModel: 'm-local', models: [{ id: 'm-local', name: '本地示例模型', provider: 'local', local: true }, { id: 'm-cloud', name: '云端示例模型', provider: 'cloud', local: false }, { id: 'm-deepseek', name: 'DeepSeek-V3', provider: 'deepseek', local: false }] } }),
+  dispatchModels: async () => ({ ok: true, data: { baseUrl: 'http://127.0.0.1:18765', defaultModel: 'm-local', models: [{ id: 'm-local', name: '本地示例模型', provider: 'local', local: true, enabled: true, ready: true }, { id: 'm-cloud', name: '云端示例模型', provider: 'cloud', local: false, enabled: true, ready: true }, { id: 'm-deepseek', name: 'DeepSeek-V3', provider: 'deepseek', local: false, enabled: true, ready: true }, { id: 'm-offline', name: '离线示例模型', provider: 'local', local: true, enabled: true, ready: false }] } }),
   copyAiGuide: async () => { calls.push({api:'copyAiGuide'}); return {ok:true,data:{copied:true}}; },
   modelSettingsLoad: async (base,id) => {
     if(holdSettingsLoad)await new Promise(resolve=>settingsLoadReplies.push(resolve));

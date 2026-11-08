@@ -261,8 +261,12 @@ function updateState(el, choice, state, scene, facing) {
   el.dataset.avatarState = state;
   const sprite = el.querySelector('[data-sprite]');
   if (sprite) {
-    sprite.style.setProperty('--pet-row', String(actionRow(choice, state, scene)));
-    if (facing) sprite.style.setProperty('--pet-flip', facing === 'left' ? '-1' : '1');
+    const row = String(actionRow(choice, state, scene));
+    if (sprite.style.getPropertyValue('--pet-row') !== row) sprite.style.setProperty('--pet-row', row);
+    if (facing) {
+      const flip = facing === 'left' ? '-1' : '1';
+      if (sprite.style.getPropertyValue('--pet-flip') !== flip) sprite.style.setProperty('--pet-flip', flip);
+    }
     return;
   }
   const img = el.querySelector('img[data-avatar]');

@@ -32,8 +32,12 @@ h2 { margin: 0 0 2px; font-size: 15px; }
 .foot { margin: 6px 0 0; color: #8b968f; font-size: 10px; }
 
 @media (prefers-color-scheme: dark) {
-  body { background: #171d20; color: #e6ece8; }
-  .sub, .task-state, .empty { color: #9aa8a1; }
-  .task { background: #1f272b; border-color: #2e3a3f; }
-  .foot { color: #7d8a84; }
+  /* 与主窗口深色主题一致：中性深灰底 + 低饱和蓝紫强调，不再泛绿。 */
+  body { background: #17181c; color: #eceef4; }
+  .sub, .task-state, .empty { color: #9399a6; }
+  .task { background: #202227; border-color: #33363e; }
+  .task-state[data-status="running"] { color: #8b9cf5; }
+  .task-state[data-status="completed"] { color: #86d3a6; }
+  .task-state[data-status="failed"], .task-state[data-status="cancelled"] { color: #ee8b84; }
+  .foot { color: #7c828f; }
 }

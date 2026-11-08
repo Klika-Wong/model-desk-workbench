@@ -53,3 +53,11 @@
 （`isTrustedPetUrl()`），远程页面或路径拼接都进不来。
 主进程的 `assertTrustedSender` 仍把 `pet.html` 列入白名单，因为派发链路需要它，
 但实际可调用的通道已被 preload 限制到最小集合。
+
+## 拖动方向修复（2026-11-08）
+
+早期版本由渲染层用 `clientX/Y` 增量调用 `petControl('move')`：窗口一动，渲染进程的
+client 坐标会反向变化，表现为"往反方向跑"和抖动。现改为主进程用
+`screen.getCursorScreenPoint()` 记录起点，`drag-start / drag-move / drag-end` 三段式，
+以「起点窗口位置 + 累计屏幕位移」定位，不累加增量；渲染层只发信号并用 rAF 节流。
+`pet-drag.test.cjs` 覆盖来回拖动与锁定状态。

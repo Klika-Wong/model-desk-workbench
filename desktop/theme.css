@@ -43,40 +43,40 @@ html[data-theme="light"] {
 
 html[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #0f1315;
-  --surface: #171d20;
-  --surface-2: #1b2226;
-  --surface-3: #212a2e;
-  --sidebar-bg: #131a1d;
-  --ink: #e6ece8;
-  --ink-2: #c2ccc7;
-  --muted: #92a09a;
-  --faint: #7c8a85;
-  --line: #273235;
-  --line-strong: #354245;
-  --accent: #4fbf9a;
-  --accent-hover: #3fae8a;
-  --accent-soft: #1b2a26;
-  --accent-line: #2f4a42;
-  --on-accent: #08130f;
-  --hover: #202b28;
-  --nav-active-bg: #1d2f29;
-  --nav-active-ink: #bfe9d8;
-  --input-bg: #10171a;
-  --danger: #f08a7a;
-  --ok-bg: #1f3a2c;
-  --ok-ink: #86d6a9;
-  --warn-bg: #3a3320;
-  --warn-ink: #e2c579;
-  --neutral-bg: #262d31;
-  --neutral-ink: #9aa7a2;
-  --canvas-bg: #141a1e;
-  --canvas-dot: #263135;
-  --edge: #46564f;
-  --backdrop: #00000099;
+  --bg: #17181c;
+  --surface: #202227;
+  --surface-2: #272930;
+  --surface-3: #2f323a;
+  --sidebar-bg: #1b1c21;
+  --ink: #eceef4;
+  --ink-2: #c4c8d2;
+  --muted: #9399a6;
+  --faint: #7c828f;
+  --line: #33363e;
+  --line-strong: #434751;
+  --accent: #8b9cf5;
+  --accent-hover: #a3b0fa;
+  --accent-soft: #272b40;
+  --accent-line: #414a73;
+  --on-accent: #12131a;
+  --hover: #2d3038;
+  --nav-active-bg: #2b3048;
+  --nav-active-ink: #c7d0ff;
+  --input-bg: #191a1f;
+  --danger: #ee8b84;
+  --ok-bg: #22332b;
+  --ok-ink: #86d3a6;
+  --warn-bg: #373022;
+  --warn-ink: #e3c485;
+  --neutral-bg: #2c2f36;
+  --neutral-ink: #a2a8b4;
+  --canvas-bg: #1c1e23;
+  --canvas-dot: #30333b;
+  --edge: #4d5260;
+  --backdrop: #000000a8;
   --shadow-1: 0 3px 12px #00000055;
   --shadow-2: 0 24px 100px #000000aa;
-  --focus: #4fbf9a;
+  --focus: #8b9cf5;
 }
 
 /* 原版外观：沿用原工作台面板的黑白灰 + 墨绿状态色。 */
@@ -123,9 +123,9 @@ body { background: var(--bg); color: var(--ink); }
 
 /* Scrollbars follow the skin so dark mode has no bright rails. */
 html[data-theme="dark"] ::-webkit-scrollbar { width: 10px; height: 10px; }
-html[data-theme="dark"] ::-webkit-scrollbar-track { background: #0f1315; }
-html[data-theme="dark"] ::-webkit-scrollbar-thumb { background: #2c3733; border-radius: 6px; }
-html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: #3a4a44; }
+html[data-theme="dark"] ::-webkit-scrollbar-track { background: #17181c; }
+html[data-theme="dark"] ::-webkit-scrollbar-thumb { background: #3a3e48; border-radius: 6px; }
+html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: #4b505c; }
 
 /* ---- quick switch bar (sidebar) ---- */
 .quick-bar { display: grid; gap: 5px; margin: 10px 0 2px; }
