@@ -154,7 +154,7 @@ function choicesFor(model) {
   const list = roster.ids.map((id) => ({
     value: 'roster:' + id,
     label: roster.label + (id.endsWith('-chibi') ? ' · Q 版' : ' · 标准版'),
-    thumb: R + id + '.gif',
+    thumb: R + id + '.webp',
     own: true,
   }));
   list.push({ value: CHARACTER_ID, label: '通用 · Q 版少女', glyph: '👧', own: false });
@@ -171,7 +171,7 @@ function resolve(model, choice) {
   if (typeof choice === 'string' && choice.indexOf('roster:') === 0) {
     const id = choice.slice(7);
     if (/^[a-z0-9-]+$/.test(id)) {
-      return { kind: 'roster', id, sheet: R + id + '.webp', thumb: R + id + '.gif' };
+      return { kind: 'roster', id, sheet: R + id + '.webp', thumb: R + id + '.webp' };
     }
   }
   if (choice === BRAND_ID) {
@@ -215,12 +215,18 @@ function mount(el, model, choice, opts) {
   el.dataset.avatarChoice = hit.kind === 'roster' ? 'roster:' + hit.id : (hit.kind === 'character' ? hit.role : hit.kind);
   el.dataset.avatarState = state;
   if (hit.kind === 'roster') {
+    // 外层是固定大小的「取景窗」，内层 strip 才是整行序列帧。
+    // 帧推进用 transform（合成器），不再用 background-position（每帧 paint）。
     const sprite = document.createElement('div');
     sprite.className = 'pet-sprite';
     sprite.dataset.sprite = '1';
-    sprite.style.setProperty('--pet-sheet', `url("${hit.sheet}")`);
     sprite.style.setProperty('--pet-row', String(actionRow(choice, state, scene)));
     sprite.style.setProperty('--pet-flip', options.facing === 'left' ? '-1' : '1');
+    const strip = document.createElement('div');
+    strip.className = 'pet-strip';
+    strip.dataset.strip = '1';
+    strip.style.setProperty('--pet-sheet', `url("${hit.sheet}")`);
+    sprite.append(strip);
     el.append(sprite);
     el.title = '点形象可选中、双击戳一下、拖动换位';
     return 'roster';

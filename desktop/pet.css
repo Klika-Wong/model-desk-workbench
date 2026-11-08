@@ -17,17 +17,21 @@ body { font-family: "Segoe UI", "Microsoft YaHei", sans-serif; -webkit-user-sele
 .pet-actor .avatar-figure { object-fit: contain; width: 100%; height: 100%; }
 /* 与主界面同一套 spritesheet 播放规则（八帧一行、九行动作）。 */
 .pet-sprite {
+  /* 取景窗：只露出一帧，内部 strip 用 transform 平移，走合成器不重绘。 */
   width: var(--pet-w); height: var(--pet-h);
+  overflow: hidden;
+  pointer-events: none;
+}
+.pet-strip {
+  width: calc(var(--pet-w) * 8); height: var(--pet-h);
   background-image: var(--pet-sheet); background-repeat: no-repeat;
   background-size: calc(var(--pet-w) * 8) calc(var(--pet-h) * 9);
-  background-position-x: 0;
-  background-position-y: calc(var(--pet-row, 0) * var(--pet-h) * -1);
-  animation: pet-play 1.44s steps(8) infinite;
-  transform: scaleX(var(--pet-flip, 1));
+  background-position: 0 calc(var(--pet-row, 0) * var(--pet-h) * -1);
+  animation: pet-play 1.9s steps(8) infinite;
 }
 @keyframes pet-play {
-  from { background-position-x: 0; }
-  to { background-position-x: calc(var(--pet-w) * -8); }
+  from { transform: translate3d(0, 0, 0) scaleX(var(--pet-flip, 1)); }
+  to { transform: translate3d(calc(var(--pet-w) * -8), 0, 0) scaleX(var(--pet-flip, 1)); }
 }
 
 .pet-bubble {
@@ -82,3 +86,13 @@ body { font-family: "Segoe UI", "Microsoft YaHei", sans-serif; -webkit-user-sele
 .pet-chat-status { margin: 5px 0 0; font-size: 10px; line-height: 1.4; color: #64748b; }
 
 @media (prefers-reduced-motion: reduce) { .pet-sprite { animation: none; } }
+
+/* 降低动效：关掉循环序列帧、流光与呼吸，排查闪烁或低配机器使用。 */
+html[data-reduce-motion="1"] .pet-strip,
+html[data-reduce-motion="1"] .pet-sprite { animation: none !important; }
+html[data-reduce-motion="1"] .stage-actor-avatar { animation: none !important; }
+html[data-reduce-motion="1"] .collab-link.is-active { animation: none !important; }
+html[data-reduce-motion="1"] .collab-pulse { display: none !important; }
+html[data-reduce-motion="1"] .stage-actor.is-placed { transition-duration: 1ms !important; }
+.motion-toggle { display: flex; align-items: flex-start; gap: 6px; font-size: 12px; line-height: 1.5; color: var(--ink-2); }
+.motion-toggle input { margin-top: 2px; flex: none; }

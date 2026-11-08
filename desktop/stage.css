@@ -99,7 +99,7 @@
 .stage-actor.is-dragging { cursor: grabbing; z-index: 6; transition: none; will-change: transform; }
 @media (prefers-reduced-motion: reduce) { .stage-actor { transition: none; } }
 .stage-actor-avatar {
-  --pet-w: 116px; --pet-h: 125.67px;
+  --pet-w: 120px; --pet-h: 130px;
   position: relative; width: var(--pet-w); height: var(--pet-h);
   display: grid; place-items: center; border: 0; background: transparent;
   overflow: visible; font-size: 52px; transition: filter .2s, transform .2s;
@@ -112,18 +112,21 @@
 
 /* spritesheet：8 帧一行、9 行动作，只用 CSS 播，不引动画引擎 */
 .pet-sprite {
+  /* 取景窗：只露出一帧，内部 strip 用 transform 平移，走合成器不重绘。 */
   width: var(--pet-w); height: var(--pet-h);
+  overflow: hidden;
+  pointer-events: none;
+}
+.pet-strip {
+  width: calc(var(--pet-w) * 8); height: var(--pet-h);
   background-image: var(--pet-sheet); background-repeat: no-repeat;
   background-size: calc(var(--pet-w) * 8) calc(var(--pet-h) * 9);
-  background-position-x: 0;
-  background-position-y: calc(var(--pet-row, 0) * var(--pet-h) * -1);
+  background-position: 0 calc(var(--pet-row, 0) * var(--pet-h) * -1);
   animation: pet-play 1.9s steps(8) infinite;
-  transform: scaleX(var(--pet-flip, 1));
-  contain: paint;
 }
 @keyframes pet-play {
-  from { background-position-x: 0; }
-  to { background-position-x: calc(var(--pet-w) * -8); }
+  from { transform: translate3d(0, 0, 0) scaleX(var(--pet-flip, 1)); }
+  to { transform: translate3d(calc(var(--pet-w) * -8), 0, 0) scaleX(var(--pet-flip, 1)); }
 }
 .avatar-figure { width: 100%; height: 100%; object-fit: contain; pointer-events: none; filter: hue-rotate(var(--char-hue, 0deg)); }
 .stage-actor-avatar[data-avatar-choice="crab"] .avatar-figure { transform: scale(1.7); }
@@ -161,8 +164,14 @@
   border: 1px solid var(--line); border-radius: 9px; background: var(--surface-2);
   cursor: pointer; font-size: 9px; line-height: 1.25; color: var(--ink-2); text-align: center;
 }
-.outfit-item img { width: 46px; height: 50px; object-fit: contain; }
+.outfit-item img, .outfit-item .thumb-sprite { width: 46px; height: 50px; object-fit: contain; }
 .outfit-glyph { width: 46px; height: 50px; display: grid; place-items: center; font-size: 26px; }
+.thumb-sprite {
+  display: block; width: 100%; height: 100%;
+  background-repeat: no-repeat;
+  background-size: 800% 900%;
+  background-position: 0 0;
+}
 .outfit-item span:last-child { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .outfit-item:hover, .outfit-item.is-active { border-color: var(--accent); background: var(--accent-soft); }
 .outfit-picker .hint { margin: 8px 0 0; font-size: 9px; }
@@ -354,3 +363,13 @@ html[data-theme="dark"] .dialogue-box { background: color-mix(in srgb, var(--sur
 .dialogue-box[data-kind="task"] { box-shadow: 0 0 0 1px var(--accent), 0 14px 32px -18px rgba(6, 10, 18, .8); }
 .turn-kind { margin-top: 3px; font-size: 10px; color: var(--accent); }
 .collab-edge-tag { fill: var(--muted); font-size: 9px; paint-order: stroke; stroke: var(--surface); stroke-width: 3px; }
+
+/* 降低动效：关掉循环序列帧、流光与呼吸，排查闪烁或低配机器使用。 */
+html[data-reduce-motion="1"] .pet-strip,
+html[data-reduce-motion="1"] .pet-sprite { animation: none !important; }
+html[data-reduce-motion="1"] .stage-actor-avatar { animation: none !important; }
+html[data-reduce-motion="1"] .collab-link.is-active { animation: none !important; }
+html[data-reduce-motion="1"] .collab-pulse { display: none !important; }
+html[data-reduce-motion="1"] .stage-actor.is-placed { transition-duration: 1ms !important; }
+.motion-toggle { display: flex; align-items: flex-start; gap: 6px; font-size: 12px; line-height: 1.5; color: var(--ink-2); }
+.motion-toggle input { margin-top: 2px; flex: none; }

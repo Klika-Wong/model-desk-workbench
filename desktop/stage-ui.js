@@ -122,6 +122,14 @@
     }
   }
 
+  // 缩略图用 spritesheet 的第一帧，不再加载 .gif：几十张 GIF 同时解码会拖主线程。
+  function thumbSprite(src) {
+    const box = document.createElement('span');
+    box.className = 'thumb-sprite';
+    box.style.backgroundImage = `url("${src}")`;
+    return box;
+  }
+
   function outfitChip(choice, cur, actor) {
     const btn = document.createElement('button');
     btn.type = 'button';
@@ -129,8 +137,7 @@
     btn.title = choice.label;
     btn.dataset.value = choice.value;
     if (choice.thumb) {
-      const img = document.createElement('img'); img.src = choice.thumb; img.alt = '';
-      btn.append(img);
+      btn.append(thumbSprite(choice.thumb));
     } else btn.textContent = choice.glyph || '·';
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -160,8 +167,7 @@
       item.className = 'outfit-item' + (choice.value === cur ? ' is-active' : '');
       item.title = choice.label;
       if (choice.thumb) {
-        const img = document.createElement('img'); img.src = choice.thumb; img.alt = '';
-        item.append(img);
+        item.append(thumbSprite(choice.thumb));
       } else {
         const glyph = document.createElement('span'); glyph.className = 'outfit-glyph';
         glyph.textContent = choice.glyph || '·'; item.append(glyph);
@@ -665,13 +671,13 @@
     const choice = currentPet(actor.model);
     const thumb = row.firstElementChild;
     if (choice.indexOf('roster:') === 0 && AVATARS) {
-      const src = AVATARS.R + choice.slice(7) + '.gif';
-      let img = thumb.querySelector('img');
-      if (!img) {
-        thumb.replaceChildren(); img = document.createElement('img');
-        img.alt = ''; img.loading = 'lazy'; img.decoding = 'async'; thumb.append(img);
+      const src = `url("${AVATARS.R}${choice.slice(7)}.webp")`;
+      let box = thumb.querySelector('.thumb-sprite');
+      if (!box) {
+        thumb.replaceChildren();
+        box = document.createElement('span'); box.className = 'thumb-sprite'; thumb.append(box);
       }
-      if (img.getAttribute('src') !== src) img.src = src;
+      if (box.style.backgroundImage !== src) box.style.backgroundImage = src;
     } else {
       const glyph = choice.indexOf('emoji:') === 0 ? choice.slice(6) : '◈';
       if (thumb.textContent !== glyph) thumb.textContent = glyph;

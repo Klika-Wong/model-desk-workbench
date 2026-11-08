@@ -311,10 +311,10 @@ async function main() {
     const zones = document.querySelectorAll('.zone-label').length;
     const autoPlace = Boolean(document.querySelector('#stage-auto-place')?.checked);
     const noOutfitBar = document.querySelectorAll('.stage-actor .actor-outfits').length === 0;
-    const sprites = document.querySelectorAll('.stage-actor .pet-sprite').length;
-    const sheets = [...document.querySelectorAll('.stage-actor .pet-sprite')].map((x) => x.style.getPropertyValue('--pet-sheet'));
+    const sprites = document.querySelectorAll('.stage-actor .pet-strip').length;
+    const sheets = [...document.querySelectorAll('.stage-actor .pet-strip')].map((x) => x.style.getPropertyValue('--pet-sheet'));
     const distinctSheets = new Set(sheets).size;
-    const deepseekRoster = (document.querySelector('.stage-actor[data-model-id="m-deepseek"] .pet-sprite') || { style: { getPropertyValue: () => '' } }).style.getPropertyValue('--pet-sheet').includes('deepseek-');
+    const deepseekRoster = (document.querySelector('.stage-actor[data-model-id="m-deepseek"] .pet-strip') || { style: { getPropertyValue: () => '' } }).style.getPropertyValue('--pet-sheet').includes('deepseek-');
     const headerText = document.querySelector('#stage-page h1').textContent;
     const consentExists = Boolean(document.querySelector('#stage-consent'));
     const introHonest = document.querySelector('#stage-page .intro').textContent.includes('真的调用在线模型');
@@ -521,6 +521,16 @@ async function main() {
     await wait(100);
     const focusReturned = document.activeElement === kbActor;
 
+    // 降低动效：开起来后循环序列帧与呼吸动画都必须停，用于排查闪烁
+    const root = document.documentElement;
+    root.dataset.reduceMotion = '1';
+    await wait(120);
+    const stripAnim = getComputedStyle(document.querySelector('.pet-strip')).animationName;
+    const breatheAnim = getComputedStyle(document.querySelector('.stage-actor-avatar')).animationName;
+    root.dataset.reduceMotion = '0';
+    await wait(80);
+    const stripAnimBack = getComputedStyle(document.querySelector('.pet-strip')).animationName;
+
     // 页内小窗：工位网格 / 休息地毯 / 分隔线都不该残留
     const petToggle = document.querySelector('#stage-pet');
     petToggle.checked = true; petToggle.dispatchEvent(new Event('change'));
@@ -542,7 +552,7 @@ async function main() {
     clearBtn.click();
     await wait(150);
     const afterSecond = JSON.parse(localStorage.getItem('collab-messages') || '[]').length;
-    return { samePath, dlgHidden, turnsBefore, turnsAfter, storedBefore, storedAfter, rowsAfter, nodesAfter, edgesAfterRebuild, idleRows, idleAnimated, menuFocused, menuRole, focusReturned, petDecor, dividerHidden, afterFirst, afterSecond, armedLabel };
+    return { samePath, dlgHidden, turnsBefore, turnsAfter, storedBefore, storedAfter, rowsAfter, nodesAfter, edgesAfterRebuild, idleRows, idleAnimated, stripAnim, breatheAnim, stripAnimBack, menuFocused, menuRole, focusReturned, petDecor, dividerHidden, afterFirst, afterSecond, armedLabel };
    } catch (e) { return { jsError: String((e && e.stack) || e) }; }
   })()`);
   if (ux.jsError) throw new Error('UX 回归段异常：' + ux.jsError);
@@ -554,12 +564,14 @@ async function main() {
   if (ux.rowsAfter !== ux.nodesAfter) throw new Error(`重建舞台后状态行重复：${ux.rowsAfter}/${ux.nodesAfter}`);
   if (ux.edgesAfterRebuild < 1) throw new Error('重建舞台后历史交流没有对应连线');
   if (!ux.idleAnimated) throw new Error(`待机小动作没生效，动作行一直是：${ux.idleRows}`);
+  if (ux.stripAnim !== 'none' || ux.breatheAnim !== 'none') throw new Error(`降低动效没停掉动画：${ux.stripAnim}/${ux.breatheAnim}`);
+  if (ux.stripAnimBack === 'none') throw new Error('关掉降低动效后序列帧没有恢复');
   if (!ux.menuFocused || ux.menuRole !== 'menu') throw new Error(`菜单没有接管键盘焦点：${ux.menuFocused}/${ux.menuRole}`);
   if (!ux.focusReturned) throw new Error('Esc 没有把焦点还给角色');
   if (ux.petDecor !== 'none' || ux.dividerHidden !== 'none') throw new Error(`页内小窗残留分区装饰：${ux.petDecor}/${ux.dividerHidden}`);
   if (ux.afterFirst !== ux.storedBefore || !ux.armedLabel.includes('再点一次')) throw new Error(`清空没有二次确认：${JSON.stringify(ux)}`);
   if (ux.afterSecond !== 0) throw new Error(`二次确认后没有清空历史：${ux.afterSecond}`);
-  result.checks.push('collab-no-link-rebuild', 'collab-dialogue-dismiss', 'collab-history-consistency', 'collab-clear-confirm', 'collab-consent-gate', 'collab-menu-keyboard', 'collab-pet-mode-clean', 'collab-idle-motion');
+  result.checks.push('collab-no-link-rebuild', 'collab-dialogue-dismiss', 'collab-history-consistency', 'collab-clear-confirm', 'collab-consent-gate', 'collab-menu-keyboard', 'collab-pet-mode-clean', 'collab-idle-motion', 'collab-reduce-motion');
 
   // 留两张图：默认关系图、桌宠模式。
   const spriteReady = await js(`(async () => {
@@ -575,7 +587,7 @@ async function main() {
     await new Promise(r => setTimeout(r, 500));
     // 隐藏窗口的合成器会滞后；重建 DOM 后必须等每张 spritesheet 真正解码完，
     // 否则抓到的帧里只有名字、没有角色。
-    const urls = [...new Set([...document.querySelectorAll('.pet-sprite')]
+    const urls = [...new Set([...document.querySelectorAll('.pet-strip')]
       .map((n) => (getComputedStyle(n).backgroundImage.match(/url[(]["']?([^"')]+)/) || [])[1])
       .filter(Boolean))];
     await Promise.all(urls.map((u) => new Promise((res) => {
@@ -588,7 +600,7 @@ async function main() {
       img.src = u;
     })));
     await new Promise(r => setTimeout(r, 600));
-    return { sheets: urls.length, sprites: document.querySelectorAll('.pet-sprite').length };
+    return { sheets: urls.length, sprites: document.querySelectorAll('.pet-strip').length };
   })()`);
   if (!spriteReady.sheets || !spriteReady.sprites) throw new Error(`截图前角色素材没就绪：${JSON.stringify(spriteReady)}`);
   for (let i = 0; i < 8; i += 1) { await wait(300); await win.capturePage(); }

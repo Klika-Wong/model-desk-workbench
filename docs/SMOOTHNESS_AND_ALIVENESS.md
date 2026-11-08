@@ -66,3 +66,36 @@ Frame diffs as described above; dark theme measured at `rgb(23,24,28)` with a 43
 The idle beat is a fixed random interval with no adaptivity; desks and furniture are CSS hints only,
 not real scene art; walking is straight-line interpolation without pathing; and pet dragging on
 mixed-DPI multi-monitor setups is still untested.
+
+## Follow-up: "is it the GIFs?" (same day)
+
+First, a correction: the earlier "zero differing pixels" measurement was unreliable. `capturePage`
+on a window that is not in the foreground returns the last cached composition, so animation frames
+never appear. The conclusion "the render layer is not repainting" was a method error, not a finding.
+
+GIFs are half the story. Characters on the main screen and in the floating pet use WebP spritesheets,
+not GIF. But the outfit library and status list thumbnails did load `roster/*.gif`, and dozens decoding
+at once does stall the main thread. Those now use the WebP sheet's first frame
+(`background-size: 800% 900%`), so the default path loads no GIFs at all. The Dafeiyu pet is still a
+GIF and remains an opt-in choice.
+
+Three actual causes, all fixed:
+
+1. Sprite frames advanced via `background-position`, which is a **paint** animation (redraw the frame
+   and sample the 960x1170 sheet every step). Now a fixed "viewfinder" clips an inner strip that is
+   translated with `transform: translate3d()` at `steps(8)` — compositor only, no repaint. Applied to
+   the collaboration view, the floating pet and the chat page.
+2. `--pet-h` was `125.67px`. Every row offset was fractional, so the browser sampled at subpixel
+   positions: rows bled into each other and edges jittered frame to frame. Now **120x130**, which keeps
+   the source 96x104 ratio (0.923) and makes the 960x1170 background an exact integer multiple.
+3. A permanent `will-change: transform` plus `contain: paint` promoted every actor to its own layer;
+   combined with `transparent: true` on the pet window this forced whole-window recomposition each
+   frame. Those hints are gone, and the pet window sets an explicit `#00000000` background.
+
+A new **Reduce motion** setting turns off the looping sprite animation, the link flow and the breathing
+animation, and collapses position transitions to 1ms. It is useful on low-end machines and for light
+sensitivity, but more importantly it is a one-click test: if the flicker persists with it enabled, the
+cause is window composition or the GPU driver, not front-end animation.
+
+Verification: 178/178 unit tests, 42 real-window UI checks, including `collab-reduce-motion` which
+requires `animation-name` to become `none` and to come back afterwards.
