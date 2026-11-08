@@ -503,6 +503,12 @@ async function main() {
     // 从历史反推引用边：重建舞台后记录与连线必须同时存在
     const edgesAfterRebuild = document.querySelectorAll('#stage-links path.collab-link').length;
 
+    // 待机小动作：手动触发一次，角色的动作行应切到招手(3)或跳跃(4)，而不是永远停在第 0 行
+    window.__stageUi.idlePoke();
+    await wait(150);
+    const idleRows = [...document.querySelectorAll('.pet-sprite')].map((n) => n.style.getPropertyValue('--pet-row'));
+    const idleAnimated = idleRows.includes('3') || idleRows.includes('4');
+
     // 菜单键盘可达：Shift+F10 打开后焦点应落在菜单内，Esc 归还角色
     const kbActor = document.querySelector('.stage-actor');
     kbActor.focus();
@@ -536,7 +542,7 @@ async function main() {
     clearBtn.click();
     await wait(150);
     const afterSecond = JSON.parse(localStorage.getItem('collab-messages') || '[]').length;
-    return { samePath, dlgHidden, turnsBefore, turnsAfter, storedBefore, storedAfter, rowsAfter, nodesAfter, edgesAfterRebuild, menuFocused, menuRole, focusReturned, petDecor, dividerHidden, afterFirst, afterSecond, armedLabel };
+    return { samePath, dlgHidden, turnsBefore, turnsAfter, storedBefore, storedAfter, rowsAfter, nodesAfter, edgesAfterRebuild, idleRows, idleAnimated, menuFocused, menuRole, focusReturned, petDecor, dividerHidden, afterFirst, afterSecond, armedLabel };
    } catch (e) { return { jsError: String((e && e.stack) || e) }; }
   })()`);
   if (ux.jsError) throw new Error('UX 回归段异常：' + ux.jsError);
@@ -547,12 +553,13 @@ async function main() {
   }
   if (ux.rowsAfter !== ux.nodesAfter) throw new Error(`重建舞台后状态行重复：${ux.rowsAfter}/${ux.nodesAfter}`);
   if (ux.edgesAfterRebuild < 1) throw new Error('重建舞台后历史交流没有对应连线');
+  if (!ux.idleAnimated) throw new Error(`待机小动作没生效，动作行一直是：${ux.idleRows}`);
   if (!ux.menuFocused || ux.menuRole !== 'menu') throw new Error(`菜单没有接管键盘焦点：${ux.menuFocused}/${ux.menuRole}`);
   if (!ux.focusReturned) throw new Error('Esc 没有把焦点还给角色');
   if (ux.petDecor !== 'none' || ux.dividerHidden !== 'none') throw new Error(`页内小窗残留分区装饰：${ux.petDecor}/${ux.dividerHidden}`);
   if (ux.afterFirst !== ux.storedBefore || !ux.armedLabel.includes('再点一次')) throw new Error(`清空没有二次确认：${JSON.stringify(ux)}`);
   if (ux.afterSecond !== 0) throw new Error(`二次确认后没有清空历史：${ux.afterSecond}`);
-  result.checks.push('collab-no-link-rebuild', 'collab-dialogue-dismiss', 'collab-history-consistency', 'collab-clear-confirm', 'collab-consent-gate', 'collab-menu-keyboard', 'collab-pet-mode-clean');
+  result.checks.push('collab-no-link-rebuild', 'collab-dialogue-dismiss', 'collab-history-consistency', 'collab-clear-confirm', 'collab-consent-gate', 'collab-menu-keyboard', 'collab-pet-mode-clean', 'collab-idle-motion');
 
   // 留两张图：默认关系图、桌宠模式。
   const spriteReady = await js(`(async () => {

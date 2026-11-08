@@ -16,6 +16,13 @@ let state = { x: null, y: null, locked: false, alwaysOnTop: true, outfit: null, 
 // 拖拽基准：窗口跟着鼠标动时，渲染进程的 clientX/Y 会反向变化，必须用屏幕绝对坐标。
 let dragOrigin = null;
 let dragWinStart = null;
+// 位置写盘必须去抖：拖动时 setPosition 每帧触发 moved，同步 writeFileSync 会堵住主进程，
+// drag-move 排队延迟 → 窗口跳跃追赶光标，表现就是「自己乱跑」。
+let saveTimer = null;
+function scheduleSave(delay) {
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => { saveTimer = null; save(); }, delay == null ? 500 : delay);
+}
 
 // 配置文件可能被手改坏或来自旧版本，读进来先收紧，别让怪值进窗口构造参数。
 function sanitizeState(raw) {
@@ -59,14 +66,24 @@ function create() {
       backgroundThrottling: false,
     },
   });
+  // 位置可能来自旧显示器配置，落在屏幕外就拉回主屏，否则用户「拖不到」。
+  const area = screen.getPrimaryDisplay().workArea;
+  const outside = pos.x + WIDTH < area.x || pos.x > area.x + area.width
+    || pos.y + HEIGHT < area.y || pos.y > area.y + area.height;
+  if (outside) petWindow.setPosition(defaultPosition().x, defaultPosition().y);
   petWindow.loadFile(path.join(__dirname, 'pet.html'));
   petWindow.once('ready-to-show', () => petWindow.showInactive());
   petWindow.on('moved', () => {
     if (!petWindow || petWindow.isDestroyed()) return;
     const [x, y] = petWindow.getPosition();
-    state.x = x; state.y = y; save();
+    state.x = x; state.y = y;
+    if (!dragOrigin) scheduleSave(600);  // 拖动中只记内存，松手后统一落盘
   });
-  petWindow.on('closed', () => { petWindow = null; });
+  petWindow.on('closed', () => {
+    if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
+    save();
+    petWindow = null;
+  });
   return petWindow;
 }
 
@@ -117,16 +134,18 @@ function registerPetWindow(userDataPath) {
       if (!dragOrigin || !dragWinStart || state.locked) return { ok: true };
       const p = screen.getCursorScreenPoint();
       // 用「起点窗口位置 + 累计屏幕位移」，不累加增量，避免抖动与方向反转。
-      petWindow.setPosition(
-        dragWinStart[0] + Math.round(p.x - dragOrigin.x),
-        dragWinStart[1] + Math.round(p.y - dragOrigin.y),
-      );
+      const nx = dragWinStart[0] + Math.round(p.x - dragOrigin.x);
+      const ny = dragWinStart[1] + Math.round(p.y - dragOrigin.y);
+      const [cx, cy] = petWindow.getPosition();
+      if (nx !== cx || ny !== cy) petWindow.setPosition(nx, ny);
       return { ok: true };
     }
     if (action === 'drag-end') {
       dragOrigin = null; dragWinStart = null;
       const [x, y] = petWindow.getPosition();
-      state.x = x; state.y = y; save();
+      state.x = x; state.y = y;
+      if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
+      save();
       return { ok: true, data: { x, y } };
     }
     if (action === 'move') {

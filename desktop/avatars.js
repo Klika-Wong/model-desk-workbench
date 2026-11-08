@@ -37,6 +37,7 @@ const ACTIONS = { idle: 0, moveRight: 1, moveLeft: 2, wave: 3, jump: 4, fail: 5,
 const STATE_ACTION = {
   waiting: 'idle', thinking: 'work', speaking: 'work', done: 'wave',
   failed: 'fail', stalled: 'wait', poke: 'jump', drag: 'moveRight',
+  wave: 'wave',
 };
 const SCENE_ACTION = { discuss: null, work: 'work', slack: 'idle' };
 

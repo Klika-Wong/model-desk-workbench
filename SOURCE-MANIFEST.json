@@ -1071,8 +1071,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "3ca89eff499ed13707a653ae833dca81ab8d48b94a237b6a8bf27b19ea02c74e",
-      "bytes": 14709
+      "sha256": "28c57c3ca545ae68a9100db1eeb11285b94ed5c44d510df360dde93656fc9bf3",
+      "bytes": 16777
     },
     {
       "path": "LICENSE",
@@ -1631,8 +1631,8 @@
     },
     {
       "path": "desktop/avatars.js",
-      "sha256": "a58941e297e55096963fe0b255011cdf462b4839cb6ded08053f0c6b785f487d",
-      "bytes": 13046
+      "sha256": "a263d314dc753a95193f8dece251b625a3e29259e2a92db77b8cd58a07978937",
+      "bytes": 13062
     },
     {
       "path": "desktop/avatars.test.cjs",
@@ -1756,8 +1756,8 @@
     },
     {
       "path": "desktop/index.html",
-      "sha256": "0010805d47d51ad473d0e88aa05f0e57dc946130a0a5df5677bbb87707410118",
-      "bytes": 38347
+      "sha256": "6b0716ed6a5b7b5836d260ac3c8f226a59b95407b7fab31c10d137bb16d9a78f",
+      "bytes": 38329
     },
     {
       "path": "desktop/main.cjs",
@@ -1991,8 +1991,8 @@
     },
     {
       "path": "desktop/pet-window.cjs",
-      "sha256": "ed19f216da19f514fa94ca9a4bddde70ab38ecee8892fa933be8395ad78c3c20",
-      "bytes": 6829
+      "sha256": "b92aecd7f99f5b83f5116341366543a1093f9773d36cd6550298bfa07e6a4c3d",
+      "bytes": 7934
     },
     {
       "path": "desktop/pet-window.test.cjs",
@@ -2036,13 +2036,13 @@
     },
     {
       "path": "desktop/stage-ui.js",
-      "sha256": "59b4e0b41539430a42514329b81ca5178c0661fdaf6d67cbedfaec3150ac7699",
-      "bytes": 54110
+      "sha256": "edc86277ffa682aeb1b51897e4b3357341b080b6105cb795e0ab285b4bc0d020",
+      "bytes": 57786
     },
     {
       "path": "desktop/stage.css",
-      "sha256": "d63f1a231d4690a53d03b67624cbae430fcbad525b9fcb94b8d06b9d68dd640a",
-      "bytes": 20806
+      "sha256": "7b78c7953b1db3618a9b96c1d7b754f63db92846bfd2dbd94d187abb654e6aa5",
+      "bytes": 22830
     },
     {
       "path": "desktop/style.css",
@@ -2091,8 +2091,8 @@
     },
     {
       "path": "desktop/ui-verify.cjs",
-      "sha256": "253bc30cdbf183135410c265cfb6a619a29cdae0c880f48c5a7b65c3353ccd04",
-      "bytes": 69249
+      "sha256": "7fc5a1b79c3e08e60a553d396c6dc60f2dcee59a696e79f790b60f6651ab54a0",
+      "bytes": 69778
     },
     {
       "path": "desktop/verify-routing.cjs",
@@ -2265,6 +2265,11 @@
       "bytes": 2510
     },
     {
+      "path": "docs/SMOOTHNESS_AND_ALIVENESS.md",
+      "sha256": "7fbe0b3396870346f7a8393d777bf65f00d20e978bc60623bf8deec43d8485bf",
+      "bytes": 4105
+    },
+    {
       "path": "docs/UIUX_REREVIEW.md",
       "sha256": "4b12b46b89919a3764b386bf9e1fd2563461bc45d94d6f6b889980c80834d54b",
       "bytes": 4928
@@ -2370,5 +2375,5 @@
       "bytes": 1693
     }
   ],
-  "revision_note": "2026-11-08 sub-agent re-review: real flicker root cause, ghost dispatch guard, explicit model-call consent, dialogue out of canvas"
+  "revision_note": "2026-11-08 smoothness and aliveness: pet drag debounce, transform-based movement, idle beats, ground shadows"
 }

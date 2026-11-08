@@ -45,7 +45,9 @@
   let dialogueTimer = null, dialoguePinned = false, lastMessage = null;
   let clearArmed = 0, clearArmTimer = null;
   let stopRequested = false, abortTurn = null;
+  let idleBeatTimer = null;
   const KIND_LABEL = { task: '上级交付', ack: '1v1 回执', chat: '1v1 交流', broadcast: '1v多 广播' };
+  const TURN_LIMIT = 40;
 
   const aliasOf = (model) => (window.__modelAlias ? window.__modelAlias.of(model) : (model.name || model.id));
   const petKey = (id) => 'pet-avatar:' + id;
@@ -224,11 +226,11 @@
     const sep = document.createElement('div'); sep.className = 'ctx-sep'; contextMenu.append(sep);
     contextMenu.append(menuButton('改显示名称', 'rename', '同步到对话与派发页'));
     contextMenu.append(menuButton('看它的引用关系', 'select'));
-    contextMenu.append(menuButton(actor.manualPos ? '取消固定位置' : '固定在此位置', 'pin'));
-    contextMenu.append(menuButton(autoPlace ? '自动归位：开' : '自动归位：关', 'auto', '按状态分区'));
-    contextMenu.append(menuButton('悬浮到桌面', 'pet'));
+    contextMenu.append(menuButton(actor.manualPos ? '取消固定位置' : '固定此角色位置', 'pin', actor.manualPos ? '恢复随状态归位' : '不再随状态移动'));
+    contextMenu.append(menuButton(autoPlace ? '关闭自动归位' : '打开自动归位', 'auto', autoPlace ? '当前：按状态分区' : '当前：角色不再自动移动'));
+    contextMenu.append(menuButton('悬浮到桌面', 'pet', '新开独立小窗'));
     contextMenu.append(menuButton(dialoguePinned ? '对话框：保持显示' : '对话框：说完 8 秒自动收起', 'dialogue', '悬停暂停 · 点一下收起'));
-    contextMenu.append(menuButton('去「模型与额度」', 'activate'));
+    contextMenu.append(menuButton('去「模型与额度」查看连接', 'activate'));
     contextMenu.append(menuButton('清空交流记录', 'clear', '需二次确认'));
     contextMenu.hidden = false;
     const rect = contextMenu.getBoundingClientRect();
@@ -331,6 +333,16 @@
     if (zoneOf(state) !== oldZone) applyEcosystem();  // 只在跨区时才重排，避免日志轮询来回跳
   }
 
+  // 位置写成 transform 的位移，不走 left/top：left/top 是布局属性，每帧触发重排重绘，
+  // 角色走动 + 连线每帧改 d 一起压主线程，看起来就是「抖 / 滑 / 卡」。
+  // transform 由合成器处理，过渡只重绘角色本身。
+  function setActorPos(el, x, y) {
+    if (!el) return;
+    const w = floor.clientWidth || 800, h = floor.clientHeight || 400;
+    el.style.setProperty('--ax', (x * w).toFixed(1) + 'px');
+    el.style.setProperty('--ay', (y * h).toFixed(1) + 'px');
+  }
+
   function actorCenter(actor) {
     const fr = floor.getBoundingClientRect();
     const ar = actor.el.getBoundingClientRect();
@@ -373,14 +385,22 @@
         const x = slot.total === 1 ? (x0 + x1) / 2 : x0 + (x1 - x0) * slot.c / (slot.total - 1);
         // 角色落在画布中段：既不空一大片，也不被底部对话框压住头像和名字。
         const y = rows === 1 ? 0.44 : 0.30 + slot.r * (0.28 / (rows - 1));
-        const moved = Math.hypot(a.pos.x - x, a.pos.y - y) > 0.02;
+        const dist = Math.hypot(a.pos.x - x, a.pos.y - y);
+        const moved = dist > 0.02;
+        // 走路时长跟距离挂钩：近距离 0.34s，远距离 0.86s，避免"瞬移"或"滑冰"。
+        a.el.style.setProperty('--walk', Math.round(340 + Math.min(0.72, dist) * 700) + 'ms');
         a.pos = { x, y };
-        a.el.style.left = (x * 100) + '%';
-        a.el.style.top = (y * 100) + '%';
+        setActorPos(a.el, x, y);
         a.zone = zoneOf(a.el.dataset.state);
-        if (moved && discussing) setVisual(a, slot.c % 2 ? 'moveLeft' : 'moveRight', 520);
+        if (moved && discussing) {
+          const walkMs = Number((a.el.style.getPropertyValue('--walk') || '').replace('ms', '')) || 450;
+          setVisual(a, x < a.pos.x ? 'moveLeft' : 'moveRight', walkMs);
+        }
       });
     };
+    // 分区标签跟真实占用走：没人在生成时工作区标「空闲」，避免「工作区」里站着三个待机角色。
+    if (floor) floor.dataset.busy = work.length ? '1' : '0';
+
     take(left, slots.left, slots.right);
     if (discussing) take(right, slots.right, slots.left);
     lastLinkSig = '';
@@ -538,18 +558,24 @@
 
   function pushMessage(msg) {
     messages.push(Object.assign({ seq: messages.length + 1 }, msg));
-    // 交流记录留在本机：这正是历史记录功能当初要承接的概念。
-    try { write(MESSAGE_KEY, JSON.stringify(messages.slice(-40))); } catch {}
-    renderTurns();
+    // 内存与磁盘都只留最近 40 条：只裁写盘不裁内存会让列表越用越慢。
+    if (messages.length > TURN_LIMIT) messages = messages.slice(-TURN_LIMIT);
+    try { write(MESSAGE_KEY, JSON.stringify(messages)); } catch {}
+    appendTurn(messages[messages.length - 1]);
     showDialogue(msg);
   }
+  function resetDialogue() {
+    if (dialogueTimer) clearTimeout(dialogueTimer);
+    dialogueTimer = null;
+    lastMessage = null;
+    if (dialogueBox) dialogueBox.hidden = true;
+  }
+
   function clearMessages() {
     messages = [];
     try { localStorage.removeItem(MESSAGE_KEY); } catch {}
     renderTurns();
-    if (dialogueTimer) clearTimeout(dialogueTimer);
-    dialogueTimer = null; lastMessage = null;
-    if (dialogueBox) dialogueBox.hidden = true;
+    resetDialogue();
     clearArmed = 0;
     statusLine.textContent = '本机交流历史已清空（不可恢复）。';
   }
@@ -560,6 +586,32 @@
     } catch { messages = []; }
     // 历史只进列表；启动时不再把上一条对话弹出来常驻画布。
     if (messages.length) renderTurns();
+  }
+
+  function buildTurnNode(msg) {
+    const li = document.createElement('li');
+    li.className = 'collab-turn' + (selectedId === msg.from ? ' is-selected' : '');
+    li.dataset.modelId = msg.from;
+    li.dataset.kind = msg.kind;
+    const idx = document.createElement('span'); idx.className = 'turn-idx';
+    idx.textContent = String(msg.seq).padStart(2, '0');
+    const body = document.createElement('div'); body.className = 'turn-body';
+    const head = document.createElement('div'); head.className = 'turn-head';
+    const name = document.createElement('strong'); name.textContent = msg.fromName; name.title = name.textContent;
+    const ref = document.createElement('span'); ref.className = 'turn-ref';
+    ref.textContent = '参考 ' + (msg.refs ? msg.refs.length : 0) + ' 条';
+    head.append(name, ref);
+    const kind = document.createElement('div'); kind.className = 'turn-kind';
+    kind.textContent = KIND_LABEL[msg.kind] + ' · ' +
+      (msg.kind === 'task' ? '→ 全体' : msg.kind === 'ack' ? '→ 上级' : msg.kind === 'broadcast' ? '→ 前面 ' + msg.refs.length + ' 位' : '→ ' + (msg.toName || '对方'));
+    const text = document.createElement('p'); text.className = 'turn-text';
+    text.textContent = msg.text || '（没有有效输出）'; text.title = msg.text || '';
+    body.append(head, kind, text); li.append(idx, body);
+    li.addEventListener('click', () => {
+      if (msg.from !== 'host') selectActor(msg.from);
+      showDialogue(msg);
+    });
+    return li;
   }
 
   function renderTurns() {
@@ -573,31 +625,23 @@
       return;
     }
     if (turnCount) turnCount.textContent = `${messages.length} 条交流`;
-    messages.forEach((msg) => {
-      const li = document.createElement('li');
-      li.className = 'collab-turn' + (selectedId === msg.from ? ' is-selected' : '');
-      li.dataset.modelId = msg.from;
-      li.dataset.kind = msg.kind;
-      const idx = document.createElement('span'); idx.className = 'turn-idx';
-      idx.textContent = String(msg.seq).padStart(2, '0');
-      const body = document.createElement('div'); body.className = 'turn-body';
-      const head = document.createElement('div'); head.className = 'turn-head';
-      const name = document.createElement('strong'); name.textContent = msg.fromName; name.title = name.textContent;
-      const ref = document.createElement('span'); ref.className = 'turn-ref';
-      ref.textContent = '参考 ' + (msg.refs ? msg.refs.length : 0) + ' 条';
-      head.append(name, ref);
-      const kind = document.createElement('div'); kind.className = 'turn-kind';
-      kind.textContent = KIND_LABEL[msg.kind] + ' · ' +
-        (msg.kind === 'task' ? '→ 全体' : msg.kind === 'ack' ? '→ 上级' : msg.kind === 'broadcast' ? '→ 前面 ' + msg.refs.length + ' 位' : '→ ' + (msg.toName || '对方'));
-      const text = document.createElement('p'); text.className = 'turn-text';
-      text.textContent = msg.text || '（没有有效输出）'; text.title = msg.text || '';
-      body.append(head, kind, text); li.append(idx, body);
-      li.addEventListener('click', () => {
-        if (msg.from !== 'host') selectActor(msg.from);
-        showDialogue(msg);
-      });
-      turnsList.append(li);
-    });
+    for (const msg of messages) turnsList.append(buildTurnNode(msg));
+  }
+
+  // 增量追加：每来一条只建一个节点，不重建整张 40 条的列表（选中时不重建）。
+  function appendTurn(msg) {
+    if (!turnsList) return;
+    const empty = turnsList.querySelector('.collab-empty');
+    if (empty) empty.remove();
+    turnsList.append(buildTurnNode(msg));
+    while (turnsList.children.length > TURN_LIMIT) turnsList.firstElementChild.remove();
+    if (turnCount) turnCount.textContent = `${messages.length} 条交流`;
+  }
+  function syncTurnSelection() {
+    if (!turnsList) return;
+    for (const li of turnsList.children) {
+      li.classList.toggle('is-selected', Boolean(selectedId) && li.dataset.modelId === selectedId);
+    }
   }
 
   // 状态列表按 id 复用节点：日志轮询时只改文字，不重建 GIF（重建会闪）。
@@ -623,7 +667,10 @@
     if (choice.indexOf('roster:') === 0 && AVATARS) {
       const src = AVATARS.R + choice.slice(7) + '.gif';
       let img = thumb.querySelector('img');
-      if (!img) { thumb.replaceChildren(); img = document.createElement('img'); img.alt = ''; thumb.append(img); }
+      if (!img) {
+        thumb.replaceChildren(); img = document.createElement('img');
+        img.alt = ''; img.loading = 'lazy'; img.decoding = 'async'; thumb.append(img);
+      }
       if (img.getAttribute('src') !== src) img.src = src;
     } else {
       const glyph = choice.indexOf('emoji:') === 0 ? choice.slice(6) : '◈';
@@ -656,7 +703,7 @@
   function selectActor(id) {
     selectedId = selectedId === id ? null : id;
     for (const [key, actor] of actors) actor.el.classList.toggle('is-selected', key === selectedId);
-    renderTurns();
+    syncTurnSelection();
     for (const actor of actors.values()) updateStatusRow(actor);
     lastLinkSig = ''; drawLinks(true);
     if (!running && selectedId) {
@@ -675,6 +722,33 @@
     actor.pokeBubble.textContent = POKE_LINES[Math.floor(Math.random() * POKE_LINES.length)];
     actor.pokeBubble.hidden = false;
     actor.pokeTimer = setTimeout(() => { actor.pokeBubble.hidden = true; actor.pokeTimer = null; }, 1700);
+  }
+
+  // 待机节拍：隔几秒随机让一个空闲角色招个手 / 蹦一下。
+  // 只挑 waiting / done 且没有临时动作的角色，不打断正在生成的那位；
+  // 用一条全局定时器而不是每个角色一个，避免切页后定时器堆积。
+  function idlePoke() {
+    if (!actors.size) return null;
+    const pool = [...actors.values()].filter((a) => {
+      const st = a.el.dataset.state;
+      return (st === 'waiting' || st === 'done') && !a.visualState;
+    });
+    if (!pool.length) return null;
+    const a = pool[Math.floor(Math.random() * pool.length)];
+    const kind = Math.random() < 0.72 ? 'wave' : 'poke';
+    setVisual(a, kind, 900);
+    return kind;
+  }
+
+  function scheduleIdleBeat() {
+    if (idleBeatTimer) clearTimeout(idleBeatTimer);
+    idleBeatTimer = null;
+    if (page.hidden) return;
+    idleBeatTimer = setTimeout(() => {
+      idleBeatTimer = null;
+      if (!page.hidden && !running) idlePoke();
+      scheduleIdleBeat();
+    }, 4200 + Math.random() * 6200);
   }
 
   function makeDraggable(actor) {
@@ -697,7 +771,7 @@
       const x = Math.min(0.94, Math.max(0.06, start.pos.x + dx / rect.width));
       const y = Math.min(0.86, Math.max(0.14, start.pos.y + dy / rect.height));
       actor.pos = { x, y };
-      el.style.left = (x * 100) + '%'; el.style.top = (y * 100) + '%';
+      setActorPos(el, x, y);
       drawLinks();  // 结构未变，只改 d，不重建 SVG
     });
     const end = () => {
@@ -750,7 +824,7 @@
     // 同时从历史的 refs 反推引用边，否则「有 N 条交流」却一条连线都没有，点记录还会说「参考了 N 条」。
     round = []; edges = []; activeTurn = -1; lastLinkSig = '';
     lastStructSig = ''; linkNodes = []; stopFollow();
-    if (dialogueBox) { dialogueBox.hidden = true; }
+    resetDialogue();
     const start = messages.findLastIndex ? messages.findLastIndex((m) => m.kind === 'task') : -1;
     messages.slice(Math.max(0, start)).forEach((m, i) => {
       if (m.kind === 'task') return;
@@ -777,7 +851,9 @@
       const actor = { model, el, avatar, name, stateEl, meta, bubble, pokeBubble,
         pokeTimer: null, visualState: null, visualTimer: null, picker: null,
         pos: saved || { x: 0.5, y: 0.38 }, manualPos: Boolean(saved), zone: 'rest' };
-      el.style.left = (actor.pos.x * 100) + '%'; el.style.top = (actor.pos.y * 100) + '%';
+      setActorPos(el, actor.pos.x, actor.pos.y);
+      // 首帧定位完成后再开启过渡，避免「从左上角滑入」。
+      requestAnimationFrame(() => el.classList.add('is-placed'));
       actors.set(id, actor);
       name.addEventListener('click', (e) => { e.stopPropagation(); editName(actor); });
       renderAvatar(actor); makeDraggable(actor);
@@ -852,7 +928,7 @@
       }
       if (!online.length) {
         const empty = document.createElement('span'); empty.className = 'hint';
-        empty.textContent = '没有在线模型；先到「模型与额度」启用连接，再点「刷新模型」。';
+        empty.textContent = '没有在线模型：先到「模型与额度」启用连接，再点「刷新模型」重新检测。';
         modelPick.append(empty);
       }
       const boxes = [...modelPick.querySelectorAll('input[type="checkbox"]')];
@@ -866,7 +942,7 @@
       modelPick.replaceChildren();
       const fail = document.createElement('span'); fail.className = 'hint'; fail.textContent = '读取失败';
       modelPick.append(fail);
-      statusLine.textContent = `读取模型失败：${error.message}`;
+      statusLine.textContent = `读取模型失败：${error.message}。请检查「模型与额度」里的连接是否可用，再点「刷新模型」。`;
     } finally { if (btn) btn.disabled = false; }
   }
 
@@ -936,6 +1012,7 @@
     setPickerDisabled(true);
     askBtn.disabled = true; askBtn.hidden = true; if (stopBtn) stopBtn.hidden = false;
     round = []; messages = []; edges = []; activeTurn = -1; selectedId = null; lastLinkSig = '';
+    resetDialogue();
     try { localStorage.removeItem(MESSAGE_KEY); } catch {}  // 新一轮从空历史开始，内存与磁盘保持一致
     for (const actor of list) {
       setActorState(actor.model.id, 'waiting');
@@ -1030,7 +1107,10 @@
     closeContextMenu();
     if (returnTo) returnTo.focus();
   });
-  window.addEventListener('resize', () => { lastLinkSig = ''; drawLinks(true); });
+  window.addEventListener('resize', () => {
+    applyEcosystem(true);
+    lastLinkSig = ''; drawLinks(true);
+  });
   if ($('stage-auto-place')) $('stage-auto-place').addEventListener('change', (event) => {
     autoPlace = Boolean(event.target.checked);
     if (autoPlace) applyEcosystem(true);
@@ -1069,16 +1149,22 @@
     window.__chatUi?.hidePage?.();
     window.__modelsUi?.hide?.();
     for (const b of document.querySelectorAll('.nav-button')) b.classList.toggle('active', b.id === 'nav-stage');
-    if (!models.length) loadModels(); else refreshView();
+    if (!models.length) loadModels();
+    else {
+      refreshView();
+      // 页面从 hidden 变可见时才有真实宽度，按当前尺寸重算一次位置。
+      requestAnimationFrame(() => applyEcosystem(true));
+    }
+    // 首屏走 loadModels 的分支也必须启动待机节拍，否则角色永远站得笔直。
+    scheduleIdleBeat();
   }
   function hide() {
     page.hidden = true;
     $('nav-stage')?.classList.remove('active');
     closeContextMenu();
     stopFollow();
-    if (dialogueTimer) clearTimeout(dialogueTimer);
-    dialogueTimer = null;
-    if (dialogueBox && !dialoguePinned) dialogueBox.hidden = true;
+    if (idleBeatTimer) { clearTimeout(idleBeatTimer); idleBeatTimer = null; }
+    if (!dialoguePinned) resetDialogue();
   }
 
   $('nav-stage').addEventListener('click', show);
@@ -1087,5 +1173,5 @@
   }
 
   restoreMessages();
-  window.__stageUi = { show, hide, refresh: loadModels, drawLinks, buildStage, refreshView, applyEcosystem, clearMessages };
+  window.__stageUi = { show, hide, refresh: loadModels, drawLinks, buildStage, refreshView, applyEcosystem, clearMessages, idlePoke };
 })();
