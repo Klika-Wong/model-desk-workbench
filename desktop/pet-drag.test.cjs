@@ -99,3 +99,18 @@ test('桌宠窗口：来源校验挡住远程页面与路径拼接', () => {
   assert.equal(bad.ok, false);
   assert.equal(pet.isTrustedPetUrl('file:///app/index.html.evil'), false);
 });
+
+test('桌宠右键菜单与按需聚焦没有被删掉', () => {
+  const ui = fs.readFileSync(path.join(__dirname, 'pet-ui.js'), 'utf8');
+  for (const action of ['outfit', 'opaque', 'lock', 'top', 'chat', 'close']) {
+    assert.ok(ui.includes(`'${action}'`), `右键菜单缺少 ${action} 项`);
+  }
+  assert.ok(ui.includes("addEventListener('contextmenu'"), '没有监听右键菜单');
+  // 菜单必须被钳制进窗口，否则超出窗口边界会被裁掉（窗口就是绘制边界）
+  assert.ok(/Math\.min\(Math\.max\(4, x\)/.test(ui), '菜单定位没有钳制到窗口内');
+  // 只-读窗口：默认不夺焦，聊天时才临时打开
+  assert.ok(ui.includes("petControl('focusable'"), '没有按需切换窗口 focusable');
+  const win = fs.readFileSync(path.join(__dirname, 'pet-window.cjs'), 'utf8');
+  assert.ok(/focusable: false/.test(win), '桌宠窗口默认应该是不可聚焦（不抢焦点）');
+  assert.ok(/'focusable'/.test(win), '主进程没有 focusable 动作');
+});

@@ -1169,6 +1169,11 @@
   window.addEventListener('resize', () => {
     applyEcosystem(true);
     lastLinkSig = ''; drawLinks(true);
+    // 形象库挂在 body 上用 fixed 定位，窗口一变就要重新贴回角色，
+    // 否则它会在旧位置悬着、甚至跑到视口外。
+    for (const actor of actors.values()) {
+      if (actor.picker && actor.picker.isConnected) placePicker(actor.picker, actor.el);
+    }
   });
   if ($('stage-auto-place')) $('stage-auto-place').addEventListener('change', (event) => {
     autoPlace = Boolean(event.target.checked);

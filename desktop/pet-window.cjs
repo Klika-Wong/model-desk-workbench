@@ -99,6 +99,9 @@ function create() {
     transparent: !state.opaque, frame: false, alwaysOnTop: state.alwaysOnTop,
     backgroundColor: state.opaque ? '#202227' : '#00000000',
     skipTaskbar: true, resizable: false, hasShadow: false, show: false,
+    // 默认不抢焦点：点角色/工具栏只触发点击，不会把当前窗口的焦点抢过来。
+    // 需要打字时才临时打开（聊天框）。
+    focusable: false,
     webPreferences: {
       preload: path.join(__dirname, 'pet-preload.cjs'),
       contextIsolation: true, nodeIntegration: false, sandbox: true,
@@ -179,6 +182,15 @@ function registerPetWindow(userDataPath) {
         create();
       }
       return { ok: true, data: { opaque: state.opaque } };
+    }
+    if (action === 'focusable') {
+      // 只有要输入文字时才允许夺焦，其他时候保持「点了也不抢焦点」。
+      const on = value === true;
+      try {
+        petWindow.setFocusable(on);
+        if (on) petWindow.focus();
+      } catch {}
+      return { ok: true, data: { focusable: on } };
     }
     if (action === 'top') {
       state.alwaysOnTop = Boolean(value);

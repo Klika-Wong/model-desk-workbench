@@ -32,6 +32,7 @@
   let locked = false;
   let alwaysOnTop = true;
   let outfit = OUTFITS[0];
+  let opaque = false;
   let bubbleTimer = null;
   let rowTimer = null;
   let chatTimers = [];
@@ -185,7 +186,7 @@
   // 掉的那几帧位移会被永久丢掉，于是窗口始终比光标偏一截。现在把 offset 直接带过去，
   // 主进程每次都用「光标 − offset」绝对定位，偏移被彻底消掉。
   pet.addEventListener('pointerdown', (event) => {
-    if (locked || event.target.closest('button, input, select, .pet-chatbox, .pet-emotes, .pet-toolbar')) return;
+    if (locked || event.target.closest('button, input, select, .pet-chatbox, .pet-emotes, .pet-toolbar, .pet-menu')) return;
     dragging = true;
     dragReady = false;
     try { pet.setPointerCapture(event.pointerId); } catch {}
@@ -214,7 +215,7 @@
   // 主进程按光标位置动态开关注透：落在外面就让点击穿透到桌面和其他窗口。
   let hitboxTimer = null;
   function reportHitbox() {
-    const boxes = ['#pet-actor', '#pet-toolbar', '#pet-bubble', '#pet-emotes', '#pet-chatbox']
+    const boxes = ['#pet-actor', '#pet-toolbar', '#pet-bubble', '#pet-emotes', '#pet-chatbox', '#pet-menu']
       .map((sel) => document.querySelector(sel))
       .filter((el) => el && !el.hidden && getComputedStyle(el).display !== 'none')
       .map((el) => el.getBoundingClientRect());
@@ -237,13 +238,15 @@
 
   pet.addEventListener('pointerup', endDrag);
   pet.addEventListener('pointercancel', endDrag);
+  actor.addEventListener('pointerdown', () => closeMenu(), true);
   actor.addEventListener('dblclick', () => {
     const e = EMOTES[Math.floor(Math.random() * EMOTES.length)];
     showBubble(e.text, e.face);
     setRow(e.row, 1800);
   });
 
-  $('pet-lock').addEventListener('click', async () => {
+  // ---- 动作：工具条和右键菜单共用同一套 ----
+  async function toggleLock() {
     const reply = await window.workbench.petControl('lock', !locked);
     if (reply && reply.ok) {
       locked = reply.data.locked;
@@ -252,24 +255,115 @@
       $('pet-lock').classList.toggle('is-on', locked);
       showBubble(locked ? '锁定啦，拖不动了' : '解锁，可以拖我', locked ? '🔒' : '🔓');
     }
-  });
-  $('pet-top').addEventListener('click', async () => {
+  }
+  async function toggleTop() {
     const reply = await window.workbench.petControl('top', !alwaysOnTop);
     if (reply && reply.ok) {
       alwaysOnTop = reply.data.alwaysOnTop;
       $('pet-top').classList.toggle('is-on', alwaysOnTop);
       showBubble(alwaysOnTop ? '已置顶' : '取消置顶', '📌');
     }
-  });
-  $('pet-emote').addEventListener('click', () => toggleBox(emotesBox));
-  $('pet-chat').addEventListener('click', () => { toggleBox(chatbox); if (!chatbox.hidden) input.focus(); });
-  $('pet-close').addEventListener('click', () => window.workbench.petControl('close'));
-  $('pet-swap').addEventListener('click', async () => {
+  }
+  async function swapOutfit() {
     const idx = OUTFITS.indexOf(outfit);
     outfit = OUTFITS[(idx + 1) % OUTFITS.length];
     renderActor();
     await window.workbench.petControl('outfit', outfit);
     showBubble('换了个形象', '✨');
+  }
+  function toggleChat() {
+    toggleBox(chatbox);
+    const open = !chatbox.hidden;
+    // 只有要打字时才让窗口夺焦；平时保持「点了也不抢焦点」。
+    window.workbench.petControl('focusable', open).catch(() => {});
+    if (open) input.focus();
+  }
+  async function toggleOpaque() {
+    const next = !opaque;
+    const reply = await window.workbench.petControl('opaque', next);
+    if (reply && reply.ok) {
+      opaque = Boolean(reply.data && reply.data.opaque);
+      // 透明开关要重建窗口，这里不用再做什么；新窗口会重新读状态。
+    }
+  }
+
+  $('pet-lock').addEventListener('click', toggleLock);
+  $('pet-top').addEventListener('click', toggleTop);
+  $('pet-emote').addEventListener('click', () => toggleBox(emotesBox));
+  $('pet-chat').addEventListener('click', toggleChat);
+  $('pet-close').addEventListener('click', () => window.workbench.petControl('close'));
+  $('pet-swap').addEventListener('click', swapOutfit);
+
+  // ---- 右键菜单：配置都收在这里，工具条只留常用的 ----
+  const menu = $('pet-menu');
+  function closeMenu() {
+    if (!menu) return;
+    menu.hidden = true;
+    menu.replaceChildren();
+    queueHitbox();
+  }
+  function item(label, hint, action, on) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'pet-menu-item' + (on ? ' is-on' : '');
+    b.dataset.action = action;
+    b.setAttribute('role', 'menuitem');
+    const text = document.createElement('span');
+    text.textContent = label;
+    b.append(text);
+    if (hint) {
+      const small = document.createElement('small');
+      small.textContent = hint;
+      b.append(small);
+    }
+    return b;
+  }
+  function openMenu(x, y) {
+    if (!menu) return;
+    bubble.hidden = true; // 气泡和菜单叠在一起太挤，开菜单先收气泡
+    menu.replaceChildren();
+    menu.append(item('换下一个形象', OUTFITS.indexOf(outfit) >= 0 ? `第 ${OUTFITS.indexOf(outfit) + 1}/${OUTFITS.length} 个` : '', 'outfit'));
+    menu.append(item(opaque ? '不透明窗口：开' : '不透明窗口：关', '透明窗在部分显卡上会闪', 'opaque', opaque));
+    menu.append(item(locked ? '锁定位置：开' : '锁定位置：关', locked ? '拖不动' : '可以拖动', 'lock', locked));
+    menu.append(item(alwaysOnTop ? '始终置顶：开' : '始终置顶：关', '', 'top', alwaysOnTop));
+    menu.append(item('连模型聊一句', '不新开窗口', 'chat'));
+    const sep = document.createElement('div');
+    sep.className = 'pet-menu-sep';
+    menu.append(sep);
+    menu.append(item('关掉桌宠', '', 'close'));
+    menu.hidden = false;
+    // 菜单必须整体留在窗口内，否则超出的部分会被窗口边界裁掉。
+    const w = menu.offsetWidth || 190;
+    const h = menu.offsetHeight || 200;
+    const left = Math.min(Math.max(4, x), Math.max(4, window.innerWidth - w - 4));
+    const top = Math.min(Math.max(4, y), Math.max(4, window.innerHeight - h - 4));
+    menu.style.left = Math.round(left) + 'px';
+    menu.style.top = Math.round(top) + 'px';
+    queueHitbox();
+  }
+  pet.addEventListener('contextmenu', (event) => {
+    event.preventDefault();
+    openMenu(event.clientX, event.clientY);
+  });
+  menu.addEventListener('click', async (event) => {
+    const btn = event.target.closest('[data-action]');
+    if (!btn) return;
+    event.stopPropagation();
+    const action = btn.dataset.action;
+    closeMenu();
+    if (action === 'outfit') await swapOutfit();
+    else if (action === 'opaque') await toggleOpaque();
+    else if (action === 'lock') await toggleLock();
+    else if (action === 'top') await toggleTop();
+    else if (action === 'chat') toggleChat();
+    else if (action === 'close') window.workbench.petControl('close');
+  });
+  document.addEventListener('click', (event) => {
+    if (event.target.closest('.pet-menu')) return;
+    closeMenu();
+  });
+  window.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') closeMenu();
   });
   sendBtn.addEventListener('click', sendChat);
   input.addEventListener('keydown', (event) => {
@@ -284,6 +378,7 @@
       const s = reply.data || {};
       locked = Boolean(s.locked);
       alwaysOnTop = s.alwaysOnTop !== false;
+      opaque = s.opaque === true;
       if (typeof s.outfit === 'string' && OUTFITS.includes(s.outfit)) outfit = s.outfit;
       pet.classList.toggle('is-locked', locked);
       $('pet-lock').textContent = locked ? '🔒' : '🔓';

@@ -1071,8 +1071,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "9c58ec78ce5b2b0a67d7d9d3a380ed85b8ed3e617e09c5bcb7f7f51972d2b974",
-      "bytes": 24051
+      "sha256": "60821fd56be73ef07f687cf502ae6ea5ee5ad606eb246a2e1dc0fdf0f2965176",
+      "bytes": 25482
     },
     {
       "path": "LICENSE",
@@ -1981,8 +1981,8 @@
     },
     {
       "path": "desktop/pet-drag.test.cjs",
-      "sha256": "480c010910b64824ba6812c37066c4eed35c7956a934532b85332cc0bbe77953",
-      "bytes": 3962
+      "sha256": "af15286ef6ffe54491b381c721834a3bd3b9a0d6b75178190691b088e106b2c1",
+      "bytes": 4965
     },
     {
       "path": "desktop/pet-preload.cjs",
@@ -1991,13 +1991,13 @@
     },
     {
       "path": "desktop/pet-ui.js",
-      "sha256": "cdf26ec31cd7e2dc6e34cdd4e0c821548ac38b03054d4f5a4dd140501a6bb807",
-      "bytes": 12361
+      "sha256": "c9b1a34f9a3ea3afc41e349d92ac907718e3ebba7b35b1f7f96eb400d8422fd5",
+      "bytes": 16218
     },
     {
       "path": "desktop/pet-window.cjs",
-      "sha256": "5faaf6295da4d5529c6943f9a0fdcaf8e68268cd4b9e7b2304697d1169a86606",
-      "bytes": 12256
+      "sha256": "867d1a1910b2a119a30be97f6f5bcc9085a379f5a318a27750bac351c2bb2f99",
+      "bytes": 12767
     },
     {
       "path": "desktop/pet-window.test.cjs",
@@ -2006,13 +2006,13 @@
     },
     {
       "path": "desktop/pet.css",
-      "sha256": "3890746626c761814192d9e73a84db76c779727c3434e7c00f9ba8d0527615c3",
-      "bytes": 5571
+      "sha256": "f14d4c506855913ec455f3952ee540316333735d154d7e4781e3055706089402",
+      "bytes": 6483
     },
     {
       "path": "desktop/pet.html",
-      "sha256": "023d199890050dca669f39adbbb7e359098dde2245fa7f8e110d37f6f574b1c4",
-      "bytes": 1376
+      "sha256": "0a028f1f15a8d858b36e0c3052ee0cbfa9e5823db4d8e34c86777dabfc4d7cdf",
+      "bytes": 1468
     },
     {
       "path": "desktop/preload.cjs",
@@ -2041,8 +2041,8 @@
     },
     {
       "path": "desktop/stage-ui.js",
-      "sha256": "c5e405ab1cfcfc301394a86775e7b94dbba5423795b2552cef457ae99c4940f3",
-      "bytes": 61069
+      "sha256": "3c4824ca93e275b51381f284d35f7e8e5784464fdac0a07ba8f040fbafd8bf3d",
+      "bytes": 61362
     },
     {
       "path": "desktop/stage.css",
@@ -2245,6 +2245,11 @@
       "bytes": 5583
     },
     {
+      "path": "docs/PET_POLISH.md",
+      "sha256": "d572d2a19bb46d3f7054c8c5b6980d9007ea0819e18a6b233d846dbba266fc99",
+      "bytes": 2799
+    },
+    {
       "path": "docs/PRIVACY.md",
       "sha256": "2ac4866e3de0ca767fddc4e1ff02542c2e3f280708089299d2fa9a51352be42c",
       "bytes": 1815
@@ -2390,5 +2395,5 @@
       "bytes": 1693
     }
   ],
-  "revision_note": "2026-11-08 pet interaction fixes: outfit library order, absolute drag offset, dynamic click-through, hide with main window"
+  "revision_note": "2026-11-08 pet polish: right-click menu, focusable false by default, library follows resize"
 }
