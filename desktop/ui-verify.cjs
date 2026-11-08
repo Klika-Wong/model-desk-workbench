@@ -293,6 +293,7 @@ async function main() {
       localStorage.removeItem('pet-avatar:' + id);
       localStorage.removeItem('collab-pos:' + id);
     });
+    localStorage.removeItem('collab-messages');
     document.querySelector('#nav-stage').click();
     await new Promise(r => setTimeout(r, 500));
     const visible = !document.querySelector('#stage-page').hidden;
@@ -315,6 +316,8 @@ async function main() {
     const distinctSheets = new Set(sheets).size;
     const deepseekRoster = (document.querySelector('.stage-actor[data-model-id="m-deepseek"] .pet-sprite') || { style: { getPropertyValue: () => '' } }).style.getPropertyValue('--pet-sheet').includes('deepseek-');
     const headerText = document.querySelector('#stage-page h1').textContent;
+    const consentExists = Boolean(document.querySelector('#stage-consent'));
+    const introHonest = document.querySelector('#stage-page .intro').textContent.includes('真的调用在线模型');
     const firstNode = document.querySelector('.stage-actor');
     const keyboardReady = firstNode.tabIndex === 0 && firstNode.getAttribute('role') === 'button'
       && (firstNode.getAttribute('aria-label') || '').includes('回车');
@@ -381,7 +384,17 @@ async function main() {
 
     // 一轮讨论：交付任务 → 1v1 → 1v多，对话框与交流记录
     window.__stubCalls.setSendOk(true);
+    // 未勾确认时不得派发：先验证「点了也不会开始」，再勾选确认。
     document.querySelector('#stage-question').value = '协作视图测试问题';
+    const consent = document.querySelector('#stage-consent');
+    consent.checked = false; consent.dispatchEvent(new Event('change', { bubbles: true }));
+    const askDisabledWithoutConsent = document.querySelector('#stage-ask').disabled;
+    const turnsBeforeProbe = document.querySelectorAll('#stage-turns .collab-turn').length;
+    document.querySelector('#stage-ask').click();
+    await new Promise(r => setTimeout(r, 150));
+    const noSendWithoutConsent = document.querySelectorAll('#stage-turns .collab-turn').length === turnsBeforeProbe
+      && document.querySelector('#stage-ask').disabled;
+    consent.checked = true; consent.dispatchEvent(new Event('change', { bubbles: true }));
     document.querySelector('#stage-ask').click();
     for (let i = 0; i < 60; i += 1) {
       await new Promise(r => setTimeout(r, 500));
@@ -406,7 +419,7 @@ async function main() {
     localStorage.removeItem('pet-avatar:' + pickedId);
     localStorage.removeItem('collab-pos:m-cloud');
     return { visible, othersHidden, pickCount, checkedCount, offlineText, idComplete, zones, autoPlace, noOutfitBar,
-      sprites, distinctSheets, deepseekRoster, headerText, overlaps, keyboardReady, panelScroll, turnsScroll, stopBtnExists, hasPetOpen, petStatus, ctxOpen, ctxOutfits, ctxActions,
+      sprites, distinctSheets, deepseekRoster, headerText, overlaps, keyboardReady, consentExists, introHonest, askDisabledWithoutConsent, noSendWithoutConsent, panelScroll, turnsScroll, stopBtnExists, hasPetOpen, petStatus, ctxOpen, ctxOutfits, ctxActions,
       beforePet, afterPet, stored, renamed, selected, pokeBubbles, pokeState, pokeRow, savedPos, bubbles, links,
       edgeTags, turns, kinds, dialogueVisible, dialogueName, savedHistory, statusRows, actorNodes, refTags, chatLabels };
    } catch (e) { return { jsError: String((e && e.stack) || e) }; }
@@ -426,6 +439,10 @@ async function main() {
   if (!stage.keyboardReady) throw new Error('角色不能用键盘聚焦和选中');
   if (stage.panelScroll !== 'hidden' || stage.turnsScroll !== 'auto') throw new Error(`右侧面板滚动层级没收敛：${stage.panelScroll}/${stage.turnsScroll}`);
   if (!stage.stopBtnExists) throw new Error('本轮讨论没有停止入口');
+  if (!stage.consentExists || !stage.introHonest) throw new Error('没有如实写明会真的调用模型');
+  if (!stage.askDisabledWithoutConsent || !stage.noSendWithoutConsent) {
+    throw new Error(`未勾确认时仍能派发：disabled=${stage.askDisabledWithoutConsent} noSend=${stage.noSendWithoutConsent} consent=${stage.consentExists}`);
+  }
   if (!stage.hasPetOpen || !stage.petStatus.includes('悬浮到桌面')) throw new Error('悬浮桌宠入口无效');
   if (!stage.ctxOpen || stage.ctxOutfits < 2 || stage.ctxActions < 6) throw new Error(`右键菜单不完整：${stage.ctxOpen}/${stage.ctxOutfits}/${stage.ctxActions}`);
   if (stage.afterPet === stage.beforePet) throw new Error('右键换形象没有存到本机');
@@ -483,6 +500,30 @@ async function main() {
     const rowsAfter = document.querySelectorAll('#stage-status-list .status-row').length;
     const nodesAfter = document.querySelectorAll('.stage-actor').length;
 
+    // 从历史反推引用边：重建舞台后记录与连线必须同时存在
+    const edgesAfterRebuild = document.querySelectorAll('#stage-links path.collab-link').length;
+
+    // 菜单键盘可达：Shift+F10 打开后焦点应落在菜单内，Esc 归还角色
+    const kbActor = document.querySelector('.stage-actor');
+    kbActor.focus();
+    kbActor.dispatchEvent(new KeyboardEvent('keydown', { key: 'F10', shiftKey: true, bubbles: true, cancelable: true }));
+    await wait(120);
+    const menuFocused = document.querySelector('#stage-context-menu').contains(document.activeElement);
+    const menuRole = document.querySelector('#stage-context-menu').getAttribute('role');
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await wait(100);
+    const focusReturned = document.activeElement === kbActor;
+
+    // 页内小窗：工位网格 / 休息地毯 / 分隔线都不该残留
+    const petToggle = document.querySelector('#stage-pet');
+    petToggle.checked = true; petToggle.dispatchEvent(new Event('change'));
+    await wait(150);
+    const petDecor = getComputedStyle(document.querySelector('#stage-floor'), '::before').display;
+    const dividerHidden = getComputedStyle(document.querySelector('.zone-divider')).display;
+    petToggle.checked = false; petToggle.dispatchEvent(new Event('change'));
+    await wait(150);
+
     // 清空历史是二次确认：第一次只进入确认态，第二次才真删
     const actor = document.querySelector('.stage-actor');
     actor.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 200, clientY: 240 }));
@@ -495,7 +536,7 @@ async function main() {
     clearBtn.click();
     await wait(150);
     const afterSecond = JSON.parse(localStorage.getItem('collab-messages') || '[]').length;
-    return { samePath, dlgHidden, turnsBefore, turnsAfter, storedBefore, storedAfter, rowsAfter, nodesAfter, afterFirst, afterSecond, armedLabel };
+    return { samePath, dlgHidden, turnsBefore, turnsAfter, storedBefore, storedAfter, rowsAfter, nodesAfter, edgesAfterRebuild, menuFocused, menuRole, focusReturned, petDecor, dividerHidden, afterFirst, afterSecond, armedLabel };
    } catch (e) { return { jsError: String((e && e.stack) || e) }; }
   })()`);
   if (ux.jsError) throw new Error('UX 回归段异常：' + ux.jsError);
@@ -505,9 +546,13 @@ async function main() {
     throw new Error(`重建舞台丢了历史：${JSON.stringify(ux)}`);
   }
   if (ux.rowsAfter !== ux.nodesAfter) throw new Error(`重建舞台后状态行重复：${ux.rowsAfter}/${ux.nodesAfter}`);
+  if (ux.edgesAfterRebuild < 1) throw new Error('重建舞台后历史交流没有对应连线');
+  if (!ux.menuFocused || ux.menuRole !== 'menu') throw new Error(`菜单没有接管键盘焦点：${ux.menuFocused}/${ux.menuRole}`);
+  if (!ux.focusReturned) throw new Error('Esc 没有把焦点还给角色');
+  if (ux.petDecor !== 'none' || ux.dividerHidden !== 'none') throw new Error(`页内小窗残留分区装饰：${ux.petDecor}/${ux.dividerHidden}`);
   if (ux.afterFirst !== ux.storedBefore || !ux.armedLabel.includes('再点一次')) throw new Error(`清空没有二次确认：${JSON.stringify(ux)}`);
   if (ux.afterSecond !== 0) throw new Error(`二次确认后没有清空历史：${ux.afterSecond}`);
-  result.checks.push('collab-no-link-rebuild', 'collab-dialogue-dismiss', 'collab-history-consistency', 'collab-clear-confirm');
+  result.checks.push('collab-no-link-rebuild', 'collab-dialogue-dismiss', 'collab-history-consistency', 'collab-clear-confirm', 'collab-consent-gate', 'collab-menu-keyboard', 'collab-pet-mode-clean');
 
   // 留两张图：默认关系图、桌宠模式。
   const spriteReady = await js(`(async () => {

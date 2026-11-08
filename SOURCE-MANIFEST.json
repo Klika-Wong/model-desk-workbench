@@ -1071,8 +1071,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "93687b9676aa67b1f2a89129176e05271e578c983b4a69c265882588c00a3f27",
-      "bytes": 11900
+      "sha256": "3ca89eff499ed13707a653ae833dca81ab8d48b94a237b6a8bf27b19ea02c74e",
+      "bytes": 14709
     },
     {
       "path": "LICENSE",
@@ -1088,6 +1088,16 @@
       "path": "THIRD_PARTY.md",
       "sha256": "958e5e72bfa0030b96ca7f63b8c0c24a74f7ee4fb5c1c485795032c3b0b1a987",
       "bytes": 4273
+    },
+    {
+      "path": "desktop/.smoke-result.json.workspace/model-cache.json",
+      "sha256": "4243f43aeb74dacaf8bdabbc925a1954d59d8c64a40785caeeca6f7c41ba5a8f",
+      "bytes": 1148
+    },
+    {
+      "path": "desktop/.smoke-result.json.workspace/workspace.json",
+      "sha256": "1053f6597f6c19583e5b6322de14a32539d44058966c1e22c730637269ef3a2c",
+      "bytes": 375
     },
     {
       "path": "desktop/ai-guide-ui.js",
@@ -1746,8 +1756,8 @@
     },
     {
       "path": "desktop/index.html",
-      "sha256": "16316a7ff27932b5dd8cafe8cd31abeb6df68c12a1fb16451a78febd63c221a9",
-      "bytes": 38071
+      "sha256": "0010805d47d51ad473d0e88aa05f0e57dc946130a0a5df5677bbb87707410118",
+      "bytes": 38347
     },
     {
       "path": "desktop/main.cjs",
@@ -2026,13 +2036,13 @@
     },
     {
       "path": "desktop/stage-ui.js",
-      "sha256": "a991562d35dbc091fe17d21a318c49abaee44f7d5bb60ce36586471392bf180a",
-      "bytes": 49989
+      "sha256": "59b4e0b41539430a42514329b81ca5178c0661fdaf6d67cbedfaec3150ac7699",
+      "bytes": 54110
     },
     {
       "path": "desktop/stage.css",
-      "sha256": "e46a8b96752f20cfcf0e1e9569b7cb49878500083e941e079491ed30bf3fb8ed",
-      "bytes": 19970
+      "sha256": "d63f1a231d4690a53d03b67624cbae430fcbad525b9fcb94b8d06b9d68dd640a",
+      "bytes": 20806
     },
     {
       "path": "desktop/style.css",
@@ -2081,8 +2091,8 @@
     },
     {
       "path": "desktop/ui-verify.cjs",
-      "sha256": "2c9557b5ae437ada0ade6cacc54e596b1c2a12613099c9f6ae6fb1febd99bd3e",
-      "bytes": 65695
+      "sha256": "253bc30cdbf183135410c265cfb6a619a29cdae0c880f48c5a7b65c3353ccd04",
+      "bytes": 69249
     },
     {
       "path": "desktop/verify-routing.cjs",
@@ -2151,8 +2161,8 @@
     },
     {
       "path": "docs/COLLAB_VIEW.md",
-      "sha256": "3faba027b5ab9dffbbc602f07b864cba9d88717285c91dd3217a68d90af6fe66",
-      "bytes": 5241
+      "sha256": "0f2a65d6f9db0ba4c1740d3f12f7c3fefa278de775899592ebba3c38a53604c0",
+      "bytes": 5561
     },
     {
       "path": "docs/CROSS_HOST_FEATURES.md",
@@ -2255,6 +2265,11 @@
       "bytes": 2510
     },
     {
+      "path": "docs/UIUX_REREVIEW.md",
+      "sha256": "4b12b46b89919a3764b386bf9e1fd2563461bc45d94d6f6b889980c80834d54b",
+      "bytes": 4928
+    },
+    {
       "path": "docs/UIUX_REVIEW.md",
       "sha256": "82fc49fe6567c37f2805ca4b4806ef5f27545100d3e318ca4efd1507bdfc0082",
       "bytes": 4057
@@ -2355,5 +2370,5 @@
       "bytes": 1693
     }
   ],
-  "revision_note": "2026-11-08 ecosystem zones, dialogue flow, floating pet drag fix, dark palette and four-perspective UI/UX review"
+  "revision_note": "2026-11-08 sub-agent re-review: real flicker root cause, ghost dispatch guard, explicit model-call consent, dialogue out of canvas"
 }

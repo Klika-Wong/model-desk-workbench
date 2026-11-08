@@ -33,7 +33,6 @@
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line) 65%, transparent);
   /* 同一画面分两区：左边工位格，右边暖色休息角 */
   background:
-    radial-gradient(circle at 86% 80%, color-mix(in srgb, #f0b77a 14%, transparent) 0 66px, transparent 67px),
     linear-gradient(90deg,
       color-mix(in srgb, var(--accent) 5%, transparent) 0 56%,
       color-mix(in srgb, #f0b77a 7%, transparent) 56% 100%),
@@ -186,13 +185,13 @@
 /* 统一控制面板：场景 / 状态 / 记录 / 输入都在一处 */
 .side-panel {
   /* 整个面板不滚动，只让交流记录一处滚，避免三层滚动条与标题横向裁切。 */
-  display: flex; flex-direction: column; min-height: 0; height: 400px; overflow: hidden;
+  display: flex; flex-direction: column; min-height: 0; min-height: 400px; overflow: hidden;
   border: 0; border-radius: 18px; background: var(--surface);
   box-shadow: 0 1px 2px rgba(15, 23, 42, .05), 0 22px 46px -34px rgba(15, 23, 42, .5);
 }
 .panel-section { padding: 8px 12px; flex: none; }
 .panel-section + .panel-section { border-top: 1px solid var(--line); }
-.panel-grow { flex: 1 1 auto; min-height: 104px; display: flex; flex-direction: column; overflow: hidden; }
+.panel-grow { flex: 1 1 auto; min-height: 76px; display: flex; flex-direction: column; overflow: hidden; }
 .panel-title { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; margin-bottom: 6px; flex-wrap: wrap; }
 .panel-title .hint { white-space: normal; overflow-wrap: anywhere; }
 .panel-title h3 { margin: 0; font-size: 12px; font-weight: 600; }
@@ -258,7 +257,10 @@
 .stage-floor.pet-mode .stage-actor-avatar { --pet-w: 96px; --pet-h: 104px; }
 .stage-floor.pet-mode .stage-actor-bubble { max-width: 150px; }
 body.collab-pet-on .stage-links, body.collab-pet-on .side-panel, body.collab-pet-on .collab-tip,
-body.collab-pet-on .zone-label, body.collab-pet-on .dialogue-box { display: none; }
+body.collab-pet-on .zone-label, body.collab-pet-on .zone-divider, body.collab-pet-on .dialogue-box,
+body.collab-pet-on .stage-consent { display: none; }
+body.collab-pet-on .stage-floor.pet-mode::before,
+body.collab-pet-on .stage-floor.pet-mode::after { display: none; }
 body.collab-pet-on .collab-layout { grid-template-columns: 1fr; }
 
 @media (max-width: 1000px) {
@@ -288,11 +290,18 @@ body.collab-pet-on .collab-layout { grid-template-columns: 1fr; }
 .ctx-item:hover { background: var(--accent-soft); color: var(--accent); }
 .ctx-sep { height: 1px; margin: 7px 0; background: var(--line); }
 html[data-theme="dark"] .brand-coin { background: radial-gradient(circle at 34% 26%, #33363e 0%, #2a2d35 72%, #24272e 100%); }
+html[data-theme="dark"] .stage-floor::before { opacity: .95; }
+html[data-theme="dark"] .stage-floor::after { border-color: color-mix(in srgb, #c9a479 30%, transparent); background: rgba(201, 164, 121, .05); }
+html[data-theme="dark"] .dialogue-box { background: color-mix(in srgb, var(--surface-3) 92%, #10131a); box-shadow: 0 0 0 1px var(--accent-line), 0 14px 32px -18px rgba(0,0,0,.8); }
+.stage-consent { display: flex; align-items: center; gap: 6px; margin: 0 0 7px; font-size: 10px; line-height: 1.35; white-space: nowrap; color: var(--muted); cursor: pointer; }
+.stage-consent input { margin: 0; flex: none; }
+.model-picker.is-locked { opacity: .55; }
+.stage-context-menu [data-action]:focus-visible, .stage-context-menu .outfit:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* galgame 风格对话框：当前这条交流由谁说、说给谁 */
 .dialogue-box {
-  position: absolute; z-index: 4; left: 50%; bottom: 12px; transform: translateX(-50%);
-  width: min(78%, 560px); padding: 9px 14px 10px; border-radius: 14px;
+  position: relative; z-index: 4; margin-top: 8px;
+  width: 100%; padding: 8px 14px 9px; border-radius: 12px;
   background: color-mix(in srgb, var(--surface) 88%, #10131a);
   color: var(--ink);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 45%, var(--line)),

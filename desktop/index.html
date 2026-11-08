@@ -83,7 +83,7 @@
   </section>
 </div>
 <div id="stage-page" hidden>
-  <header class="page-header"><div><p class="eyebrow">协作视图</p><h1>谁在跟谁说话</h1><p class="intro">一轮讨论里，每位都能看到前面所有人的发言。这里把引用关系、交流顺序和真实状态画出来；场景、状态、交流记录与提问都在同一个面板里。</p></div><div class="header-actions"><button id="stage-pet-open" type="button" class="primary">悬浮到桌面</button><label class="stage-pet"><input id="stage-pet" type="checkbox"> 页内小窗</label><button id="stage-refresh" type="button">刷新模型</button></div></header>
+  <header class="page-header"><div><p class="eyebrow">协作视图</p><h1>谁在跟谁说话</h1><p class="intro">一轮讨论里，每位都能看到前面所有人的发言。这里把引用关系、交流顺序和真实状态画出来。<strong>开始新一轮会按勾选顺序真的调用在线模型，并清空上一轮交流记录。</strong></p></div><div class="header-actions"><button id="stage-pet-open" type="button" class="primary" title="会新开一个独立的透明置顶小窗；与「页内小窗」不同">悬浮到桌面（新窗口）</button><label class="stage-pet"><input id="stage-pet" type="checkbox"> 页内小窗</label><button id="stage-refresh" type="button">刷新模型</button></div></header>
   <section class="card stage-card">
     <div class="stage-toolbar">
       <div class="model-picker-wrap">
@@ -99,13 +99,13 @@
           <span class="zone-label zone-work">工作区 <small>生成中 / 正在输出</small></span>
           <span class="zone-divider" aria-hidden="true"></span>
           <span class="zone-label zone-rest">摸鱼角 ☕ <small>待机 / 已发言</small></span>
-          <div id="stage-dialogue" class="dialogue-box" hidden aria-live="polite">
-            <div id="stage-dialogue-name" class="dialogue-name"></div>
-            <div id="stage-dialogue-text" class="dialogue-text"></div>
-            <div id="stage-dialogue-target" class="dialogue-target"></div>
-          </div>
         </div>
-        <p class="hint collab-tip">角色按真实状态走到工作区或摸鱼角 · 右键（或 Shift+F10）换形象 / 改 ID / 固定位置 / 配置 · 双击戳一下 · 拖动固定位置 · 对话框说完自动收起，点一下可立即收起</p>
+        <div id="stage-dialogue" class="dialogue-box" hidden aria-live="polite">
+          <div id="stage-dialogue-name" class="dialogue-name"></div>
+          <div id="stage-dialogue-text" class="dialogue-text"></div>
+          <div id="stage-dialogue-target" class="dialogue-target"></div>
+        </div>
+        <p class="hint collab-tip">右键角色可设置 · Shift+F10 同样可用 · 拖动后位置固定 · 双击戳一下</p>
       </div>
       <aside class="side-panel" aria-label="讨论控制面板">
         <section class="panel-section">
@@ -125,12 +125,13 @@
           <ol id="stage-turns" class="collab-turns"><li class="collab-empty">开始一轮讨论后，这里按顺序列出交付任务、1v1 交流与 1v多 广播。</li></ol>
         </section>
         <section class="panel-section panel-input">
-          <div class="stage-input-row"><input id="stage-question" maxlength="2000" placeholder="给它们一句问题"><button id="stage-ask" type="button" class="primary">开始讨论</button><button id="stage-stop" type="button" hidden>停止本轮</button></div>
+          <label class="stage-consent" title="一轮讨论会按勾选顺序真的调用在线模型，并清空上一轮交流记录"><input id="stage-consent" type="checkbox"> 确认调用模型并清空上轮记录</label>
+          <div class="stage-input-row"><input id="stage-question" maxlength="2000" placeholder="给它们一句问题"><button id="stage-ask" type="button" class="primary" disabled>开始讨论</button><button id="stage-stop" type="button" hidden>停止本轮</button></div>
           <p id="stage-status" class="hint" aria-live="polite"></p>
         </section>
       </aside>
     </div>
-    <div id="stage-context-menu" class="stage-context-menu" hidden></div>
+    <div id="stage-context-menu" class="stage-context-menu" role="menu" aria-label="角色设置" hidden></div>
   </section>
 </div>
 <div id="tasks-page" hidden>

@@ -1,5 +1,5 @@
 /* 协作视图：同一个画面里分「工作区 / 摸鱼角」，角色按真实状态归位。
-   配置全部收进右键菜单；只让在线（已激活）的模型参与，离线的给唤醒引导。
+   配置全部收进右键菜单；只让在线（已连接）的模型参与，未连接的给启用连接引导。
    状态来自真实派发，不替模型编内容。 */
 (() => {
   const $ = (id) => document.getElementById(id);
@@ -17,6 +17,7 @@
   const question = $('stage-question');
   const askBtn = $('stage-ask');
   const stopBtn = $('stage-stop');
+  const consentBox = $('stage-consent');
   const statusLine = $('stage-status');
   const petToggle = $('stage-pet');
   const pickedHint = $('stage-picked');
@@ -42,7 +43,7 @@
   let lastLinkSig = '';
   let contextActor = null;
   let dialogueTimer = null, dialoguePinned = false, lastMessage = null;
-  let clearArmed = 0;
+  let clearArmed = 0, clearArmTimer = null;
   let stopRequested = false, abortTurn = null;
   const KIND_LABEL = { task: '上级交付', ack: '1v1 回执', chat: '1v1 交流', broadcast: '1v多 广播' };
 
@@ -58,6 +59,12 @@
   function currentPet(model) {
     return read(petKey(model.id)) || (AVATARS ? AVATARS.defaultChoice(model) : 'character');
   }
+  function setPickerDisabled(on) {
+    for (const cb of modelPick.querySelectorAll('input[type="checkbox"]')) cb.disabled = on;
+    const refresh = $('stage-refresh'); if (refresh) refresh.disabled = on;
+    if (modelPick) modelPick.classList.toggle('is-locked', on);
+  }
+
   function checkedIds() {
     return [...modelPick.querySelectorAll('input[type="checkbox"]:checked')].map((i) => i.value);
   }
@@ -184,7 +191,7 @@
     return b;
   }
 
-  function openContextMenu(actor, clientX, clientY) {
+  function openContextMenu(actor, clientX, clientY, fromKeyboard) {
     if (!contextMenu || !AVATARS) return;
     closeContextMenu();
     contextActor = actor;
@@ -215,18 +222,23 @@
     contextMenu.append(row);
     contextMenu.append(menuButton('打开完整形象库', 'library', choices.length + ' 个可选'));
     const sep = document.createElement('div'); sep.className = 'ctx-sep'; contextMenu.append(sep);
-    contextMenu.append(menuButton('改形象 ID', 'rename'));
+    contextMenu.append(menuButton('改显示名称', 'rename', '同步到对话与派发页'));
     contextMenu.append(menuButton('看它的引用关系', 'select'));
     contextMenu.append(menuButton(actor.manualPos ? '取消固定位置' : '固定在此位置', 'pin'));
     contextMenu.append(menuButton(autoPlace ? '自动归位：开' : '自动归位：关', 'auto', '按状态分区'));
     contextMenu.append(menuButton('悬浮到桌面', 'pet'));
-    contextMenu.append(menuButton(dialoguePinned ? '对话框：保持显示' : '对话框：说完自动收起', 'dialogue'));
+    contextMenu.append(menuButton(dialoguePinned ? '对话框：保持显示' : '对话框：说完 8 秒自动收起', 'dialogue', '悬停暂停 · 点一下收起'));
     contextMenu.append(menuButton('去「模型与额度」', 'activate'));
     contextMenu.append(menuButton('清空交流记录', 'clear', '需二次确认'));
     contextMenu.hidden = false;
     const rect = contextMenu.getBoundingClientRect();
     contextMenu.style.left = Math.min(clientX, window.innerWidth - rect.width - 8) + 'px';
     contextMenu.style.top = Math.min(clientY, window.innerHeight - rect.height - 8) + 'px';
+    // 键盘打开（Shift+F10 / ContextMenu）时把焦点交给菜单，否则四项配置仍无法用键盘完成。
+    if (fromKeyboard) {
+      const first = contextMenu.querySelector('.ctx-outfits .outfit, [data-action]');
+      if (first) first.focus();
+    }
   }
 
   function handleContextAction(action) {
@@ -240,9 +252,15 @@
         const label = contextMenu.querySelector('[data-action="clear"] span');
         if (label) label.textContent = '再点一次确认清空';
         statusLine.textContent = '清空会删除本机全部交流历史，且不可恢复。4 秒内再点一次确认。';
+        clearTimeout(clearArmTimer);
+        clearArmTimer = setTimeout(() => {
+          clearArmed = 0;
+          const btn = contextMenu.querySelector('[data-action="clear"] span');
+          if (btn) btn.textContent = '清空交流记录';
+        }, 4000);
         return;
       }
-      clearArmed = 0; clearMessages(); closeContextMenu(); return;
+      clearTimeout(clearArmTimer); clearArmed = 0; clearMessages(); closeContextMenu(); return;
     }
     closeContextMenu();
     if (action === 'dialogue') {
@@ -366,7 +384,9 @@
     take(left, slots.left, slots.right);
     if (discussing) take(right, slots.right, slots.left);
     lastLinkSig = '';
-    drawLinks(true);
+    // 位置变化不该重建结构：让 structSig 判定，几何交给 updateLinkGeometry + followLayout。
+    // 之前这里用 drawLinks(true)，跨区时每轮 8+ 次销毁重建 animateMotion，光点归零重放 = 闪烁。
+    drawLinks();
     followLayout(520);
   }
 
@@ -374,6 +394,7 @@
   // 拖拽或角色走动时只改已有 path 的 d，绝不重建 DOM —— 否则 SMIL 光点每帧从头播放，
   // 看起来就是闪烁 + 卡顿。
   let lastStructSig = '';
+  let linkNodes = [];
   let followRaf = 0, followUntil = 0;
 
   function structSig(w, h) {
@@ -393,24 +414,27 @@
   function updateLinkGeometry() {
     if (!linksSvg) return;
     edges.forEach((edge, i) => {
+      const nodes = linkNodes[i];
+      if (!nodes) return;
       const g = edgeGeom(edge);
       if (!g) return;
-      const path = linksSvg.querySelector(`path.collab-link[data-edge-index="${i}"]`);
-      if (path) path.setAttribute('d', g.d);
-      const tag = linksSvg.querySelector(`text.collab-edge-tag[data-edge-index="${i}"]`);
-      if (tag) { tag.setAttribute('x', String(g.mx)); tag.setAttribute('y', String(g.my - 6)); }
-      const motion = linksSvg.querySelector(`animateMotion[data-edge-index="${i}"]`);
-      if (motion) motion.setAttribute('path', g.d);
+      if (nodes.path) nodes.path.setAttribute('d', g.d);
+      if (nodes.tag) { nodes.tag.setAttribute('x', String(g.mx)); nodes.tag.setAttribute('y', String(g.my - 6)); }
+      if (nodes.motion) nodes.motion.setAttribute('path', g.d);
     });
   }
 
   // 角色按 CSS 过渡「走」过去的这半秒，连线要跟着走，否则线与人对不上。
+  function stopFollow() {
+    if (followRaf) cancelAnimationFrame(followRaf);
+    followRaf = 0; followUntil = 0;
+  }
   function followLayout(ms) {
     followUntil = Date.now() + (ms || 520);
     if (followRaf) return;
     const tick = () => {
       followRaf = 0;
-      if (Date.now() > followUntil) return;
+      if (Date.now() > followUntil || page.hidden || document.hidden) return;
       updateLinkGeometry();
       followRaf = requestAnimationFrame(tick);
     };
@@ -439,10 +463,12 @@
     const rebuild = force || ss !== lastStructSig;
     if (!rebuild && posSig === lastLinkSig) return;
     lastLinkSig = posSig;
-    if (!rebuild) { updateLinkGeometry(); applyFacing(); return; }
+    // 结构未变：只改几何。朝向只在结构变化时算，避免每帧读 rect 触发强制布局。
+    if (!rebuild) { updateLinkGeometry(); return; }
     lastStructSig = ss;
     linksSvg.setAttribute('viewBox', `0 0 ${w} ${h}`);
     linksSvg.replaceChildren();
+    linkNodes = [];
     const defs = document.createElementNS(SVG_NS, 'defs');
     const marker = document.createElementNS(SVG_NS, 'marker');
     marker.setAttribute('id', 'collab-arrow'); marker.setAttribute('viewBox', '0 0 10 10');
@@ -467,19 +493,21 @@
       const title = document.createElementNS(SVG_NS, 'title');
       title.textContent = `${aliasOf(from.model)} → ${aliasOf(to.model)}：第 ${edge.turn + 1} 条参考了这条发言`;
       path.append(title); linksSvg.append(path);
+      const nodes = { path, tag: null, motion: null };
+      linkNodes[i] = nodes;
       const tag = document.createElementNS(SVG_NS, 'text');
       tag.setAttribute('x', String(g.mx)); tag.setAttribute('y', String(g.my - 6));
       tag.setAttribute('class', 'collab-edge-tag'); tag.setAttribute('text-anchor', 'middle');
       tag.setAttribute('data-edge-index', String(i));
       tag.textContent = edge.kind === 'broadcast' ? '1v多' : edge.kind === 'ack' ? '回执' : '1v1';
-      linksSvg.append(tag);
+      linksSvg.append(tag); nodes.tag = tag;
       if (live) {
         const dot = document.createElementNS(SVG_NS, 'circle');
         dot.setAttribute('r', '4'); dot.setAttribute('class', 'collab-pulse');
         const motion = document.createElementNS(SVG_NS, 'animateMotion');
         motion.setAttribute('dur', '1.5s'); motion.setAttribute('repeatCount', 'indefinite');
         motion.setAttribute('path', g.d); motion.setAttribute('data-edge-index', String(i));
-        dot.append(motion); linksSvg.append(dot);
+        dot.append(motion); linksSvg.append(dot); nodes.motion = motion;
       }
     });
     applyFacing();
@@ -635,7 +663,7 @@
       const actor = actors.get(selectedId);
       const last = messages.filter((m) => m.from === selectedId).pop();
       statusLine.textContent = last
-        ? `${aliasOf(actor.model)}：最近一条「${KIND_LABEL[last.kind] || '交流'}」，参考了前面 ${(last.refs || []).length} 条。`
+        ? `${aliasOf(actor.model)}：最近一条「${KIND_LABEL[last.kind] || '交流'}」，引用了前面 ${(last.refs || []).length} 条；引用连线与右侧记录可对照查看。`
         : `${aliasOf(actor.model)}：还没有参与过交流。`;
     }
   }
@@ -697,7 +725,7 @@
       else if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) {
         event.preventDefault();
         const r = el.getBoundingClientRect();
-        openContextMenu(actor, r.left + 24, r.top + 24);
+        openContextMenu(actor, r.left + 24, r.top + 24, true);
       }
     });
     el.addEventListener('dblclick', (event) => { event.preventDefault(); poke(actor); });
@@ -708,14 +736,27 @@
   }
 
   function buildStage() {
+    if (running) {
+      statusLine.textContent = '本轮讨论进行中，先点「停止本轮」再改参与模型。';
+      return;
+    }
+    stopFollow();
     const picked = checkedIds();
     for (const node of floor.querySelectorAll('.stage-actor')) node.remove();
     // statusRows 被清空后，旧 DOM 行已无人引用，必须先从列表里删掉，否则会越堆越多。
     if (statusList) statusList.replaceChildren();
     actors.clear(); statusRows.clear();
-    // 交流历史是跨轮的本机记录：重建舞台只清本轮状态，不清历史。
+    // 交流历史是跨轮的本机记录：重建画布只清本轮状态，不清历史。
+    // 同时从历史的 refs 反推引用边，否则「有 N 条交流」却一条连线都没有，点记录还会说「参考了 N 条」。
     round = []; edges = []; activeTurn = -1; lastLinkSig = '';
-    if (dialogueBox) dialogueBox.hidden = true;
+    lastStructSig = ''; linkNodes = []; stopFollow();
+    if (dialogueBox) { dialogueBox.hidden = true; }
+    const start = messages.findLastIndex ? messages.findLastIndex((m) => m.kind === 'task') : -1;
+    messages.slice(Math.max(0, start)).forEach((m, i) => {
+      if (m.kind === 'task') return;
+      for (const from of (m.refs || [])) edges.push({ from, to: m.from, turn: i, kind: m.kind });
+      round.push({ id: m.from, name: m.fromName, refs: m.refs || [], text: m.text });
+    });
     for (const id of picked) {
       const model = models.find((m) => m.id === id);
       if (!model) continue;
@@ -754,7 +795,11 @@
     document.body.classList.toggle('collab-pet-on', on);
     const ids = [...actors.keys()];
     for (const [id, actor] of actors) actor.el.hidden = on && ids.length > 1 && id !== ids[0];
-    if (on) { if (linksSvg) linksSvg.replaceChildren(); }
+    if (on) {
+      stopFollow();
+      if (linksSvg) linksSvg.replaceChildren();
+      linkNodes = []; lastStructSig = '';
+    }
     else { lastLinkSig = ''; requestAnimationFrame(() => drawLinks(true)); }
   }
 
@@ -827,12 +872,15 @@
 
   async function runTurn(model, prompt, onState) {
     const state = await window.workbench.getState();
+    // 停止可能落在 getState / dispatchSend 的前置 await 窗口里，此时 abortTurn 还没赋值；
+    // 每个 await 之后都复查一次，避免白等 180 秒兜底。
+    if (stopRequested) return null;
     const project = (state && state.project) || '';
     if (!project) { statusLine.textContent = '还没有选择项目：先在「运行与连接」页选择项目。'; return null; }
     let reply;
     try { reply = await window.workbench.dispatchSend({ prompt, modelId: model.id, kind: 'chat', project }); }
     catch { onState('failed'); return null; }
-    if (!reply || !reply.ok) { onState('failed'); return null; }
+    if (stopRequested || !reply || !reply.ok) { onState('failed'); return null; }
     const taskId = reply.data.id;
     onState('thinking');
     let latest = '';
@@ -851,6 +899,7 @@
       // 上一轮 A07 的教训：拿不到终态不能一直转圈，最多等 3 分钟就如实报「状态未明」。
       timeout = setTimeout(() => { onState('failed'); finish(null); }, 180000);
       logTimer = setInterval(async () => {
+        if (stopRequested) { finish(null); return; }
         try {
           const live = await window.workbench.dispatchLog(taskId);
           if (live && live.ok) {
@@ -860,6 +909,7 @@
         } catch {}
       }, 600);
       statusTimer = setInterval(async () => {
+        if (stopRequested) { finish(null); return; }
         try {
           const s = await window.workbench.dispatchStatus(taskId);
           if (!s || !s.ok) return;
@@ -874,11 +924,16 @@
 
   async function askAll() {
     if (running) return;
+    if (consentBox && !consentBox.checked) {
+      statusLine.textContent = '先勾选确认：这一轮会真的调用在线模型，并清空上一轮交流记录。';
+      return;
+    }
     const list = [...actors.values()];
     if (!list.length) { statusLine.textContent = '先让至少一个在线模型参与。'; return; }
     const q = question.value.trim();
     if (!q) { statusLine.textContent = '先写一句问题。'; question.focus(); return; }
     running = true; stopRequested = false;
+    setPickerDisabled(true);
     askBtn.disabled = true; askBtn.hidden = true; if (stopBtn) stopBtn.hidden = false;
     round = []; messages = []; edges = []; activeTurn = -1; selectedId = null; lastLinkSig = '';
     try { localStorage.removeItem(MESSAGE_KEY); } catch {}  // 新一轮从空历史开始，内存与磁盘保持一致
@@ -917,17 +972,18 @@
       }
       activeTurn = -1; lastLinkSig = ''; drawLinks(true);
       statusLine.textContent = stopRequested
-        ? `已停止：完成 ${spoken.length}/${list.length} 位。已产生的交流仍保留在本机记录里。`
+        ? `已停止：完成 ${spoken.length}/${list.length} 位。本轮已产生的交流保留在本机；上一轮记录在点「开始讨论」时已清空。`
         : `本轮结束：${spoken.length}/${list.length} 位有输出。点一条记录看它参考了谁。`;
     } finally {
       running = false; stopRequested = false; abortTurn = null;
+      setPickerDisabled(false);
       askBtn.disabled = false; askBtn.hidden = false; if (stopBtn) stopBtn.hidden = true;
     }
   }
 
   // ---- 对话框：默认看完就淡出，鼠标悬停暂停，点一下立即收起 ----
   if (dialogueBox) {
-    dialogueBox.title = '点一下收起；右键角色可设为保持显示';
+    dialogueBox.title = '说完 8 秒自动收起；悬停暂停；点一下立即收起；右键角色可设为保持显示';
     dialogueBox.addEventListener('mouseenter', () => {
       if (dialogueTimer) clearTimeout(dialogueTimer);
       dialogueTimer = null;
@@ -948,6 +1004,14 @@
     closeContextMenu();
   });
   if (contextMenu) {
+    contextMenu.addEventListener('keydown', (event) => {
+      if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+      const items = [...contextMenu.querySelectorAll('.ctx-outfits .outfit, [data-action]')];
+      const i = items.indexOf(document.activeElement);
+      if (!items.length) return;
+      event.preventDefault();
+      items[(i + (event.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length].focus();
+    });
     contextMenu.addEventListener('click', (event) => {
       const btn = event.target.closest('[data-action]');
       if (btn) { event.stopPropagation(); handleContextAction(btn.dataset.action); }
@@ -957,9 +1021,15 @@
     if (event.target.closest('.stage-actor')) return;
     event.preventDefault();
     closeContextMenu();
-    statusLine.textContent = '在角色上点右键可以换形象、改 ID、固定位置、开自动归位、跳去激活模型。';
+    statusLine.textContent = '在角色上点右键可换形象、改显示名称、固定位置、切换自动归位，或去「模型与额度」查看连接。';
   });
-  window.addEventListener('keydown', (event) => { if (event.key === 'Escape') closeContextMenu(); });
+  window.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') return;
+    const wasInMenu = contextMenu && contextMenu.contains(document.activeElement);
+    const returnTo = wasInMenu && contextActor ? contextActor.el : null;
+    closeContextMenu();
+    if (returnTo) returnTo.focus();
+  });
   window.addEventListener('resize', () => { lastLinkSig = ''; drawLinks(true); });
   if ($('stage-auto-place')) $('stage-auto-place').addEventListener('change', (event) => {
     autoPlace = Boolean(event.target.checked);
@@ -974,11 +1044,15 @@
   });
   if ($('stage-refresh')) $('stage-refresh').addEventListener('click', loadModels);
   if (petToggle) petToggle.addEventListener('change', applyPetMode);
+  if (consentBox) consentBox.addEventListener('change', () => {
+    askBtn.disabled = !consentBox.checked;
+    if (!consentBox.checked) statusLine.textContent = '未勾选确认时不会派发任何模型。';
+  });
   askBtn.addEventListener('click', askAll);
   if (stopBtn) stopBtn.addEventListener('click', () => {
     stopRequested = true;
     if (abortTurn) abortTurn(null);
-    statusLine.textContent = '正在停止本轮…已产生的交流记录会保留。';
+    statusLine.textContent = '正在停止本轮…本轮已产生的交流会保留。';
   });
   question.addEventListener('keydown', (event) => { if (event.key === 'Enter') { event.preventDefault(); askAll(); } });
 
@@ -997,7 +1071,15 @@
     for (const b of document.querySelectorAll('.nav-button')) b.classList.toggle('active', b.id === 'nav-stage');
     if (!models.length) loadModels(); else refreshView();
   }
-  function hide() { page.hidden = true; $('nav-stage')?.classList.remove('active'); closeContextMenu(); }
+  function hide() {
+    page.hidden = true;
+    $('nav-stage')?.classList.remove('active');
+    closeContextMenu();
+    stopFollow();
+    if (dialogueTimer) clearTimeout(dialogueTimer);
+    dialogueTimer = null;
+    if (dialogueBox && !dialoguePinned) dialogueBox.hidden = true;
+  }
 
   $('nav-stage').addEventListener('click', show);
   for (const id of ['nav-memory', 'nav-chat', 'nav-tasks', 'nav-designer', 'nav-panel']) {
