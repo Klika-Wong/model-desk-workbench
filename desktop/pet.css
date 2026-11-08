@@ -120,3 +120,36 @@ html[data-reduce-motion="1"] .stage-actor.is-placed { transition-duration: 1ms !
 .pet-menu-item:hover { background: #eef4fb; }
 .pet-menu-item.is-on { color: #14508c; font-weight: 600; }
 .pet-menu-sep { height: 1px; margin: 4px 2px; background: rgba(15, 23, 42, .1); }
+
+/* 形象面板：3 列滚动网格，塞进 250x300 的窗口里 */
+.pet-outfits {
+  position: absolute; inset: 6px 6px 50px; z-index: 15;
+  display: flex; flex-direction: column; padding: 8px; border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 0 0 1px rgba(15, 23, 42, .14), 0 16px 32px -16px rgba(15, 23, 42, .55);
+}
+.pet-outfits[hidden] { display: none; }
+.pet-outfits-head {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 6px;
+  margin-bottom: 6px; font-size: 11px; font-weight: 600; color: #16202c;
+}
+.pet-outfits-head small { font-size: 8px; font-weight: 400; color: #8695a8; }
+.pet-outfits-grid {
+  flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden;
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; padding-right: 2px;
+}
+.pet-outfits-grid::-webkit-scrollbar { width: 6px; }
+.pet-outfits-grid::-webkit-scrollbar-thumb { background: #c8d3e1; border-radius: 3px; }
+.pet-outfit {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 4px 2px; border: 1px solid #dbe3ee; border-radius: 9px;
+  background: #f8fafd; cursor: pointer;
+}
+.pet-outfit:hover { border-color: #2f6fd0; }
+.pet-outfit.is-active { border-color: #2f6fd0; box-shadow: 0 0 0 2px rgba(47, 111, 208, .18); }
+.pet-outfit .thumb {
+  width: 100%; height: 42px; background-repeat: no-repeat;
+  /* 雪碧图 8 列 9 行，只取第一帧 */
+  background-size: 800% 900%; background-position: 0 0;
+}
+.pet-outfit span { font-size: 8px; line-height: 1.2; color: #5b6b7f; text-align: center; }

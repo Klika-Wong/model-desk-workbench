@@ -1071,8 +1071,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "60821fd56be73ef07f687cf502ae6ea5ee5ad606eb246a2e1dc0fdf0f2965176",
-      "bytes": 25482
+      "sha256": "f4c6c845c3c775f8b2c3b88d9267a618133b53ac3ef1241090e0d8fc9b8ed535",
+      "bytes": 26728
     },
     {
       "path": "LICENSE",
@@ -1981,8 +1981,8 @@
     },
     {
       "path": "desktop/pet-drag.test.cjs",
-      "sha256": "af15286ef6ffe54491b381c721834a3bd3b9a0d6b75178190691b088e106b2c1",
-      "bytes": 4965
+      "sha256": "47a3708b0874fcc681f5b5c538d651a1e0206e2607f9fac33913e7e45016c5e4",
+      "bytes": 5654
     },
     {
       "path": "desktop/pet-preload.cjs",
@@ -1991,8 +1991,8 @@
     },
     {
       "path": "desktop/pet-ui.js",
-      "sha256": "c9b1a34f9a3ea3afc41e349d92ac907718e3ebba7b35b1f7f96eb400d8422fd5",
-      "bytes": 16218
+      "sha256": "68caa7cdb5c615440bb327398eca903d8ec054919880ae4dd14bb0146f2723a4",
+      "bytes": 17856
     },
     {
       "path": "desktop/pet-window.cjs",
@@ -2006,13 +2006,13 @@
     },
     {
       "path": "desktop/pet.css",
-      "sha256": "f14d4c506855913ec455f3952ee540316333735d154d7e4781e3055706089402",
-      "bytes": 6483
+      "sha256": "327aa8b8265549a0a017cd63eec6742177f91be8a04ef35457f43d124cdc0ea6",
+      "bytes": 8034
     },
     {
       "path": "desktop/pet.html",
-      "sha256": "0a028f1f15a8d858b36e0c3052ee0cbfa9e5823db4d8e34c86777dabfc4d7cdf",
-      "bytes": 1468
+      "sha256": "c2eb8d78f8372de914b68a30e380c313e971c01a968f1574059439e72e55c7d6",
+      "bytes": 1732
     },
     {
       "path": "desktop/preload.cjs",
@@ -2395,5 +2395,5 @@
       "bytes": 1693
     }
   ],
-  "revision_note": "2026-11-08 pet polish: right-click menu, focusable false by default, library follows resize"
+  "revision_note": "2026-11-08 pet outfit panel listing all 30 open-source avatars"
 }

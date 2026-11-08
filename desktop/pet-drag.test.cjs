@@ -114,3 +114,14 @@ test('桌宠右键菜单与按需聚焦没有被删掉', () => {
   assert.ok(/focusable: false/.test(win), '桌宠窗口默认应该是不可聚焦（不抢焦点）');
   assert.ok(/'focusable'/.test(win), '主进程没有 focusable 动作');
 });
+
+test('桌宠形象面板：列全部开源形象，不再是 5 个循环', () => {
+  const ui = fs.readFileSync(path.join(__dirname, 'pet-ui.js'), 'utf8');
+  // 必须从 ROSTER 生成，而不是硬编码 5 个 id
+  assert.ok(/AVATARS\.ROSTER/.test(ui), '形象列表没有从 ROSTER 读取');
+  assert.ok(/flatMap/.test(ui), '形象列表没有展开成扁平数组');
+  assert.ok(!/OUTFITS = \['roster:/.test(ui), '还在硬编码 5 个形象');
+  assert.ok(ui.includes("id=\"pet-outfits\"") || ui.includes("'pet-outfits'"), '缺少形象面板');
+  assert.ok(/data-outfit/.test(ui), '缺少形象项标识');
+  assert.ok(/petControl\('outfit'/.test(ui), '选中后没有落盘');
+});

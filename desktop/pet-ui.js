@@ -13,6 +13,9 @@
   const input = $('pet-input');
   const sendBtn = $('pet-send');
   const chatStatus = $('pet-chat-status');
+  const menu = $('pet-menu');
+  const outfitsPanel = $('pet-outfits');
+  const outfitsGrid = $('pet-outfits-grid');
   if (!pet || !AVATARS || !window.workbench) return;
 
   const EMOTES = [
@@ -25,13 +28,15 @@
     { face: '❓', text: '啊？', row: 'fail' },
     { face: '👍', text: '收到', row: 'wave' },
   ];
-  const OUTFITS = ['roster:deepseek-chibi', 'roster:chatgpt-chibi', 'roster:claude-chibi', 'roster:gemini-chibi', 'roster:grok-chibi'];
+  // 全部用 GitHub 开源素材（llm-pet：15 个模型 × 标准版 / Q 版 = 30 个）。
+  const ROSTER = (AVATARS && AVATARS.ROSTER) || {};
+  const OUTFITS = Object.values(ROSTER).flatMap((def) => (def.ids || []).map((id) => 'roster:' + id));
   const TERMINAL = ['completed', 'accepted', 'failed', 'cancelled', 'blocked'];
   const petModel = { id: 'desktop-pet', name: '桌面形象' };
 
   let locked = false;
   let alwaysOnTop = true;
-  let outfit = OUTFITS[0];
+  let outfit = OUTFITS[0] || 'roster:deepseek-chibi';
   let opaque = false;
   let bubbleTimer = null;
   let rowTimer = null;
@@ -175,7 +180,7 @@
   }
 
   function toggleBox(which) {
-    for (const box of [emotesBox, chatbox]) {
+    for (const box of [emotesBox, chatbox, outfitsPanel]) {
       if (box !== which) box.hidden = true;
     }
     which.hidden = !which.hidden;
@@ -215,7 +220,7 @@
   // 主进程按光标位置动态开关注透：落在外面就让点击穿透到桌面和其他窗口。
   let hitboxTimer = null;
   function reportHitbox() {
-    const boxes = ['#pet-actor', '#pet-toolbar', '#pet-bubble', '#pet-emotes', '#pet-chatbox', '#pet-menu']
+    const boxes = ['#pet-actor', '#pet-toolbar', '#pet-bubble', '#pet-emotes', '#pet-chatbox', '#pet-menu', '#pet-outfits']
       .map((sel) => document.querySelector(sel))
       .filter((el) => el && !el.hidden && getComputedStyle(el).display !== 'none')
       .map((el) => el.getBoundingClientRect());
@@ -238,7 +243,7 @@
 
   pet.addEventListener('pointerup', endDrag);
   pet.addEventListener('pointercancel', endDrag);
-  actor.addEventListener('pointerdown', () => closeMenu(), true);
+  actor.addEventListener('pointerdown', () => { closeMenu(); if (outfitsPanel) outfitsPanel.hidden = true; }, true);
   actor.addEventListener('dblclick', () => {
     const e = EMOTES[Math.floor(Math.random() * EMOTES.length)];
     showBubble(e.text, e.face);
@@ -264,13 +269,47 @@
       showBubble(alwaysOnTop ? '已置顶' : '取消置顶', '📌');
     }
   }
-  async function swapOutfit() {
-    const idx = OUTFITS.indexOf(outfit);
-    outfit = OUTFITS[(idx + 1) % OUTFITS.length];
-    renderActor();
-    await window.workbench.petControl('outfit', outfit);
-    showBubble('换了个形象', '✨');
+  // 形象面板：3 列滚动网格，列出全部 30 个开源形象（15 模型 × 标准/Q 版）
+  function buildOutfits() {
+    outfitsGrid.replaceChildren();
+    for (const def of Object.values(ROSTER)) {
+      for (const id of (def.ids || [])) {
+        const value = 'roster:' + id;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'pet-outfit' + (value === outfit ? ' is-active' : '');
+        btn.dataset.outfit = value;
+        const chibi = id.endsWith('-chibi');
+        btn.title = `${def.label} · ${chibi ? 'Q 版' : '标准版'}`;
+        const thumb = document.createElement('div');
+        thumb.className = 'thumb';
+        thumb.style.backgroundImage = `url("${AVATARS.R}${id}.webp")`;
+        btn.append(thumb);
+        const name = document.createElement('span');
+        name.textContent = String(def.label).split(' · ')[0] + (chibi ? '·Q' : '·标');
+        btn.append(name);
+        outfitsGrid.append(btn);
+      }
+    }
   }
+  function openOutfits() {
+    bubble.hidden = true;
+    if (!outfitsPanel.hidden) { outfitsPanel.hidden = true; queueHitbox(); return; }
+    buildOutfits();
+    toggleBox(outfitsPanel);
+    queueHitbox();
+  }
+  outfitsGrid.addEventListener('click', async (event) => {
+    const btn = event.target.closest('[data-outfit]');
+    if (!btn) return;
+    outfit = btn.dataset.outfit;
+    renderActor();
+    outfitsPanel.hidden = true;
+    queueHitbox();
+    await window.workbench.petControl('outfit', outfit);
+    const label = btn.title || '';
+    showBubble(label ? `换成 ${label.split(' · ')[0]}` : '换好了', '✨');
+  });
   function toggleChat() {
     toggleBox(chatbox);
     const open = !chatbox.hidden;
@@ -292,10 +331,9 @@
   $('pet-emote').addEventListener('click', () => toggleBox(emotesBox));
   $('pet-chat').addEventListener('click', toggleChat);
   $('pet-close').addEventListener('click', () => window.workbench.petControl('close'));
-  $('pet-swap').addEventListener('click', swapOutfit);
+  $('pet-swap').addEventListener('click', openOutfits);
 
   // ---- 右键菜单：配置都收在这里，工具条只留常用的 ----
-  const menu = $('pet-menu');
   function closeMenu() {
     if (!menu) return;
     menu.hidden = true;
@@ -322,7 +360,7 @@
     if (!menu) return;
     bubble.hidden = true; // 气泡和菜单叠在一起太挤，开菜单先收气泡
     menu.replaceChildren();
-    menu.append(item('换下一个形象', OUTFITS.indexOf(outfit) >= 0 ? `第 ${OUTFITS.indexOf(outfit) + 1}/${OUTFITS.length} 个` : '', 'outfit'));
+    menu.append(item('选择形象', `${OUTFITS.length} 个开源形象`, 'outfit'));
     menu.append(item(opaque ? '不透明窗口：开' : '不透明窗口：关', '透明窗在部分显卡上会闪', 'opaque', opaque));
     menu.append(item(locked ? '锁定位置：开' : '锁定位置：关', locked ? '拖不动' : '可以拖动', 'lock', locked));
     menu.append(item(alwaysOnTop ? '始终置顶：开' : '始终置顶：关', '', 'top', alwaysOnTop));
@@ -351,7 +389,7 @@
     event.stopPropagation();
     const action = btn.dataset.action;
     closeMenu();
-    if (action === 'outfit') await swapOutfit();
+    if (action === 'outfit') openOutfits();
     else if (action === 'opaque') await toggleOpaque();
     else if (action === 'lock') await toggleLock();
     else if (action === 'top') await toggleTop();
