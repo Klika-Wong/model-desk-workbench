@@ -563,7 +563,8 @@ async function main() {
     const petToggle = document.querySelector('#stage-pet');
     petToggle.checked = true; petToggle.dispatchEvent(new Event('change'));
     await wait(150);
-    const petDecor = getComputedStyle(document.querySelector('#stage-floor'), '::before').display;
+    // 小窗 176×200 放不下家具：房间层必须整体隐藏（旧的 ::before/::after 装饰已由房间层取代）
+    const petDecor = getComputedStyle(document.querySelector('#stage-room')).display;
     const dividerHidden = getComputedStyle(document.querySelector('.zone-divider')).display;
     petToggle.checked = false; petToggle.dispatchEvent(new Event('change'));
     await wait(150);

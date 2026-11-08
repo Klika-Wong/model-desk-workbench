@@ -1,0 +1,127 @@
+/* 协作舱视觉层：后墙 + 等轴地板 + 家具。
+   家具与角色共用接地线深度轴（z-index 由 room.js 按 y 写入），所以能互相遮挡。
+   所有颜色走变量，三套主题自动跟随。 */
+
+#stage-room {
+  position: absolute; inset: 0; z-index: 0;
+  pointer-events: none; overflow: hidden; border-radius: 18px;
+  /* 房间统一色温，深浅两套各自覆盖 */
+  --room-wall-hi: #f2f5f1;
+  --room-wall-lo: #d9e1d9;
+  --room-floor: #e3e9e2;
+  --room-seam: rgba(38, 60, 48, .16);
+  --room-edge: rgba(24, 40, 32, .16);
+  --rp-top: #f8faf6;
+  --rp-left: #c2cec3;
+  --rp-right: #a5b3a7;
+  --rp-dark: rgba(28, 44, 35, .13);
+  --rp-metal: #97a49a;
+  --rp-screen: #2a3540;
+  --rp-screen-glow: #63cfa6;
+  --rp-led: #59c98f;
+  --rp-cup: #ffffff;
+  --rp-leaf: #57895f;
+  --rp-muted: #93a298;
+}
+html[data-theme="dark"] #stage-room {
+  --room-wall-hi: #24272e;
+  --room-wall-lo: #1a1d22;
+  --room-floor: #202329;
+  --room-seam: rgba(148, 168, 210, .15);
+  --room-edge: rgba(0, 0, 0, .5);
+  --rp-top: #40474f;
+  --rp-left: #30353d;
+  --rp-right: #21252c;
+  --rp-dark: rgba(0, 0, 0, .34);
+  --rp-metal: #4c525d;
+  --rp-screen: #10151c;
+  --rp-screen-glow: #8b9cf5;
+  --rp-led: #86d3a6;
+  --rp-cup: #b9c0cc;
+  --rp-leaf: #3f7a57;
+  --rp-muted: #6d7684;
+}
+
+.room-wall {
+  position: absolute; left: 0; right: 0; top: 0; height: 24%;
+  background:
+    repeating-linear-gradient(90deg, transparent 0 82px, var(--room-seam) 82px 83px),
+    linear-gradient(180deg, var(--room-wall-hi), var(--room-wall-lo));
+}
+.room-wall::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 7px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, .16), var(--room-edge));
+}
+.room-floor {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  background-color: var(--room-floor);
+  /* 双向斜线 = 等轴地砖接缝，比正交网格更像俯视房间 */
+  background-image:
+    repeating-linear-gradient(60deg, var(--room-seam) 0 1px, transparent 1px 86px),
+    repeating-linear-gradient(-60deg, var(--room-seam) 0 1px, transparent 1px 86px);
+}
+.room-floor::before {
+  content: ''; position: absolute; left: 0; right: 0; top: 0; height: 30px;
+  background: linear-gradient(180deg, var(--room-edge), transparent);
+  opacity: .5;
+}
+#stage-room::after {
+  content: ''; position: absolute; inset: 0; border-radius: 18px;
+  box-shadow: inset 0 0 64px 6px rgba(0, 0, 0, .16);
+}
+
+/* 家具：锚点 = 底边中心，和角色脚底同一条轴 */
+.room-prop {
+  position: absolute; transform: translate(-50%, -100%);
+  pointer-events: none; line-height: 0;
+}
+.room-prop svg { display: block; }
+.room-prop.is-flipped svg { transform: scaleX(-1); }
+
+.rp-top { fill: var(--rp-top); stroke: var(--room-edge); stroke-width: .7; }
+.rp-left { fill: var(--rp-left); stroke: var(--room-edge); stroke-width: .5; }
+.rp-right { fill: var(--rp-right); stroke: var(--room-edge); stroke-width: .5; }
+.rp-dark { fill: var(--rp-dark); }
+.rp-metal { fill: var(--rp-metal); }
+.rp-panel { fill: var(--rp-screen); }
+.rp-cushion { fill: var(--rp-top); opacity: .8; }
+.rp-shadow { fill: rgba(8, 16, 12, .2); }
+.rp-top-lit { fill: rgba(255, 255, 255, .07); }
+.rp-screen { fill: var(--rp-screen); stroke: var(--rp-metal); stroke-width: 1.4; }
+.rp-screen-glow { fill: var(--rp-screen-glow); opacity: .5; animation: rp-flicker 5.2s ease-in-out infinite; }
+.rp-led { fill: var(--rp-led); animation: rp-blink 3.1s steps(1) infinite; }
+.rp-led:nth-of-type(2) { animation-delay: .53s; }
+.rp-led:nth-of-type(3) { animation-delay: 1.06s; }
+.rp-led:nth-of-type(4) { animation-delay: 1.59s; }
+.rp-led:nth-of-type(5) { animation-delay: 2.12s; }
+.rp-led:nth-of-type(6) { animation-delay: 2.65s; }
+.rp-slit { stroke: var(--room-edge); stroke-width: 2; fill: none; opacity: .55; }
+.rp-cup { fill: var(--rp-cup); }
+.rp-steam { stroke: var(--rp-muted); stroke-width: 1.6; fill: none; opacity: .45; animation: rp-steam 4s ease-in-out infinite; }
+.rp-leaf { fill: var(--rp-leaf); }
+
+/* 墙上的状态屏：深色面板 + 几条呼吸的数据条 */
+.room-screen {
+  position: absolute; left: 60%; top: 10%; transform: translateX(-50%);
+  width: 152px; height: 46px; padding: 8px 11px;
+  border-radius: 7px; display: flex; flex-direction: column; gap: 4px;
+  background: var(--rp-screen);
+  box-shadow: 0 0 0 1.5px var(--rp-metal), 0 0 16px -6px var(--rp-screen-glow);
+}
+.room-screen i { display: block; height: 5px; border-radius: 3px; background: var(--rp-screen-glow); opacity: .42; animation: rp-flicker 4.6s ease-in-out infinite; }
+.room-screen i:nth-child(1) { width: 72%; }
+.room-screen i:nth-child(2) { width: 46%; animation-delay: 1.1s; }
+.room-screen i:nth-child(3) { width: 88%; animation-delay: 2.3s; }
+.room-screen b { flex: 1; }
+
+@keyframes rp-flicker { 0%, 100% { opacity: .32; } 50% { opacity: .62; } }
+@keyframes rp-blink { 0%, 62% { opacity: 1; } 63%, 100% { opacity: .22; } }
+@keyframes rp-steam { 0%, 100% { opacity: .12; } 45% { opacity: .5; } }
+
+/* 页内小窗只有 176×200，摆家具会糊成一团，直接收掉 */
+body.collab-pet-on #stage-room { display: none; }
+
+html[data-reduce-motion="1"] .rp-screen-glow,
+html[data-reduce-motion="1"] .rp-led,
+html[data-reduce-motion="1"] .rp-steam,
+html[data-reduce-motion="1"] .room-screen i { animation: none !important; }

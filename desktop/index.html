@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="model-cards.css">
 <link rel="stylesheet" href="workspace-ui.css">
 <link rel="stylesheet" href="stage.css">
+<link rel="stylesheet" href="room.css">
 </head><body>
 <button id="toggle-sidebar" class="sidebar-toggle" aria-label="隐藏或显示侧栏" title="切换侧栏（Ctrl+B）">◧</button><aside class="sidebar">
   <div class="brand"><span class="brand-mark">M</span><div><strong>模型工作台</strong><small>你的项目 · 各自有序</small></div></div>
@@ -95,6 +96,7 @@
     <div class="collab-layout">
       <div class="collab-canvas-wrap">
         <div id="stage-floor" class="stage-floor" data-scene="discuss" aria-label="模型引用关系">
+          <div id="stage-room" class="stage-room" aria-hidden="true"></div>
           <svg id="stage-links" class="stage-links" aria-hidden="true"></svg>
           <span class="zone-label zone-work"><span class="zone-name">工作区</span> <small>空闲</small></span>
           <span class="zone-divider" aria-hidden="true"></span>
@@ -176,6 +178,8 @@
 <dialog id="shortcuts-dialog"><div class="dialog-heading"><h2>快捷键与高效操作</h2><button id="close-shortcuts" type="button">关闭</button></div><div id="shortcuts-body" class="shortcuts"></div></dialog>
 <script src="motion.js"></script><script src="designer.js"></script><script src="performance-ui.js"></script><script src="workspace-layout.js"></script><script src="renderer.js"></script><script src="memory-ui.js"></script><script src="task-feed.js"></script><script src="connection-view.js"></script><script src="model-alias.js"></script><script src="avatars.js"></script><script src="chat-prompt.js"></script><script src="chat-multi.js"></script><script src="dispatch-state.js"></script><script src="dispatch-ui.js"></script><script src="chat-ui.js"></script><script src="model-cards.js"></script><script src="models-ui.js"></script><script src="model-settings-ui.js"></script><script src="shell.js"></script><script src="wallpaper.js"></script><script src="command-palette.js"></script>
 <script src="ai-guide-ui.js"></script>
+<script src="assets/rooms/office.js"></script>
+<script src="room.js"></script>
 <script src="workspace-ui.js"></script><script src="stage-ui.js"></script>
 </body></html>
 

@@ -386,6 +386,8 @@
     const w = floor.clientWidth || 800, h = floor.clientHeight || 400;
     el.style.setProperty('--ax', (x * w).toFixed(1) + 'px');
     el.style.setProperty('--ay', (y * h).toFixed(1) + 'px');
+    // 角色以中心定位，脚在 y + 约 95px。深度按脚算，才能和家具的接地线对齐。
+    el.style.zIndex = String(20 + Math.round(y * h + 95));
   }
 
   function actorCenter(actor) {
@@ -395,68 +397,83 @@
   }
 
   // ---- 生态分区：工作区 / 摸鱼角同时存在，角色按真实状态归位 ----
-  // 无重叠布局：按画布宽度算出每行能放几个 156px 节点，工作区占左半、摸鱼角占右半，
-  // 放不下时自动换行或借用另一侧空位。位置变化会播放行走动作，配合 CSS 过渡看起来是走过去。
+  // 归位优先级：工位 → 摸鱼角 → 地板补位。座位来自 room.js 的房间布局，
+  // 所以「在工作」是真的坐在工位上，「摸鱼」是真的在沙发/咖啡台边。
+  // 座位都满了才退回网格，保证多人时也不重叠。
   function applyEcosystem(force) {
     if (!autoPlace && !force) return;
     const W = floor.clientWidth || 800;
     const NODE = 156, GAP = 18;
     const cols = Math.max(1, Math.min(4, Math.floor((W - 24) / (NODE + GAP))));
-    const leftCols = Math.max(1, Math.floor(cols / 2));
-    const rightCols = Math.max(1, cols - leftCols);
     const free = [...actors.values()].filter((a) => !a.manualPos);
     const work = free.filter((a) => zoneOf(a.el.dataset.state) === 'work');
     const rest = free.filter((a) => zoneOf(a.el.dataset.state) !== 'work');
     const discussing = running;
-    // 未开始交流时均匀铺满整行；开始后按状态分到左右半区。
-    const left = discussing ? work : free;
-    const right = discussing ? rest : [];
-    const rows = Math.max(1, Math.min(3, Math.ceil(Math.max(
-      left.length / Math.max(1, discussing ? leftCols : cols),
-      right.length / Math.max(1, rightCols),
-    ))));
-    const slots = { left: [], right: [] };
-    for (let r = 0; r < rows; r += 1) {
-      const lc = discussing ? leftCols : cols;
-      for (let c = 0; c < lc; c += 1) slots.left.push({ c, r, total: lc, side: 'left' });
-      if (discussing) for (let c = 0; c < rightCols; c += 1) slots.right.push({ c, r, total: rightCols, side: 'right' });
-    }
-    const take = (list, primary, fallback) => {
-      list.forEach((a) => {
-        const slot = primary.length ? primary.shift() : (fallback.length ? fallback.shift() : null);
-        if (!slot) return;
-        const x0 = slot.side === 'left' ? (discussing ? 0.06 : 0.10) : 0.58;
-        const x1 = slot.side === 'left' ? (discussing ? 0.48 : 0.90) : 0.94;
-        const x = slot.total === 1 ? (x0 + x1) / 2 : x0 + (x1 - x0) * slot.c / (slot.total - 1);
-        // 角色落在画布中段：既不空一大片，也不被底部对话框压住头像和名字。
-        const y = rows === 1 ? 0.44 : 0.30 + slot.r * (0.28 / (rows - 1));
-        const dist = Math.hypot(a.pos.x - x, a.pos.y - y);
-        const moved = dist > 0.02;
-        // 走路时长跟距离挂钩：近距离 0.34s，远距离 0.86s，避免"瞬移"或"滑冰"。
-        a.el.style.setProperty('--walk', Math.round(340 + Math.min(0.72, dist) * 700) + 'ms');
-        a.pos = { x, y };
-        setActorPos(a.el, x, y);
-        a.zone = zoneOf(a.el.dataset.state);
-        if (moved && discussing) {
-          const walkMs = Number((a.el.style.getPropertyValue('--walk') || '').replace('ms', '')) || 450;
-          setVisual(a, x < a.pos.x ? 'moveLeft' : 'moveRight', walkMs);
+
+    const seated = new Map();
+    const ROOM = window.__room;
+    if (ROOM) {
+      // 角色节点约 156×168：两个座位的间距小于这个尺寸，角色就会叠在一起。
+      const W = floor.clientWidth || 800, H = floor.clientHeight || 436;
+      const clash = (a, b) => Math.abs(a.x - b.x) * W < 158 && Math.abs(a.y - b.y) * H < 170;
+      const takenSeats = [];
+      const take = (list, role) => {
+        if (!list.length) return;
+        const pool = ROOM.seats(role);
+        for (const a of list) {
+          if (seated.has(a)) continue;
+          const seat = pool.find((s) => !takenSeats.some((t) => clash(t, s)));
+          if (!seat) return;
+          takenSeats.push(seat);
+          seated.set(a, seat);
         }
+      };
+      if (discussing) { take(work, 'work'); take(rest, 'rest'); }
+      // 没人在生成时不分左右：先填工位，再填摸鱼角，看起来像「大家各自在位置上」。
+      else { take(free, 'work'); take(free, 'rest'); }
+    }
+
+    // 座位不够：余下的按网格铺在地板前部，行距按角色高度算，不会叠。
+    const leftover = free.filter((a) => !seated.has(a));
+    if (leftover.length) {
+      const H = floor.clientHeight || 436;
+      const rowsLeft = Math.max(1, Math.ceil(leftover.length / cols));
+      leftover.forEach((a, i) => {
+        const c = i % cols, r = Math.floor(i / cols);
+        seated.set(a, {
+          x: cols === 1 ? 0.5 : 0.10 + 0.80 * c / (cols - 1),
+          y: Math.max(0.42, 0.78 - r * (170 / H)),
+        });
       });
-    };
-    // 分区跟着真实占用走：没人在生成时整块画布就是休息区，不摆「工作区」的架子；
-    // 只有真有人开始生成，才划出左右两区。否则会出现「工作区 · 空闲」里站满待机角色。
+    }
+
+    for (const a of free) {
+      const seat = seated.get(a);
+      if (!seat) continue;
+      const { x, y } = seat;
+      const prevX = a.pos.x;
+      const dist = Math.hypot(prevX - x, a.pos.y - y);
+      const moved = dist > 0.02;
+      // 走路时长跟距离挂钩：近距离 0.34s，远距离 0.86s，避免"瞬移"或"滑冰"。
+      a.el.style.setProperty('--walk', Math.round(340 + Math.min(0.72, dist) * 700) + 'ms');
+      a.pos = { x, y };
+      setActorPos(a.el, x, y);
+      a.zone = zoneOf(a.el.dataset.state);
+      if (moved && discussing) {
+        const walkMs = Number((a.el.style.getPropertyValue('--walk') || '').replace('ms', '')) || 450;
+        setVisual(a, x < prevX ? 'moveLeft' : 'moveRight', walkMs);
+      }
+    }
+    // 分区跟着真实占用走：没人在生成时标签就叫「休息中」。
     if (floor) {
       const busy = work.length > 0;
       floor.dataset.busy = busy ? '1' : '0';
       const workHint = floor.querySelector('.zone-work small');
       if (workHint) workHint.textContent = busy ? '生成中 / 正在输出' : '空闲';
-      // 没人在生成时整块是休息区，标签就不该继续叫「工作区」。
       const workName = floor.querySelector('.zone-work .zone-name');
       if (workName) workName.textContent = busy ? '工作区' : '休息中';
     }
 
-    take(left, slots.left, slots.right);
-    if (discussing) take(right, slots.right, slots.left);
     lastLinkSig = '';
     // 位置变化不该重建结构：让 structSig 判定，几何交给 updateLinkGeometry + followLayout。
     // 之前这里用 drawLinks(true)，跨区时每轮 8+ 次销毁重建 animateMotion，光点归零重放 = 闪烁。

@@ -30,63 +30,23 @@
 .stage-floor {
   position: relative; height: 436px; padding: 0; overflow: hidden;
   border: 0; border-radius: 18px;
+  background: var(--surface);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line) 65%, transparent);
-  /* 同一画面分两区：左边工位格，右边暖色休息角 */
-  background:
-    linear-gradient(90deg,
-      color-mix(in srgb, var(--accent) 5%, transparent) 0 56%,
-      color-mix(in srgb, #f0b77a 7%, transparent) 56% 100%),
-    radial-gradient(ellipse at 50% 108%, var(--surface-2), var(--surface) 72%);
 }
-.stage-floor::before {
-  /* 工作区画成工位格，和右侧休息地毯形成一眼可辨的两个区域。 */
-  content: ''; position: absolute; left: 0; top: 0; width: 56%; height: 100%; pointer-events: none;
-  background:
-    repeating-linear-gradient(90deg, transparent 0 116px,
-      color-mix(in srgb, var(--line) 40%, transparent) 116px 117px),
-    repeating-linear-gradient(0deg, transparent 0 92px,
-      color-mix(in srgb, var(--line) 34%, transparent) 92px 93px);
-  opacity: .7;
-  mask-image: linear-gradient(180deg, #000 0%, #000 62%, transparent 88%);
-}
-.stage-floor::after {
-  content: ''; position: absolute; left: 60%; right: 5%; bottom: 14px; height: 76px;
-  background:
-    radial-gradient(ellipse 34px 22px at 30% 64%, color-mix(in srgb, #f0b77a 26%, transparent), transparent 72%),
-    radial-gradient(ellipse 34px 22px at 70% 64%, color-mix(in srgb, #f0b77a 26%, transparent), transparent 72%),
-    linear-gradient(180deg, color-mix(in srgb, #f0b77a 10%, transparent), transparent 86%);
-  border: 1px dashed color-mix(in srgb, #e4a86c 40%, transparent); border-radius: 20px;
-  pointer-events: none; opacity: .8; transition: opacity .25s;
-}
-.stage-floor[data-busy="0"]::after { opacity: 0; }
-.stage-floor[data-busy="1"]::after { opacity: .8; }
-/* 空闲时整块画布统一底色：不分左右、不画工位格，否则右半那条暖色带看着像一块莫名的脏斑。 */
-.stage-floor[data-busy="0"] {
-  background:
-    color-mix(in srgb, var(--accent) 4%, transparent),
-    radial-gradient(ellipse at 50% 108%, var(--surface-2), var(--surface) 72%);
-}
-.stage-floor[data-busy="0"]::before { opacity: 0; }
-.zone-divider { position: absolute; left: 56%; top: 8%; bottom: 8%; width: 0; z-index: 1;
-  border-left: 1px dashed color-mix(in srgb, var(--line-strong) 80%, transparent); pointer-events: none; }
+/* 地面与家具由 room.css 的房间层负责，这里只留两块墙上的区域挂牌 */
 .zone-label {
-  position: absolute; top: 10px; z-index: 3; display: inline-flex; align-items: baseline; gap: 6px;
-  padding: 4px 10px; font-size: 11px; font-weight: 600; letter-spacing: .04em;
+  position: absolute; top: 9px; z-index: 3;
+  display: inline-flex; align-items: baseline; gap: 6px;
+  padding: 3px 10px; font-size: 10px; font-weight: 600; letter-spacing: .05em;
   border-radius: 999px; color: var(--muted);
-  background: color-mix(in srgb, var(--surface) 80%, transparent);
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line) 85%, transparent);
 }
 .zone-label small { font-weight: 400; font-size: 9px; letter-spacing: 0; }
-/* 空闲时整块画布都是休息区：收掉分区线、摸鱼角标签与地毯，只留一个「空闲」提示。
-   有人生成时才分出左右两区。 */
-.stage-floor[data-busy="0"] .zone-work { opacity: .5; }
-.stage-floor[data-busy="0"] .zone-rest,
-.stage-floor[data-busy="0"] .zone-divider { opacity: 0; pointer-events: none; }
-.stage-floor[data-busy="1"] .zone-work { opacity: 1; }
-.stage-floor[data-busy="1"] .zone-rest,
-.stage-floor[data-busy="1"] .zone-divider { opacity: 1; }
-.zone-rest, .zone-divider { transition: opacity .25s; }
-.zone-label.zone-work { left: 12px; }
-.zone-label.zone-rest { right: 12px; }
+.zone-label.zone-work { left: 14px; }
+.zone-label.zone-rest { right: 14px; }
+/* 整块是一间连续舱室，不再拉左右分区线 */
+.zone-divider { display: none; }
 
 .stage-links { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
 .collab-link { fill: none; stroke: color-mix(in srgb, var(--accent) 34%, var(--line)); stroke-width: 1.6; stroke-dasharray: 5 5; transition: opacity .2s, stroke .2s; }
@@ -110,7 +70,7 @@
   transition: none;
 }
 .stage-actor.is-placed { transition: transform var(--walk, 450ms) cubic-bezier(.22, .61, .36, 1); }
-.stage-actor.is-dragging { cursor: grabbing; z-index: 6; transition: none; will-change: transform; }
+.stage-actor.is-dragging { cursor: grabbing; z-index: 900 !important; transition: none; will-change: transform; }
 @media (prefers-reduced-motion: reduce) { .stage-actor { transition: none; } }
 .stage-actor-avatar {
   --pet-w: 120px; --pet-h: 130px;
@@ -319,8 +279,6 @@
 body.collab-pet-on .stage-links, body.collab-pet-on .side-panel, body.collab-pet-on .collab-tip,
 body.collab-pet-on .zone-label, body.collab-pet-on .zone-divider, body.collab-pet-on .dialogue-box,
 body.collab-pet-on .stage-consent { display: none; }
-body.collab-pet-on .stage-floor.pet-mode::before,
-body.collab-pet-on .stage-floor.pet-mode::after { display: none; }
 body.collab-pet-on .collab-layout { grid-template-columns: 1fr; }
 
 @media (max-width: 1000px) {
@@ -350,26 +308,6 @@ body.collab-pet-on .collab-layout { grid-template-columns: 1fr; }
 .ctx-item:hover { background: var(--accent-soft); color: var(--accent); }
 .ctx-sep { height: 1px; margin: 7px 0; background: var(--line); }
 html[data-theme="dark"] .brand-coin { background: radial-gradient(circle at 34% 26%, #33363e 0%, #2a2d35 72%, #24272e 100%); }
-html[data-theme="dark"] .stage-floor::before { opacity: .95; }
-/* 深色下这条特异性比 .stage-floor[data-busy="0"]::before 高，必须显式压回来，
-   否则空闲时工位网格仍然可见。 */
-html[data-theme="dark"] .stage-floor[data-busy="0"]::before { opacity: 0; }
-html[data-theme="dark"] .stage-floor[data-busy="1"]::before { opacity: .95; }
-html[data-theme="dark"] .stage-floor[data-busy="0"] {
-  background:
-    color-mix(in srgb, var(--accent) 4%, transparent),
-    radial-gradient(ellipse at 50% 108%, var(--surface-2), var(--surface) 72%);
-}
-html[data-theme="dark"] .stage-floor[data-busy="0"]::after { opacity: 0; }
-html[data-theme="dark"] .stage-floor[data-busy="1"]::after { opacity: 1; }
-html[data-theme="dark"] .stage-floor::after {
-  transition: opacity .25s;
-  border-color: color-mix(in srgb, #c9a479 34%, transparent);
-  background:
-    radial-gradient(ellipse 34px 22px at 30% 64%, rgba(201, 164, 121, .18), transparent 72%),
-    radial-gradient(ellipse 34px 22px at 70% 64%, rgba(201, 164, 121, .18), transparent 72%),
-    linear-gradient(180deg, rgba(201, 164, 121, .07), transparent 86%);
-}
 html[data-theme="dark"] .dialogue-box { background: color-mix(in srgb, var(--surface-3) 92%, #10131a); box-shadow: 0 0 0 1px var(--accent-line), 0 14px 32px -18px rgba(0,0,0,.8); }
 .stage-consent { display: flex; align-items: center; gap: 6px; margin: 0 0 7px; font-size: 10px; line-height: 1.35; white-space: nowrap; color: var(--muted); cursor: pointer; }
 .stage-consent input { margin: 0; flex: none; }
