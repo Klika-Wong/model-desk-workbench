@@ -1,5 +1,26 @@
 # 本次发布验证
 
+## 2026-11-09 桌宠链路：桩验证与真机验证分开
+
+此前 `verify:ui` 中的 `pet-desktop-window` 是误报：它使用桩 preload，`petOpen` 直接返回
+`{ok:true}`，从不创建窗口。现改名为 `pet-open-ipc-dispatch`，只断言 IPC 被派发；窗口本身
+由 `npm run verify:pet` 在真实 Electron 中验证。
+
+| 检查 | 命令 | 结果 | 边界 |
+| --- | --- | --- | --- |
+| 单元 | `node --test *.test.cjs` | 184/184 | Node 内置测试 |
+| 主界面真机 | `npm run verify:ui` | 52 项，console 错误 0 | 桩 preload，不建桌宠窗口 |
+| 桌宠真机 | `npm run verify:pet` | 12 项，errors 0 | 独立 userData，不启动完整主进程 |
+
+`verify:pet` 覆盖：按钮绑定、`pet:open` 真的多出一个 `BrowserWindow`、`pet.html` 加载、
+角色 sprite 动画与素材、工具栏 6 项、BGRA 非透明像素、30 个形象、右键 6 项、
+hitbox 快照、`petControl('lock')`、以及 `petControl('close')` 真的销毁窗口。
+仓库与 `E:\多Agent工作台升级规划\desktop-shell-prototype` 运行实例两侧各跑一遍，结果一致。
+
+运行实例同步用 `node scripts/sync-to-runtime.cjs`（可先加 `--dry-run`）。桌面快捷方式
+「模型工作台体验版」指向该目录下的 Electron 二进制；只 push GitHub 不改这份目录，
+用户重启应用也看不到更新。同步后需完全退出应用再打开。
+
 ## 2026-10-30 派发体验增量
 
 在实际开发源码修复前，新增4项回归测试分别复现查询断线后停止、窗口显示后不恢复、慢查询叠加和终态错误文案。修复后增加预览失效/确认变更等测试。

@@ -107,7 +107,9 @@ contextBridge.exposeInMainWorld('workbench', {
   chatSave: async (messages, project) => { calls.push({ api: 'chatSave', input: messages, project }); return { ok: true, data: { saved: (messages || []).length } }; },
   chatClear: async (project) => { calls.push({ api: 'chatClear', project }); return { ok: !chatClearFails, data: { cleared: !chatClearFails } }; },
   renderInfo: async () => ({ gpuCompositing: 'enabled', gpuRasterization: 'enabled', webgl: 'enabled', scaleFactor: 1, displaySize: [1280, 800], platform: 'win32' }),
-  petOpen: async () => { calls.push({api:'petOpen'}); return {ok:true,data:{locked:false,alwaysOnTop:true}}; },
+  // 桩环境没有 Electron 主进程，petOpen 不会真的建窗口。harness 标记供断言区分，
+  // 真窗口由 npm run verify:pet（pet-verify.cjs）在真机覆盖。
+  petOpen: async () => { calls.push({api:'petOpen'}); return {ok:true,data:{harness:'stub',locked:false,alwaysOnTop:true}}; },
   petState: async () => ({ok:true,data:{locked:false,alwaysOnTop:true}}),
   petControl: async (action, value) => { calls.push({api:'petControl',action,value}); return {ok:true,data:{locked:action==='lock'?Boolean(value):false,alwaysOnTop:action==='top'?Boolean(value):true}}; },
   dispatchModels: async () => ({ ok: true, data: { baseUrl: 'http://127.0.0.1:18765', defaultModel: 'm-local', models: [{ id: 'm-local', name: '本地示例模型', provider: 'local', local: true, enabled: true, ready: true }, { id: 'm-cloud', name: '云端示例模型', provider: 'cloud', local: false, enabled: true, ready: true }, { id: 'm-deepseek', name: 'DeepSeek-V3', provider: 'deepseek', local: false, enabled: true, ready: true }, { id: 'm-offline', name: '离线示例模型', provider: 'local', local: true, enabled: true, ready: false }] } }),

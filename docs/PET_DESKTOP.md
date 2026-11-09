@@ -54,6 +54,18 @@
 主进程的 `assertTrustedSender` 仍把 `pet.html` 列入白名单，因为派发链路需要它，
 但实际可调用的通道已被 preload 限制到最小集合。
 
+## 真机验证与运行实例同步（2026-11-09）
+
+上文「174 项单测与 33 项真机 UI 检查」是当时那一版的历史结果，不是当前数字。
+当前结果以 `CHANGELOG.md` 与 `docs/VALIDATION.md` 为准。
+
+- `npm run verify:pet`：真实 Electron 里跑完「主界面按钮 → 独立桌宠窗口 → 窗口内交互 → 关闭」
+  共 12 项。其中会数 BGRA 的非透明像素，避免 `isVisible()` 为真但屏幕上什么都没有。
+- `verify:ui` 用桩 preload，只覆盖到 `petOpen` 被调用，检查名 `pet-open-ipc-dispatch`，
+  不再冒充窗口验证。
+- 代码改完跑 `node scripts/sync-to-runtime.cjs` 同步到桌面快捷方式指向的运行实例，
+  否则 GitHub 更新了、桌面上还是旧版。同步后必须完全退出应用再打开。
+
 ## 拖动方向修复（2026-11-08）
 
 早期版本由渲染层用 `clientX/Y` 增量调用 `petControl('move')`：窗口一动，渲染进程的

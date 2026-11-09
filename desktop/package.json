@@ -7,7 +7,8 @@
   "scripts": {
     "start": "electron .",
     "smoke": "node smoke-runner.cjs",
-    "verify:ui": "node ui-verify-run.cjs"
+    "verify:ui": "node ui-verify-run.cjs",
+    "verify:pet": "node pet-verify-run.cjs"
   },
   "devDependencies": {
     "electron": "45.0.0"

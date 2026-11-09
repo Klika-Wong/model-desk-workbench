@@ -85,9 +85,16 @@ npm start
 npm test
 npm run smoke
 npm run verify:ui
+npm run verify:pet
 ```
 
-这些自动测试**不代表**真实付费调用，也**不代表**完整产品验收。本文不给出任何通过数量结论。
+`verify:ui` 使用桩 preload，只验证界面逻辑；独立桌宠窗口是否真的创建由 `verify:pet`
+在真实 Electron 中验证。这些自动测试**不代表**真实付费调用，也**不代表**完整产品验收。
+本文不给出任何通过数量结论。
+
+改完桌面代码后，若本机桌面快捷方式指向的是另一份目录，需运行
+`node scripts/sync-to-runtime.cjs` 把 `desktop/` 同步过去（可先加 `--dry-run` 查看差异），
+再完全退出应用重新打开；只 push 到 GitHub 不会改变本机正在运行的实例。
 
 ## 隐私
 

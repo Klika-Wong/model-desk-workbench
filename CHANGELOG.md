@@ -1,5 +1,29 @@
 # 更新记录
 
+## 桌宠真机验证与「改了却看不到」的修复（2026-11-09）
+
+问题不在桌宠代码，在两处流程漏洞：仓库 push 到 GitHub 后，桌面快捷方式指向的是另一份目录；
+而 `ui-verify-preload.cjs` 的 `petOpen` 是永远返回成功的桩，`verify:ui` 却把这条记为
+`pet-desktop-window` 通过，长期误报「悬浮到桌面已验证」。
+
+- **运行实例同步**：新增 `scripts/sync-to-runtime.cjs`，把 `desktop/` 同步到桌面快捷方式
+  实际指向的 `E:\多Agent工作台升级规划\desktop-shell-prototype`。只覆盖仓库里存在且内容
+  有差异的文件，忽略纯行尾差异；覆盖前备份到 `review-backups/sync-<时间戳>/`；
+  不删目标独有文件，跳过根目录的预览图/README 与本地诊断脚本。支持 `--dry-run`。
+- **验证不再说谎**：桩 `petOpen` 返回值加 `harness:'stub'`；`verify:ui` 的检查改名
+  `pet-open-ipc-dispatch`，只断言按钮确实调用了 `petOpen` 且状态文案更新，不再宣称窗口已创建。
+- **补上真窗口覆盖**：新增 `npm run verify:pet`（`pet-verify.cjs` / `pet-verify-run.cjs`），
+  在真实 Electron 里点击主界面按钮 → 建独立桌宠窗口 → 检查 URL/可见性、sprite 动画、
+  工具栏 6 项、BGRA 非透明像素占比、30 个形象、右键 6 项、hitbox、控制通道与关闭，共 12 项。
+- **本次结果**：仓库与运行实例两侧分别跑，单测 184/184、`verify:ui` 52 项全过、
+  `verify:pet` 12 项全过，无 console 错误。已核对桌面「模型工作台体验版」快捷方式
+  指向上述运行实例目录下的 `node_modules/electron/dist/electron.exe`。
+
+边界：`verify:pet` 在独立 `userData` 下用与 `main.cjs` 相同的 `registerPetWindow` 建窗，
+不启动完整主进程，托盘、本机服务与其余 IPC 注册不在覆盖内。它证明的是
+「按钮 → 建窗 → 窗口内交互 → 关闭」这条链，不是整机安装验收。
+应用若在运行，同步后必须从托盘选「退出工作台」再重开，关窗口不会退出。
+
 ## 编号改成头顶 ID 条（2026-11-09）
 
 把设施编号从地板贴纸改成游戏角色式的头顶代号牌，顺带解决上一版「编号会压住角色脚部」的遗留。

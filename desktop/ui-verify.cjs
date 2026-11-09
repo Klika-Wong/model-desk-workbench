@@ -334,11 +334,14 @@ async function main() {
       }
     }
 
-    // 悬浮桌宠入口
+    // 悬浮桌宠入口：这里只验证按钮确实调用了 petOpen 并更新状态文案。
+    // 桩 preload 不会创建窗口，「窗口是否存在」由 verify:pet 真机验证。
     const hasPetOpen = Boolean(document.querySelector('#stage-pet-open'));
+    const petOpenCallsBefore = window.__stubCalls.all().filter(c => c.api === 'petOpen').length;
     if (hasPetOpen) document.querySelector('#stage-pet-open').click();
     await new Promise(r => setTimeout(r, 200));
     const petStatus = document.querySelector('#stage-status').textContent;
+    const petOpenDispatched = window.__stubCalls.all().filter(c => c.api === 'petOpen').length > petOpenCallsBefore;
 
     // 右键菜单：形象与配置全在这里
     const firstActor = document.querySelector('.stage-actor');
@@ -419,7 +422,7 @@ async function main() {
     localStorage.removeItem('pet-avatar:' + pickedId);
     localStorage.removeItem('collab-pos:m-cloud');
     return { visible, othersHidden, pickCount, checkedCount, offlineText, idComplete, zones, autoPlace, noOutfitBar,
-      sprites, distinctSheets, deepseekRoster, headerText, overlaps, keyboardReady, consentExists, introHonest, askDisabledWithoutConsent, noSendWithoutConsent, panelScroll, turnsScroll, stopBtnExists, hasPetOpen, petStatus, ctxOpen, ctxOutfits, ctxActions,
+      sprites, distinctSheets, deepseekRoster, headerText, overlaps, keyboardReady, consentExists, introHonest, askDisabledWithoutConsent, noSendWithoutConsent, panelScroll, turnsScroll, stopBtnExists, hasPetOpen, petStatus, petOpenDispatched, ctxOpen, ctxOutfits, ctxActions,
       beforePet, afterPet, stored, renamed, selected, pokeBubbles, pokeState, pokeRow, savedPos, bubbles, links,
       edgeTags, turns, kinds, dialogueVisible, dialogueName, savedHistory, statusRows, actorNodes, refTags, chatLabels };
    } catch (e) { return { jsError: String((e && e.stack) || e) }; }
@@ -443,7 +446,9 @@ async function main() {
   if (!stage.askDisabledWithoutConsent || !stage.noSendWithoutConsent) {
     throw new Error(`未勾确认时仍能派发：disabled=${stage.askDisabledWithoutConsent} noSend=${stage.noSendWithoutConsent} consent=${stage.consentExists}`);
   }
-  if (!stage.hasPetOpen || !stage.petStatus.includes('悬浮到桌面')) throw new Error('悬浮桌宠入口无效');
+  if (!stage.hasPetOpen || !stage.petOpenDispatched || !stage.petStatus.includes('悬浮到桌面')) {
+    throw new Error(`悬浮桌宠入口无效：按钮=${stage.hasPetOpen} 已派发=${stage.petOpenDispatched} 状态=${stage.petStatus}`);
+  }
   if (!stage.ctxOpen || stage.ctxOutfits < 2 || stage.ctxActions < 6) throw new Error(`右键菜单不完整：${stage.ctxOpen}/${stage.ctxOutfits}/${stage.ctxActions}`);
   if (stage.afterPet === stage.beforePet) throw new Error('右键换形象没有存到本机');
   if (stage.stored !== '小鲸' || stage.renamed !== '小鲸') throw new Error('改名没有生效');
@@ -460,7 +465,7 @@ async function main() {
   if (stage.statusRows !== stage.actorNodes) throw new Error(`状态行重复或缺失：${stage.statusRows}/${stage.actorNodes}`);
   if (!stage.refTags.some((t) => t.includes('参考'))) throw new Error('交流记录里没有参考条数');
   if (!stage.chatLabels.includes('小鲸')) throw new Error(`改 ID 后对话页下拉没同步：${stage.chatLabels}`);
-  result.checks.push('collab-online-only', 'collab-ecosystem-zones', 'collab-context-menu', 'collab-dialogue-flow', 'pet-desktop-window', 'collab-reference-graph');
+  result.checks.push('collab-online-only', 'collab-ecosystem-zones', 'collab-context-menu', 'collab-dialogue-flow', 'pet-open-ipc-dispatch', 'collab-reference-graph');
 
   // 本轮 UI 复查的四条回归：性能、对话框、历史一致性、不可逆操作确认
   const ux = await js(`(async () => {
