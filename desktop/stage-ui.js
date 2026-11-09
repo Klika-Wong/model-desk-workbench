@@ -431,6 +431,17 @@
       if (discussing) { take(work, 'work'); take(rest, 'rest'); }
       // 没人在生成时不分左右：先填工位，再填摸鱼角，看起来像「大家各自在位置上」。
       else { take(free, 'work'); take(free, 'rest'); }
+
+      // 谁坐在哪台设施上 → 铭牌亮灯。座位空着灯就灭，等于一眼看出哪间设施在用。
+      if (typeof ROOM.setUsage === 'function') {
+        const usage = {};
+        for (const a of free) {
+          const seat = seated.get(a);
+          if (!seat || !seat.propId) continue;
+          usage[seat.propId] = (usage[seat.propId] || 0) + 1;
+        }
+        ROOM.setUsage(usage);
+      }
     }
 
     // 座位不够：余下的按网格铺在地板前部，行距按角色高度算，不会叠。

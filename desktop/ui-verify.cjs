@@ -614,6 +614,35 @@ async function main() {
   if (ux.afterSecond !== 0) throw new Error(`二次确认后没有清空历史：${ux.afterSecond}`);
   result.checks.push('collab-no-link-rebuild', 'collab-dialogue-dismiss', 'collab-history-consistency', 'collab-clear-confirm', 'collab-consent-gate', 'collab-menu-keyboard', 'collab-pet-mode-clean', 'collab-idle-motion', 'collab-reduce-motion', 'collab-sprite-frame-count', 'collab-outfit-library-opens');
 
+  // 房间层：6 件家具各有一块铭牌，不能被画布裁掉、不能被家具的深度排序吞掉，
+  // 且「有人坐上去就亮灯」。PC-01 曾被机柜 SVG 盖住，这两条是那次回归。
+  const roomCheck = await js(`(async () => {
+    document.getElementById('nav-stage').click();
+    await new Promise(r => setTimeout(r, 250));
+    const host = document.getElementById('stage-room');
+    const fr = host.getBoundingClientRect();
+    const plates = [...host.querySelectorAll('.room-plate')];
+    const props = [...host.querySelectorAll('.room-prop')];
+    const clipped = plates.filter((p) => {
+      const r = p.getBoundingClientRect();
+      return r.width === 0 || r.left < fr.left - 1 || r.right > fr.right + 1 || r.top < fr.top - 1 || r.bottom > fr.bottom + 1;
+    }).map((p) => p.textContent.trim());
+    const minZ = Math.min(...plates.map((p) => Number(getComputedStyle(p).zIndex)));
+    const maxPropZ = Math.max(...props.map((p) => Number(getComputedStyle(p).zIndex)));
+    window.__room.setUsage({});
+    const allOff = plates.every((p) => p.dataset.used === '0');
+    window.__room.setUsage({ 'desk-a': 1 });
+    const deskOn = host.querySelector('.room-plate[data-prop-id="desk-a"]').dataset.used === '1';
+    const othersOff = plates.filter((p) => p.dataset.propId !== 'desk-a').every((p) => p.dataset.used === '0');
+    await window.__stageUi.applyEcosystem(true);
+    return { props: props.length, plates: plates.length, codes: plates.map((p) => p.textContent.trim()), clipped, minZ, maxPropZ, allOff, deskOn, othersOff };
+  })()`);
+  if (roomCheck.props !== 6 || roomCheck.plates !== 6) throw new Error(`设施铭牌数量不对：${JSON.stringify(roomCheck)}`);
+  if (roomCheck.clipped.length) throw new Error(`铭牌被画布裁掉：${JSON.stringify(roomCheck.clipped)}`);
+  if (!(roomCheck.minZ > roomCheck.maxPropZ)) throw new Error(`铭牌 z 低于家具，会被盖住：${roomCheck.minZ}/${roomCheck.maxPropZ}`);
+  if (!roomCheck.allOff || !roomCheck.deskOn || !roomCheck.othersOff) throw new Error(`占用灯不跟座位走：${JSON.stringify(roomCheck)}`);
+  result.checks.push('room-facility-plates', 'room-plates-not-clipped', 'room-plate-occupancy');
+
   // 留两张图：默认关系图、桌宠模式。
   const spriteReady = await js(`(async () => {
     ['m-local', 'm-cloud', 'm-deepseek'].forEach((id) => {

@@ -9,12 +9,12 @@
   const DEFAULT_ROOM = {
     id: 'office-01', name: '协作舱', wallRatio: 0.24,
     props: [
-      { id: 'desk-a', type: 'desk', x: 0.18, y: 0.42, w: 158, seats: [{ x: 0.18, y: 0.53, role: 'work' }] },
-      { id: 'desk-b', type: 'desk', x: 0.38, y: 0.42, w: 158, flip: true, seats: [{ x: 0.38, y: 0.53, role: 'work' }] },
-      { id: 'plant-a', type: 'plant', x: 0.515, y: 0.375, w: 62 },
-      { id: 'rack', type: 'rack', x: 0.055, y: 0.585, w: 80, seats: [{ x: 0.135, y: 0.655, role: 'work' }] },
-      { id: 'cafe', type: 'cafe', x: 0.66, y: 0.44, w: 122, seats: [{ x: 0.66, y: 0.55, role: 'rest' }] },
-      { id: 'sofa', type: 'sofa', x: 0.855, y: 0.60, w: 180,
+      { id: 'desk-a', type: 'desk', code: 'PC-01', name: '工位', plateSide: 'right', x: 0.18, y: 0.42, w: 158, seats: [{ x: 0.18, y: 0.53, role: 'work' }] },
+      { id: 'desk-b', type: 'desk', code: 'PC-02', name: '工位', plateSide: 'right', x: 0.38, y: 0.42, w: 158, flip: true, seats: [{ x: 0.38, y: 0.53, role: 'work' }] },
+      { id: 'plant-a', type: 'plant', code: 'GRN-01', name: '绿植', plateSide: 'right', x: 0.515, y: 0.375, w: 62 },
+      { id: 'rack', type: 'rack', code: 'SRV-01', name: '机柜', plateSide: 'center', x: 0.055, y: 0.585, w: 80, seats: [{ x: 0.135, y: 0.655, role: 'work' }] },
+      { id: 'cafe', type: 'cafe', code: 'BRW-01', name: '咖啡台', plateSide: 'left', x: 0.66, y: 0.44, w: 122, seats: [{ x: 0.66, y: 0.55, role: 'rest' }] },
+      { id: 'sofa', type: 'sofa', code: 'LNG-01', name: '休息位', plateSide: 'left', x: 0.855, y: 0.60, w: 180,
         seats: [{ x: 0.845, y: 0.69, role: 'rest' }, { x: 0.905, y: 0.665, role: 'rest' }] },
     ],
     fallbackSeats: [
@@ -29,6 +29,7 @@
 
   let room = DEFAULT_ROOM;
   let host = null;
+  let pendingUsage = {};
 
   // ---- 等轴基础件 ----
   function faces(cx, cy, w, d, h) {
@@ -39,11 +40,12 @@
       right: [cx, cy + hd, cx + hw, cy, cx + hw, cy + h, cx, cy + hd + h].join(' '),
     };
   }
-  function box(cx, cy, w, d, h) {
+  function box(cx, cy, w, d, h, cls) {
     const f = faces(cx, cy, w, d, h);
-    return `<polygon class="rp-left" points="${f.left}"/>`
-      + `<polygon class="rp-right" points="${f.right}"/>`
-      + `<polygon class="rp-top" points="${f.top}"/>`;
+    const c = cls ? ` ${cls}` : '';
+    return `<polygon class="rp-left${c}" points="${f.left}"/>`
+      + `<polygon class="rp-right${c}" points="${f.right}"/>`
+      + `<polygon class="rp-top${c}" points="${f.top}"/>`;
   }
   const shadow = (cx, cy, rx, ry) => `<ellipse class="rp-shadow" cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}"/>`;
 
@@ -89,14 +91,19 @@
   }
 
   function sofaSvg() {
-    return `<svg viewBox="0 0 182 152" width="182" height="152" aria-hidden="true">
-      ${shadow(91, 146, 76, 7)}
-      ${box(91, 48, 164, 36, 48)}
-      ${box(25, 88, 26, 46, 34)}
-      ${box(157, 88, 26, 46, 34)}
-      ${box(91, 84, 122, 40, 30)}
-      <polygon class="rp-top-lit" points="91,66 156,96 91,126 26,96"/>
-      <path class="rp-dark" d="M58 81 L58 111 M124 81 L124 111"/>
+    /* 经典等轴家具画法：坐垫是一个大盒，靠背 = 从坐垫后缘升起的两块围合板，
+       扶手 = 贴在坐垫两端的小翼板。之前用多个独立盒子拼，在这种投影下
+       全都读成斜插的刀片。 */
+    return `<svg viewBox="0 0 182 158" width="182" height="158" aria-hidden="true">
+      ${shadow(91, 146, 78, 8)}
+      <polygon class="sk-backL" points="16,84 91,56 91,22 16,50"/>
+      <polygon class="sk-backR" points="91,56 166,84 166,50 91,22"/>
+      <polygon class="sk-arm" points="16,84 32,78 32,48 16,54"/>
+      <polygon class="sk-arm" points="166,84 150,78 150,48 166,54"/>
+      ${box(91, 84, 150, 56, 26, 'sk-seat')}
+      <polygon class="rp-top-lit" points="91,60 158,84 91,108 24,84"/>
+      <ellipse class="rp-cushion" cx="61" cy="82" rx="27" ry="12"/>
+      <ellipse class="rp-cushion" cx="121" cy="82" rx="27" ry="12"/>
     </svg>`;
   }
 
@@ -127,6 +134,27 @@
     return el;
   }
 
+  /* 设施铭牌：独立图层铺在地板上，不随家具的 z 排序——
+     之前它作为家具子元素参与深度排序，被深度更近的家具 SVG 盖住（PC-01 消失案真相）。
+     z=470 高于所有家具（≤456）和待机角色（≤456），低于拖拽中的角色（900）。 */
+  function buildPlate(prop) {
+    if (!prop.code) return null;
+    const plate = document.createElement('span');
+    plate.className = 'room-plate';
+    plate.dataset.propId = prop.id;
+    plate.dataset.used = '0';
+    plate.dataset.side = prop.plateSide || 'center';
+    plate.innerHTML = `<i></i>${prop.code}`;
+    const half = Math.round((prop.w || 80) / 2) + 6;
+    const x = (prop.x * 100).toFixed(2) + '%';
+    if (plate.dataset.side === 'left') plate.style.left = `calc(${x} - ${half}px)`;
+    else if (plate.dataset.side === 'right') plate.style.left = `calc(${x} + ${half}px)`;
+    else plate.style.left = x;
+    plate.style.top = `calc(${(prop.y * 100).toFixed(2)}% + 12px)`;
+    plate.style.zIndex = '470';
+    return plate;
+  }
+
   function render() {
     if (!host) return;
     host.replaceChildren();
@@ -142,6 +170,11 @@
     floor.style.top = (room.wallRatio * 100).toFixed(2) + '%';
     host.append(wall, floor);
     for (const prop of room.props || []) host.append(buildProp(prop));
+    for (const prop of room.props || []) {
+      const plate = buildPlate(prop);
+      if (plate) host.append(plate);
+    }
+    applyUsage(pendingUsage);
   }
 
   function seats(role) {
@@ -160,6 +193,20 @@
   // 接地线 → z-index。角色与家具用同一公式，深度关系才对得上。
   function depthZ(yNorm) { return 20 + Math.round(yNorm * FLOOR_H); }
 
+  // 设施占用：usage 形如 { 'desk-a': 1 }。有人坐上去铭牌才亮灯。
+  // stage-ui 的首次 applyEcosystem 可能早于 DOMContentLoaded（房间还没 mount），
+  // 所以先缓存，render 时补画一次，避免首屏铭牌全灭。
+  function applyUsage(usage) {
+    if (!host) return;
+    for (const plate of host.querySelectorAll('.room-plate')) {
+      plate.dataset.used = usage && usage[plate.dataset.propId] ? '1' : '0';
+    }
+  }
+  function setUsage(usage) {
+    pendingUsage = usage || {};
+    applyUsage(pendingUsage);
+  }
+
   function mount() {
     const injected = window.__ROOM_LAYOUT;
     if (injected && Array.isArray(injected.props)) room = injected;
@@ -171,6 +218,7 @@
     get layout() { return room; },
     seats,
     depthZ,
+    setUsage,
     refresh: render,
     mount,
   };

@@ -1,7 +1,7 @@
 {
   "project": "Model Desk Workbench",
   "version": "0.1.0-preview",
-  "date": "2026-11-08",
+  "date": "2026-11-09",
   "scope": "Source-only snapshot; excludes runtime data and this manifest itself.",
   "files": [
     {
@@ -1071,8 +1071,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "2b3390ccdcb6b57d652da03416b86cb1d0e66c3f732ae59efc3245ebff8e40db",
-      "bytes": 28663
+      "sha256": "26cdda2a05ea799068704b0c1f42ba35481acc068d8f46639518a7372bcbc92b",
+      "bytes": 29967
     },
     {
       "path": "LICENSE",
@@ -1625,6 +1625,16 @@
       "bytes": 636712
     },
     {
+      "path": "desktop/assets/rooms/office.js",
+      "sha256": "e5415716dc03c14024c99a462ac6031715cd91aaf7fa33fcad2bc2204162fc98",
+      "bytes": 1654
+    },
+    {
+      "path": "desktop/assets/rooms/office.json",
+      "sha256": "2d341eaa5b4f7abee5a7b267a663806db29224c45685282753ca11312afcc6cd",
+      "bytes": 2298
+    },
+    {
       "path": "desktop/async-defects-verify.cjs",
       "sha256": "dd43a5d0d7a2580408800108969aef5a7939d760f3b4e03104c548e1d86f6992",
       "bytes": 10792
@@ -2025,6 +2035,16 @@
       "bytes": 7110
     },
     {
+      "path": "desktop/room.css",
+      "sha256": "6d193d54466a1a5e8c4231f7601d273470e8618a6f5885c06cee254d83f8304f",
+      "bytes": 8161
+    },
+    {
+      "path": "desktop/room.js",
+      "sha256": "54d12cc17887eafb3f6d66e5c827729a6c6fa9dab5e08da43bb3f5dc19f1550b",
+      "bytes": 10108
+    },
+    {
       "path": "desktop/shell-overrides.css",
       "sha256": "6bb169effca1f33bd254480663dc9f6ba88db7b48bba7c71d6498e02269a43f3",
       "bytes": 4546
@@ -2041,8 +2061,8 @@
     },
     {
       "path": "desktop/stage-ui.js",
-      "sha256": "c93a7dda9a22b0b26e78d776355131a50dcb8a46df06aec2293ca814e088beb3",
-      "bytes": 62686
+      "sha256": "50759a80a301425634ee0df5d7a5eb21621e7694cb26000a5ab75644305ad39c",
+      "bytes": 63117
     },
     {
       "path": "desktop/stage.css",
@@ -2096,8 +2116,8 @@
     },
     {
       "path": "desktop/ui-verify.cjs",
-      "sha256": "024765897f508bb0fac520ed86d6567ac64d49b3f04f2b06a92f6ed7352c93eb",
-      "bytes": 75062
+      "sha256": "267273da15468ebb693e07ac9392f1c254e67139eedcea0ff5017f4203f249ea",
+      "bytes": 77301
     },
     {
       "path": "desktop/verify-routing.cjs",
@@ -2163,6 +2183,11 @@
       "path": "docs/ARCHITECTURE.md",
       "sha256": "cc49f45b5e0d34d19732c02f321362c5c8df308c8af8ef150f190fdf8fd03166",
       "bytes": 2668
+    },
+    {
+      "path": "docs/COLLAB_ROOM.md",
+      "sha256": "1da509d8e9c61f9cfe81b9c5cc872ae70a44ba838bc216e537d35555ca5ce1f5",
+      "bytes": 4472
     },
     {
       "path": "docs/COLLAB_VIEW.md",
@@ -2375,9 +2400,19 @@
       "bytes": 634
     },
     {
+      "path": "scripts/build-source-manifest.cjs",
+      "sha256": "d362e04e40f7fd7f1dd33839cf34e852864aa3e76eb7116ffc7373c1ddada48b",
+      "bytes": 1396
+    },
+    {
       "path": "scripts/check_public_source.py",
       "sha256": "63f008280ef726a8e47d8d082303d8187f055785bee9b6d384e5ec2ea8171fca",
       "bytes": 2927
+    },
+    {
+      "path": "scripts/sync-room-layout.cjs",
+      "sha256": "531eef654350cb2e81f5db2d945dc3e901dfa23109b6383a248e0f419149b67a",
+      "bytes": 997
     },
     {
       "path": "setup.ps1",

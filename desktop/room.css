@@ -10,18 +10,24 @@
   --room-wall-lo: #d9e1d9;
   --room-floor: #e3e9e2;
   --room-seam: rgba(38, 60, 48, .16);
-  --room-edge: rgba(24, 40, 32, .16);
-  --rp-top: #f8faf6;
-  --rp-left: #c2cec3;
-  --rp-right: #a5b3a7;
-  --rp-dark: rgba(28, 44, 35, .13);
-  --rp-metal: #97a49a;
+  --room-edge: rgba(24, 40, 32, .19);
+  --room-lamp: rgba(255, 247, 224, .5);
+  --rp-top: #fbfcf9;
+  --rp-left: #bcc9be;
+  --rp-right: #9dac9f;
+  --rp-dark: rgba(28, 44, 35, .15);
+  --rp-metal: #8d9b90;
   --rp-screen: #2a3540;
   --rp-screen-glow: #63cfa6;
   --rp-led: #59c98f;
   --rp-cup: #ffffff;
-  --rp-leaf: #57895f;
+  --rp-leaf: #4f8257;
   --rp-muted: #93a298;
+  --rp-seam: rgba(28, 44, 35, .2);
+  --rp-plate-bg: rgba(255, 255, 255, .84);
+  --rp-plate-line: rgba(24, 40, 32, .14);
+  --rp-plate-ink: #64716a;
+  --rp-plate-dot: #b4c0b6;
 }
 html[data-theme="dark"] #stage-room {
   --room-wall-hi: #24272e;
@@ -29,9 +35,10 @@ html[data-theme="dark"] #stage-room {
   --room-floor: #202329;
   --room-seam: rgba(148, 168, 210, .15);
   --room-edge: rgba(0, 0, 0, .5);
-  --rp-top: #40474f;
-  --rp-left: #30353d;
-  --rp-right: #21252c;
+  --room-lamp: rgba(122, 146, 208, .15);
+  --rp-top: #434a53;
+  --rp-left: #2f343c;
+  --rp-right: #1f232a;
   --rp-dark: rgba(0, 0, 0, .34);
   --rp-metal: #4c525d;
   --rp-screen: #10151c;
@@ -40,6 +47,11 @@ html[data-theme="dark"] #stage-room {
   --rp-cup: #b9c0cc;
   --rp-leaf: #3f7a57;
   --rp-muted: #6d7684;
+  --rp-seam: rgba(0, 0, 0, .38);
+  --rp-plate-bg: rgba(14, 17, 22, .74);
+  --rp-plate-line: rgba(255, 255, 255, .07);
+  --rp-plate-ink: #8d97a5;
+  --rp-plate-dot: #454c57;
 }
 
 .room-wall {
@@ -65,6 +77,47 @@ html[data-theme="dark"] #stage-room {
   background: linear-gradient(180deg, var(--room-edge), transparent);
   opacity: .5;
 }
+/* 顶灯照在地板上的两团光：房间有了光源，家具才不会像贴在纸上的贴纸。 */
+.room-floor::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background:
+    radial-gradient(ellipse 260px 128px at 30% 18%, var(--room-lamp), transparent 72%),
+    radial-gradient(ellipse 240px 118px at 74% 30%, var(--room-lamp), transparent 74%);
+}
+.room-wall::before {
+  content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 62%;
+  background: radial-gradient(ellipse 240px 58px at 52% 100%, var(--room-lamp), transparent 72%);
+  opacity: .7;
+}
+/* 设施铭牌：地板上的编号贴纸，占用时亮灯。定位由 room.js 内联写入
+   （left/top 相对房间、z=470），这里只管外观和左右侧的锚点方向。 */
+.room-plate {
+  position: absolute;
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 1px 5px 1px 4px; border-radius: 3px;
+  font: 600 8px/1.4 ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  letter-spacing: .08em; white-space: nowrap; line-height: 1.4;
+  color: var(--rp-plate-ink); background: var(--rp-plate-bg);
+  box-shadow: 0 0 0 1px var(--rp-plate-line);
+}
+.room-plate[data-side="center"] { transform: translateX(-50%); }
+.room-plate[data-side="left"] { transform: translateX(-100%); }
+.room-plate[data-side="right"] { transform: none; }
+.room-plate i {
+  width: 4px; height: 4px; border-radius: 50%; background: var(--rp-plate-dot);
+  transition: background .3s, box-shadow .3s;
+}
+.room-plate[data-used="1"] { color: var(--rp-plate-ink); }
+.room-plate[data-used="1"] i { background: var(--rp-led); box-shadow: 0 0 5px var(--rp-led); }
+/* 侧位铭牌：挪到家具左右两侧的地上，坐在设施前的角色不会把编号挡住 */
+.room-plate[data-side="left"] { left: -6px; transform: translateX(-100%); }
+.room-plate[data-side="right"] { left: calc(100% + 6px); transform: none; }
+
+/* 沙发分层：靠背 / 扶手压暗，坐垫最亮，否则所有面同色会糊成一坨 */
+.sk-backL { fill: color-mix(in srgb, var(--rp-left) 68%, #000); stroke: var(--room-edge); stroke-width: .6; }
+.sk-backR { fill: color-mix(in srgb, var(--rp-right) 68%, #000); stroke: var(--room-edge); stroke-width: .6; }
+.sk-arm { fill: color-mix(in srgb, var(--rp-left) 78%, #000); stroke: var(--room-edge); stroke-width: .6; }
+.sk-seat.rp-top { fill: var(--rp-top); }
 #stage-room::after {
   content: ''; position: absolute; inset: 0; border-radius: 18px;
   box-shadow: inset 0 0 64px 6px rgba(0, 0, 0, .16);
@@ -96,6 +149,7 @@ html[data-theme="dark"] #stage-room {
 .rp-led:nth-of-type(5) { animation-delay: 2.12s; }
 .rp-led:nth-of-type(6) { animation-delay: 2.65s; }
 .rp-slit { stroke: var(--room-edge); stroke-width: 2; fill: none; opacity: .55; }
+.rp-seam { stroke: var(--rp-seam); stroke-width: 1.2; fill: none; }
 .rp-cup { fill: var(--rp-cup); }
 .rp-steam { stroke: var(--rp-muted); stroke-width: 1.6; fill: none; opacity: .45; animation: rp-steam 4s ease-in-out infinite; }
 .rp-leaf { fill: var(--rp-leaf); }
