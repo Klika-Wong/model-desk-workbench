@@ -89,29 +89,28 @@ html[data-theme="dark"] #stage-room {
   background: radial-gradient(ellipse 240px 58px at 52% 100%, var(--room-lamp), transparent 72%);
   opacity: .7;
 }
-/* 设施铭牌：地板上的编号贴纸，占用时亮灯。定位由 room.js 内联写入
-   （left/top 相对房间、z=470），这里只管外观和左右侧的锚点方向。 */
+/* 设施 ID 条：挂在家具头顶，和角色头顶代号牌是同一套游戏 UI 语言。
+   定位由 room.js 内联写入（left/top 相对房间、z=470）；这里只管外观。 */
 .room-plate {
-  position: absolute;
-  display: inline-flex; align-items: center; gap: 4px;
-  padding: 1px 5px 1px 4px; border-radius: 3px;
-  font: 600 8px/1.4 ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  position: absolute; transform: translate(-50%, -100%);
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 2px 6px; border-radius: 4px;
+  font: 600 9px/1.4 ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
   letter-spacing: .08em; white-space: nowrap; line-height: 1.4;
   color: var(--rp-plate-ink); background: var(--rp-plate-bg);
   box-shadow: 0 0 0 1px var(--rp-plate-line);
 }
-.room-plate[data-side="center"] { transform: translateX(-50%); }
-.room-plate[data-side="left"] { transform: translateX(-100%); }
-.room-plate[data-side="right"] { transform: none; }
+/* 一根细引线把 ID 条和下面的家具连起来，否则会像凭空浮着的小标签 */
+.room-plate::after {
+  content: ''; position: absolute; left: 50%; top: 100%;
+  width: 1px; height: 7px; background: var(--rp-plate-line);
+}
 .room-plate i {
-  width: 4px; height: 4px; border-radius: 50%; background: var(--rp-plate-dot);
+  width: 5px; height: 5px; border-radius: 50%; background: var(--rp-plate-dot);
   transition: background .3s, box-shadow .3s;
 }
-.room-plate[data-used="1"] { color: var(--rp-plate-ink); }
+.room-plate[data-used="1"] { box-shadow: 0 0 0 1px color-mix(in srgb, var(--rp-led) 55%, transparent); }
 .room-plate[data-used="1"] i { background: var(--rp-led); box-shadow: 0 0 5px var(--rp-led); }
-/* 侧位铭牌：挪到家具左右两侧的地上，坐在设施前的角色不会把编号挡住 */
-.room-plate[data-side="left"] { left: -6px; transform: translateX(-100%); }
-.room-plate[data-side="right"] { left: calc(100% + 6px); transform: none; }
 
 /* 沙发分层：靠背 / 扶手压暗，坐垫最亮，否则所有面同色会糊成一坨 */
 .sk-backL { fill: color-mix(in srgb, var(--rp-left) 68%, #000); stroke: var(--room-edge); stroke-width: .6; }
@@ -156,13 +155,14 @@ html[data-theme="dark"] #stage-room {
 
 /* 墙上的状态屏：深色面板 + 几条呼吸的数据条 */
 .room-screen {
-  position: absolute; left: 60%; top: 10%; transform: translateX(-50%);
-  width: 152px; height: 46px; padding: 8px 11px;
-  border-radius: 7px; display: flex; flex-direction: column; gap: 4px;
+  /* 挂高一点：盆栽/咖啡台的头顶 ID 条在 y≈70~90，屏幕若占 44~90 会被压住 */
+  position: absolute; left: 60%; top: 3%; transform: translateX(-50%);
+  width: 152px; height: 36px; padding: 6px 11px;
+  border-radius: 7px; display: flex; flex-direction: column; gap: 3px;
   background: var(--rp-screen);
   box-shadow: 0 0 0 1.5px var(--rp-metal), 0 0 16px -6px var(--rp-screen-glow);
 }
-.room-screen i { display: block; height: 5px; border-radius: 3px; background: var(--rp-screen-glow); opacity: .42; animation: rp-flicker 4.6s ease-in-out infinite; }
+.room-screen i { display: block; height: 4px; border-radius: 3px; background: var(--rp-screen-glow); opacity: .42; animation: rp-flicker 4.6s ease-in-out infinite; }
 .room-screen i:nth-child(1) { width: 72%; }
 .room-screen i:nth-child(2) { width: 46%; animation-delay: 1.1s; }
 .room-screen i:nth-child(3) { width: 88%; animation-delay: 2.3s; }

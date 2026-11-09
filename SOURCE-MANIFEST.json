@@ -1071,8 +1071,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "26cdda2a05ea799068704b0c1f42ba35481acc068d8f46639518a7372bcbc92b",
-      "bytes": 29967
+      "sha256": "c827b0fed55455e9ea2378b689c697ab189777596a613a9724735b7ddbde9ca0",
+      "bytes": 31208
     },
     {
       "path": "LICENSE",
@@ -2036,13 +2036,13 @@
     },
     {
       "path": "desktop/room.css",
-      "sha256": "6d193d54466a1a5e8c4231f7601d273470e8618a6f5885c06cee254d83f8304f",
-      "bytes": 8161
+      "sha256": "02155faffb8919dd3f132977d38974d06f2d9da3221a7f0b2e3083df08b87ece",
+      "bytes": 8144
     },
     {
       "path": "desktop/room.js",
-      "sha256": "54d12cc17887eafb3f6d66e5c827729a6c6fa9dab5e08da43bb3f5dc19f1550b",
-      "bytes": 10108
+      "sha256": "2fbd5ae6adf343c82a1a354c19a51fd56f221f06bdef89625ba2cb2937ef5ee3",
+      "bytes": 10637
     },
     {
       "path": "desktop/shell-overrides.css",
@@ -2061,13 +2061,13 @@
     },
     {
       "path": "desktop/stage-ui.js",
-      "sha256": "50759a80a301425634ee0df5d7a5eb21621e7694cb26000a5ab75644305ad39c",
-      "bytes": 63117
+      "sha256": "28f614ff49e86d643bf8977b9b03a0257c363c616d8cfa2c2bc6a19cb1bc1ab2",
+      "bytes": 64114
     },
     {
       "path": "desktop/stage.css",
-      "sha256": "843727b5f08621ea3224b956cd093619a2a5e508fe680c6b742cb5783e2892dc",
-      "bytes": 22409
+      "sha256": "dfbefb1936deec55f78dc70d3e5e84de70b6185dc7dcc31f0fe77239670ba8ab",
+      "bytes": 24251
     },
     {
       "path": "desktop/style.css",
@@ -2116,8 +2116,8 @@
     },
     {
       "path": "desktop/ui-verify.cjs",
-      "sha256": "267273da15468ebb693e07ac9392f1c254e67139eedcea0ff5017f4203f249ea",
-      "bytes": 77301
+      "sha256": "65094bbfc3518cae5c2b4450c0805fc33f085daf32f9123b4a0fc93fc26ffbd5",
+      "bytes": 80182
     },
     {
       "path": "desktop/verify-routing.cjs",
@@ -2186,8 +2186,8 @@
     },
     {
       "path": "docs/COLLAB_ROOM.md",
-      "sha256": "1da509d8e9c61f9cfe81b9c5cc872ae70a44ba838bc216e537d35555ca5ce1f5",
-      "bytes": 4472
+      "sha256": "d7d8e4c07cf98a94727665a8a751083cf9511b82dc7cd10e34129c4511d0afeb",
+      "bytes": 6066
     },
     {
       "path": "docs/COLLAB_VIEW.md",

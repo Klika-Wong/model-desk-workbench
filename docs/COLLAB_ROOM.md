@@ -48,20 +48,39 @@
 ZipZipPipe 角色不匹配。自绘 SVG 有三个实际好处：跟随主题变量变色、尺寸精确可控、
 没有任何授权链路要维护。Ark-Pets（GPL-3.0）与 WorkAdventure（AGPL）只作参考，未抄代码。
 
-## 设施铭牌与占用灯
+## 头顶 ID 条与占用灯
 
-每件家具有 `code` / `name` / `plateSide`，地上有一块编号贴纸（PC-01、PC-02、SRV-01、GRN-01、BRW-01、LNG-01）。
+两类编号都用同一套游戏式头顶代号牌，不铺地板：
+
+- **设施**：每件家具带 `code` / `name` / `plateSide`，六条编号
+  （PC-01、PC-02、SRV-01、GRN-01、BRW-01、LNG-01）挂在家具上方，带一根细引线；
+- **角色**：头像上方一条短代号（`LOCAL` / `CLOUD` / `DEEPSEEK`，由模型 ID 去掉通用前缀后
+  截成 10 字符大写），脚下的可编辑名字保留。代号固定、别名可改，两者不互相覆盖。
+
 `applyEcosystem()` 统计每个座位实际坐了谁，调 `window.__room.setUsage({ propId: 人数 })`：
-有人的设施亮绿灯，空座灯灭。绿植无座位，灯恒灭。
+有人的设施亮绿灯，空座灯灭，绿植无座位恒灭。角色代号牌的状态点跟随
+`setActorState()`：生成中是主色高亮，完成绿，失败红，待机灰。
+`setUsage` 有缓存：`stage-ui.js` 首次 `applyEcosystem()` 可能早于房间 `mount()`，
+先存 `pendingUsage`，`render()` 里补画一次，避免首屏灯全灭。
 
-**铭牌必须单独成层**：最初把它作为 `.room-prop` 子元素，跟着家具的 z 排序，
-结果更靠近镜头的机柜 SVG 把 PC-01 整块盖掉、SRV-01 被画布左缘裁掉。现在铭牌是
-`#stage-room` 的直接子元素，`z-index = 470`（高于所有家具 ≤456、低于拖拽角色 900），
-由 `room.js` 内联写 left/top，方位 `left/right/center` 决定锚点。
-`plateSide` 按实际遮挡关系调：工位桌的铭牌放桌子右侧空地，机柜的放正下方居中。
+**为什么要挂头上**：贴地板时编号会被站在设施前的角色踩住，要保证可见就得恒定置顶，
+要严格深度正确就得允许被挡，二者冲突。挪到家具/角色上方后，编号恒定
+`z-index = 470`（高于所有家具 ≤456、低于拖拽角色 900）也不会压到脚，
+和游戏里干员头顶代号牌一样是 UI 层，不参与深度遮挡。
 
-`setUsage` 有缓存：`stage-ui.js` 的首次 `applyEcosystem()` 可能早于房间 `mount()`，
-所以先存 `pendingUsage`，`render()` 里补画一次，避免首屏铭牌全灭。
+**ID 条必须单独成层**：最初把它作为 `.room-prop` 子元素，跟着家具的 z 排序，
+结果更靠近镜头的机柜 SVG 把 PC-01 整块盖掉、SRV-01 被画布左缘裁掉。现在是
+`#stage-room` 的直接子元素，由 `room.js` 内联写 left/top；
+`plateSide` 只做 ±10px 水平避让，不再决定锚点方位。
+
+**锚点不能目测**：`.room-prop` 用 `translate(-50%, -100%)`，y% 是家具底沿，
+所以头顶 = `y% - HEAD_ANCHOR[type]`。`HEAD_ANCHOR` 由 `--dump-dom` 读
+`svg.getBBox().y` 反推，让每条底边正好落在绘图顶上方 8px。第一版凭目测取值，
+机柜标签高出 29px 挂在墙上、沙发标签压进靠背；`room-plate-head-gap` 断言会在改 SVG
+后把这类偏差抓出来。墙上状态屏因此上移到 `top: 3%`，避开盆栽/咖啡台的 ID 条。
+
+角色代号牌是 `.stage-actor` 的绝对定位子元素，不进 flex 流，所以不改变角色盒高、
+不影响「脚底 y + 95px」的深度公式。临时戳一下气泡出现时代号牌淡出，桌宠小窗里隐藏。
 
 ## 沙发画法
 
@@ -73,8 +92,10 @@ ZipZipPipe 角色不匹配。自绘 SVG 有三个实际好处：跟随主题变�
 ## 验证
 
 - `node --test *.test.cjs`：184 项全过；
-- `node ui-verify-run.cjs`：47 项全过、无 console 错误，其中
-  `room-facility-plates` / `room-plates-not-clipped` / `room-plate-occupancy`
-  锁住六块铭牌、不被裁切、占用灯跟座位走；
-- 临时预览页 + headless Chrome 截图核对深/浅两套主题（预览页不入库）；
-- 桌宠小窗（176×200）下房间层整体隐藏。
+- `node ui-verify-run.cjs`：52 项全过、无 console 错误。房间与 ID 条相关断言：
+  `room-facility-plates` / `room-plates-not-clipped` / `room-plates-overhead` /
+  `room-plate-head-gap` / `room-plate-occupancy` /
+  `collab-actor-id-tags` / `collab-actor-id-overhead` / `collab-actor-id-state-sync`；
+- 临时预览页 + headless Chrome 截图核对深/浅两套主题（预览页不入库），
+  另用 `--dump-dom` 实测每条 ID 条与家具 `getBBox()` 的像素差；
+- 桌宠小窗（176×200）下房间层与角色代号牌一起隐藏。

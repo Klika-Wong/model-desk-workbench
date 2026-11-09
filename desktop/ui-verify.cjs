@@ -614,8 +614,8 @@ async function main() {
   if (ux.afterSecond !== 0) throw new Error(`二次确认后没有清空历史：${ux.afterSecond}`);
   result.checks.push('collab-no-link-rebuild', 'collab-dialogue-dismiss', 'collab-history-consistency', 'collab-clear-confirm', 'collab-consent-gate', 'collab-menu-keyboard', 'collab-pet-mode-clean', 'collab-idle-motion', 'collab-reduce-motion', 'collab-sprite-frame-count', 'collab-outfit-library-opens');
 
-  // 房间层：6 件家具各有一块铭牌，不能被画布裁掉、不能被家具的深度排序吞掉，
-  // 且「有人坐上去就亮灯」。PC-01 曾被机柜 SVG 盖住，这两条是那次回归。
+  // 房间层：6 件家具各有一块头顶 ID 条，不能被画布裁掉、不能被家具的深度排序吞掉，
+  // 且「有人坐上去就亮灯」。PC-01 曾被机柜 SVG 盖住，这几条是那次回归。
   const roomCheck = await js(`(async () => {
     document.getElementById('nav-stage').click();
     await new Promise(r => setTimeout(r, 250));
@@ -629,19 +629,55 @@ async function main() {
     }).map((p) => p.textContent.trim());
     const minZ = Math.min(...plates.map((p) => Number(getComputedStyle(p).zIndex)));
     const maxPropZ = Math.max(...props.map((p) => Number(getComputedStyle(p).zIndex)));
+    // 编号必须挂在家具头顶：底边落在家具顶沿附近，而不是贴在地板上。
+    const overhead = plates.every((p) => {
+      const prop = props.find((x) => x.dataset.propId === p.dataset.propId);
+      if (!prop) return false;
+      const pr = prop.getBoundingClientRect(), rr = p.getBoundingClientRect();
+      return rr.bottom >= pr.top - 4 && rr.bottom <= pr.top + 40;
+    });
+    // 更严的一条：底边要贴住 SVG 里实际画出来的物体顶（getBBox），不是 SVG 盒子上沿。
+    // 目测曾让机柜标签高出 29px 挂在墙上，这条专防回归。
+    const headGap = plates.every((p) => {
+      const prop = props.find((x) => x.dataset.propId === p.dataset.propId);
+      const svg = prop && prop.querySelector('svg');
+      if (!svg || typeof svg.getBBox !== 'function') return false;
+      const sr = svg.getBoundingClientRect(), rr = p.getBoundingClientRect();
+      const scale = sr.height / (svg.viewBox.baseVal.height || sr.height || 1);
+      const visualTop = sr.top + svg.getBBox().y * scale;
+      return Math.abs(rr.bottom - (visualTop - 8)) <= 10;
+    });
     window.__room.setUsage({});
     const allOff = plates.every((p) => p.dataset.used === '0');
     window.__room.setUsage({ 'desk-a': 1 });
     const deskOn = host.querySelector('.room-plate[data-prop-id="desk-a"]').dataset.used === '1';
     const othersOff = plates.filter((p) => p.dataset.propId !== 'desk-a').every((p) => p.dataset.used === '0');
+    // 角色头顶代号牌：数量对齐、位于头像上方、状态灯跟着角色状态走。
+    const liveActors = [...document.querySelectorAll('.stage-actor')].filter((a) => !a.hidden);
+    const tags = liveActors.map((a) => a.querySelector('.actor-id-tag'));
+    const tagCodes = tags.map((t) => t && t.textContent.trim());
+    const tagAbove = tags.every((t, i) => t
+      && t.getBoundingClientRect().bottom <= liveActors[i].querySelector('.stage-actor-avatar').getBoundingClientRect().top + 2);
+    window.__stageUi.setActorState('m-local', 'thinking');
+    const tag = document.querySelector('.stage-actor[data-model-id="m-local"] .actor-id-tag');
+    const syncState = Boolean(tag) && tag.dataset.state === 'thinking';
+    window.__stageUi.setActorState('m-local', 'waiting');
     await window.__stageUi.applyEcosystem(true);
-    return { props: props.length, plates: plates.length, codes: plates.map((p) => p.textContent.trim()), clipped, minZ, maxPropZ, allOff, deskOn, othersOff };
+    return { props: props.length, plates: plates.length, codes: plates.map((p) => p.textContent.trim()), clipped,
+      minZ, maxPropZ, overhead, headGap, allOff, deskOn, othersOff,
+      actors: liveActors.length, tagCount: tags.filter(Boolean).length, tagCodes, tagAbove, syncState };
   })()`);
   if (roomCheck.props !== 6 || roomCheck.plates !== 6) throw new Error(`设施铭牌数量不对：${JSON.stringify(roomCheck)}`);
   if (roomCheck.clipped.length) throw new Error(`铭牌被画布裁掉：${JSON.stringify(roomCheck.clipped)}`);
   if (!(roomCheck.minZ > roomCheck.maxPropZ)) throw new Error(`铭牌 z 低于家具，会被盖住：${roomCheck.minZ}/${roomCheck.maxPropZ}`);
+  if (!roomCheck.overhead) throw new Error(`设施编号没挂在家具头顶：${JSON.stringify(roomCheck)}`);
+  if (!roomCheck.headGap) throw new Error(`设施编号离家具实际顶部太远：${JSON.stringify(roomCheck)}`);
   if (!roomCheck.allOff || !roomCheck.deskOn || !roomCheck.othersOff) throw new Error(`占用灯不跟座位走：${JSON.stringify(roomCheck)}`);
-  result.checks.push('room-facility-plates', 'room-plates-not-clipped', 'room-plate-occupancy');
+  if (roomCheck.tagCount !== roomCheck.actors || !roomCheck.tagCodes.every((c) => c && c.length <= 12)) throw new Error(`角色头顶代号牌数量/内容不对：${JSON.stringify(roomCheck)}`);
+  if (!roomCheck.tagAbove) throw new Error(`角色代号牌没挂在头像上方：${JSON.stringify(roomCheck)}`);
+  if (!roomCheck.syncState) throw new Error(`角色代号牌状态没跟着角色走：${JSON.stringify(roomCheck)}`);
+  result.checks.push('room-facility-plates', 'room-plates-not-clipped', 'room-plates-overhead', 'room-plate-head-gap', 'room-plate-occupancy',
+    'collab-actor-id-tags', 'collab-actor-id-overhead', 'collab-actor-id-state-sync');
 
   // 留两张图：默认关系图、桌宠模式。
   const spriteReady = await js(`(async () => {

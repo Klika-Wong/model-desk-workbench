@@ -50,6 +50,15 @@
   const TURN_LIMIT = 40;
 
   const aliasOf = (model) => (window.__modelAlias ? window.__modelAlias.of(model) : (model.name || model.id));
+  // 头顶代号：取模型 ID 去掉通用前缀（m- / model- / provider-），留一段稳定的短码。
+  // 别名可以改，代号不改——游戏里干员的 ID 也是固定的，昵称是另一回事。
+  const idCode = (model) => {
+    const raw = String((model && (model.id || model.name)) || 'AGENT');
+    const parts = raw.split(/[-_/.\s]+/).filter(Boolean);
+    const tail = parts.length > 1 ? parts.slice(1).join('-') : parts[0];
+    const code = (tail || raw).toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 10);
+    return code || 'AGENT';
+  };
   const petKey = (id) => 'pet-avatar:' + id;
   const posKey = (id) => 'collab-pos:' + id;
   const MESSAGE_KEY = 'collab-messages';
@@ -367,6 +376,7 @@
     if (!actor) return;
     const oldZone = zoneOf(actor.el.dataset.state);
     actor.el.dataset.state = state;
+    actor.idTag.dataset.state = state;
     actor.el.setAttribute('aria-label', `${aliasOf(actor.model)}，${STATE_LABEL[state] || state}；回车选中，Shift+F10 打开设置`);
     actor.stateEl.textContent = STATE_LABEL[state] || state;
     applyActorVisual(actor);
@@ -925,6 +935,12 @@
       el.className = 'stage-actor'; el.dataset.modelId = id; el.dataset.state = 'waiting';
       el.tabIndex = 0; el.setAttribute('role', 'button');
       el.setAttribute('aria-label', `${aliasOf(model)}，待机；回车选中，Shift+F10 打开设置`);
+      const idTag = document.createElement('div'); idTag.className = 'actor-id-tag';
+      idTag.dataset.state = 'waiting';
+      idTag.title = `形象 ID：${model.id}`;
+      const idDot = document.createElement('i');
+      const idText = document.createElement('span'); idText.textContent = idCode(model);
+      idTag.append(idDot, idText);
       const avatar = document.createElement('div'); avatar.className = 'stage-actor-avatar';
       const name = document.createElement('div'); name.className = 'stage-actor-name';
       name.textContent = aliasOf(model); name.title = aliasOf(model);
@@ -932,10 +948,10 @@
       const meta = document.createElement('div'); meta.className = 'actor-meta'; meta.textContent = '';
       const bubble = document.createElement('div'); bubble.className = 'stage-actor-bubble'; bubble.hidden = true;
       const pokeBubble = document.createElement('div'); pokeBubble.className = 'actor-poke-bubble'; pokeBubble.hidden = true;
-      el.append(pokeBubble, avatar, name, stateEl, meta, bubble);
+      el.append(pokeBubble, idTag, avatar, name, stateEl, meta, bubble);
       floor.append(el);
       const saved = savedPos(id);
-      const actor = { model, el, avatar, name, stateEl, meta, bubble, pokeBubble,
+      const actor = { model, el, avatar, idTag, name, stateEl, meta, bubble, pokeBubble,
         pokeTimer: null, visualState: null, visualTimer: null, picker: null,
         pos: saved || { x: 0.5, y: 0.38 }, manualPos: Boolean(saved), zone: 'rest' };
       setActorPos(el, actor.pos.x, actor.pos.y);
@@ -1274,5 +1290,5 @@
   }
 
   restoreMessages();
-  window.__stageUi = { show, hide, refresh: loadModels, drawLinks, buildStage, refreshView, applyEcosystem, clearMessages, idlePoke };
+  window.__stageUi = { show, hide, refresh: loadModels, drawLinks, buildStage, refreshView, applyEcosystem, clearMessages, idlePoke, setActorState };
 })();

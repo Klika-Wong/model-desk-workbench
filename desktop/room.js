@@ -134,9 +134,15 @@
     return el;
   }
 
-  /* 设施铭牌：独立图层铺在地板上，不随家具的 z 排序——
-     之前它作为家具子元素参与深度排序，被深度更近的家具 SVG 盖住（PC-01 消失案真相）。
-     z=470 高于所有家具（≤456）和待机角色（≤456），低于拖拽中的角色（900）。 */
+  /* 设施 ID：像游戏里角色头顶的代号牌，挂在家具上方而不是贴地板。
+     独立 UI 图层、恒定 z=470（家具 ≤456）：编号始终可见，又不会像贴地时那样
+     压住站在设施前的角色脚部。之前的 PC-01 消失是铭牌作为家具子元素参与
+     深度排序被更近的 SVG 盖住，独立图层那次已修好，这里只改位置。 */
+  // .room-prop 用 translate(-50%,-100%) 定位：y% 是家具的「底沿」，
+  // 所以头顶 = y% - (SVG 盒子顶 → 实际绘图顶 bbox.y → 8px 引线间隙)。
+  // 数值由 --dump-dom 实测 getBBox() 反推，不是目测：desk 顶 45 / rack 132 /
+  // cafe 98 / sofa 126 / plant 98（相对 436px 房间）。改 SVG 时要同步重测。
+  const HEAD_ANCHOR = { desk: 146, rack: 131, cafe: 102, sofa: 144, plant: 74 };
   function buildPlate(prop) {
     if (!prop.code) return null;
     const plate = document.createElement('span');
@@ -145,12 +151,10 @@
     plate.dataset.used = '0';
     plate.dataset.side = prop.plateSide || 'center';
     plate.innerHTML = `<i></i>${prop.code}`;
-    const half = Math.round((prop.w || 80) / 2) + 6;
-    const x = (prop.x * 100).toFixed(2) + '%';
-    if (plate.dataset.side === 'left') plate.style.left = `calc(${x} - ${half}px)`;
-    else if (plate.dataset.side === 'right') plate.style.left = `calc(${x} + ${half}px)`;
-    else plate.style.left = x;
-    plate.style.top = `calc(${(prop.y * 100).toFixed(2)}% + 12px)`;
+    // plateSide 现在只做几像素的水平避让：靠边/挨得近的家具不让两条 ID 叠在一起。
+    const half = prop.plateSide === 'left' ? -10 : prop.plateSide === 'right' ? 10 : 0;
+    plate.style.left = `calc(${(prop.x * 100).toFixed(2)}% + ${half}px)`;
+    plate.style.top = `calc(${(prop.y * 100).toFixed(2)}% - ${HEAD_ANCHOR[prop.type] ?? 120}px)`;
     plate.style.zIndex = '470';
     return plate;
   }

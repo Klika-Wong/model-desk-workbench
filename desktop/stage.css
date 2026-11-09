@@ -161,6 +161,42 @@
   border-radius: 999px; background: var(--surface); color: var(--accent);
   box-shadow: 0 0 0 1px var(--accent), 0 8px 18px -12px rgba(15, 23, 42, .8);
 }
+/* 头顶 ID 条：和设施编号同一套游戏式代号牌。绝对定位不进 flex 流，
+   所以不会把角色整体往下推、也不影响接地线深度计算。 */
+.actor-id-tag {
+  position: absolute; top: -20px; left: 50%; transform: translateX(-50%);
+  z-index: 3; display: inline-flex; align-items: center; gap: 5px;
+  padding: 2px 7px; border-radius: 4px; pointer-events: none;
+  font: 600 9px/1.4 ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  letter-spacing: .08em; white-space: nowrap;
+  color: var(--ink-2); background: color-mix(in srgb, var(--surface) 88%, transparent);
+  box-shadow: 0 0 0 1px var(--line);
+}
+.actor-id-tag::after {
+  content: ''; position: absolute; left: 50%; top: 100%;
+  width: 1px; height: 6px; background: var(--line-strong);
+}
+.actor-id-tag i {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: color-mix(in srgb, var(--muted) 55%, transparent);
+  transition: background .2s, box-shadow .2s;
+}
+.stage-actor[data-state="thinking"] .actor-id-tag,
+.stage-actor[data-state="speaking"] .actor-id-tag {
+  color: var(--accent); box-shadow: 0 0 0 1px var(--accent-line);
+}
+.stage-actor[data-state="thinking"] .actor-id-tag i,
+.stage-actor[data-state="speaking"] .actor-id-tag i {
+  background: var(--accent); box-shadow: 0 0 5px var(--accent);
+}
+.stage-actor[data-state="done"] .actor-id-tag i { background: var(--ok-ink); }
+.stage-actor[data-state="failed"] .actor-id-tag i { background: var(--danger); }
+.stage-actor.is-selected .actor-id-tag { color: var(--accent); }
+/* 临时气泡出现时让 ID 条退场，避免两行小字叠在一起 */
+.stage-actor:has(.actor-poke-bubble:not([hidden])) .actor-id-tag { opacity: 0; }
+/* 桌宠小窗只留形象，不叠一层代号牌 */
+.stage-floor.pet-mode .actor-id-tag { display: none; }
+
 .stage-actor-name {
   max-width: 156px; min-height: 20px; font-size: 12px; font-weight: 600; color: var(--ink);
   padding: 2px 10px; border-radius: 9px; background: transparent;
