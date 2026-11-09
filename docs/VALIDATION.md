@@ -8,13 +8,16 @@
 
 | 检查 | 命令 | 结果 | 边界 |
 | --- | --- | --- | --- |
-| 单元 | `node --test *.test.cjs` | 184/184 | Node 内置测试 |
+| 单元 | `node --test *.test.cjs` | 194/194 | Node 内置测试；含新增 `pet-motion.test.cjs` 10 项 |
 | 主界面真机 | `npm run verify:ui` | 52 项，console 错误 0 | 桩 preload，不建桌宠窗口 |
-| 桌宠真机 | `npm run verify:pet` | 12 项，errors 0 | 独立 userData，不启动完整主进程 |
+| 桌宠真机 | `npm run verify:pet` | 17 项，errors 0 | 独立 userData，不启动完整主进程 |
 
 `verify:pet` 覆盖：按钮绑定、`pet:open` 真的多出一个 `BrowserWindow`、`pet.html` 加载、
 角色 sprite 动画与素材、工具栏 6 项、BGRA 非透明像素、30 个形象、右键 6 项、
 hitbox 快照、`petControl('lock')`、以及 `petControl('close')` 真的销毁窗口。
+2026-11-09 晚新增 5 条输入驱动动作断言：状态机 API 存在、光标左右翻转、
+快速划过 `jump → 5 帧 / 1100ms`、打字 `work → 6 帧 / 1320ms`、动作冷却后回 idle。
+后两条同时锁住「帧数必须跟动作行一起换」，防止只改 `--pet-row` 扫到空白格导致的闪烁回归。
 仓库与 `E:\多Agent工作台升级规划\desktop-shell-prototype` 运行实例两侧各跑一遍，结果一致。
 
 运行实例同步用 `node scripts/sync-to-runtime.cjs`（可先加 `--dry-run`）。桌面快捷方式

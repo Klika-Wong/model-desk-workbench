@@ -103,6 +103,44 @@ app.whenReady().then(async () => {
     const ratio = opaque / (bmp.length / 4);
     check('pet-has-visible-pixels', ratio > 0.05, { ratio: +ratio.toFixed(3) });
 
+    // 输入驱动动作：光标跟随 + 快速划过追光 + 打字敲键盘。
+    // 同时盯住 --pet-frames / --pet-dur：只改动作行不改帧数会扫到素材空白格，就是「闪一下」。
+    trace('probe input-driven motion');
+    const motionProbe = await petWin.webContents.executeJavaScript(`(async () => {
+      const read = () => {
+        const s = document.querySelector('.pet-sprite');
+        return { row: s ? s.style.getPropertyValue('--pet-row') : '',
+          frames: s ? s.style.getPropertyValue('--pet-frames') : '',
+          dur: s ? s.style.getPropertyValue('--pet-dur') : '',
+          flip: s ? s.style.getPropertyValue('--pet-flip') : '' };
+      };
+      const wait = (ms) => new Promise(r => setTimeout(r, ms));
+      const before = read();
+      const actor = document.getElementById('pet-actor');
+      actor.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: 8 }));
+      await wait(150);
+      const leftFlip = read().flip;
+      actor.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: 240 }));
+      await wait(220);
+      const hunt = read();
+      await wait(700);
+      document.getElementById('pet-input').dispatchEvent(new KeyboardEvent('keydown', { key: 'a', bubbles: true }));
+      await wait(220);
+      const typing = read();
+      await wait(2200);
+      const settled = read();
+      return { api: typeof window.__petMotion, state: typeof window.__petMotionState,
+        before, leftFlip, hunt, typing, settled };
+    })()`);
+    check('pet-motion-api-present', motionProbe.api === 'object' && motionProbe.state === 'function', motionProbe);
+    check('pet-motion-cursor-faces', motionProbe.leftFlip === '-1' && motionProbe.hunt.flip === '1', motionProbe);
+    check('pet-motion-hunt-row-and-frames', motionProbe.hunt.row === '4'
+      && motionProbe.hunt.frames === '5' && motionProbe.hunt.dur === '1100ms', motionProbe.hunt);
+    check('pet-motion-typing-row-and-frames', motionProbe.typing.row === '7'
+      && motionProbe.typing.frames === '6' && motionProbe.typing.dur === '1320ms', motionProbe.typing);
+    check('pet-motion-returns-to-idle', motionProbe.settled.row === '0'
+      && motionProbe.settled.frames === '6', motionProbe.settled);
+
     trace('captured, open outfits');
     const outfits = await petWin.webContents.executeJavaScript(`(async () => {
       document.querySelector('#pet-swap')?.click();

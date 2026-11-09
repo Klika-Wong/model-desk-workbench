@@ -44,6 +44,21 @@ Clawd 形象未获原作者授权，本项目**没有采用 Clawd 素材**，只
 **公开发布或商业化前**：必须把 `char-*.svg` 换成自有 / CC0 的拟人素材，把 `assets/pets/` 三个 GIF
 换成自有素材，并相应更新或删除对应 NOTICE。完整条款、压缩方式与替换步骤见三个目录里的 `NOTICE.md`。
 
+## 借鉴的开源交互模式（2026-11-09，未复制代码或素材）
+
+| 参考项目 | 许可 | 借鉴了什么 | 没有搬什么 |
+| --- | --- | --- | --- |
+| [ayangweb/BongoCat](https://github.com/ayangweb/BongoCat)（24.6k stars） | Apache-2.0（2026-09-28 由 MIT 改授） | 输入驱动动作、动作冷却回落到待机、离线无采集的设计取向 | Live2D 模型与 Cubism 运行时、全局键鼠/手柄钩子、Tauri/Rust 实现、自定义模型导入 |
+| [vishnuace/CatPet](https://github.com/vishnuace/catpet) | MIT | 光标跟随转身、快速移动追光、闲置打盹、拖动反馈这些交互**模式** | 像素猫美术、canvas 渲染器、`uiohook-napi` 全局钩子、番茄钟与拉伸提醒 |
+
+`desktop/pet-motion.js` 是本项目自己写的纯逻辑状态机，动作行映射到已有 `llm-pet` spritesheet，
+**没有复制上述项目的任何源代码、模型文件或美术资源**，因此没有引入它们的再分发义务；
+此处列出仅为标明设计来源、便于追溯。
+
+**明确未采用**：[kiraio-moe/Arknights-Base](https://github.com/kiraio-moe/Arknights-Base) 等
+游戏解包资源仓库，其 README 自述素材版权归 Hypergryph 所有，不构成可用授权。协作舱的等轴房间
+与家具全部是本项目自绘 SVG（`desktop/assets/rooms/office.js`），只取「基建感」这一视觉方向。
+
 ## 30 个模型主题 Q 版角色（2026-11-07 晚新增）
 
 | 素材 | 来源 | 许可 | 位置 |

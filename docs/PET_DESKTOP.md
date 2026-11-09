@@ -73,3 +73,30 @@ client 坐标会反向变化，表现为"往反方向跑"和抖动。现改为�
 `screen.getCursorScreenPoint()` 记录起点，`drag-start / drag-move / drag-end` 三段式，
 以「起点窗口位置 + 累计屏幕位移」定位，不累加增量；渲染层只发信号并用 rAF 节流。
 `pet-drag.test.cjs` 覆盖来回拖动与锁定状态。
+
+## 输入驱动动作：仿 BongoCat / CatPet（2026-11-09 晚）
+
+之前桌宠平时恒播 idle，只有表情、双击、拖动时短暂切一次。现在由 `desktop/pet-motion.js`
+的状态机统一决定该播哪一行，纯逻辑、注入时钟，单测可直接跑，不碰 DOM。
+
+| 输入 | 动作 | 说明 |
+| --- | --- | --- |
+| 光标移到角色左 / 右 | 只翻 `--pet-flip` | 不切动作行：`moveLeft/moveRight` 是走路，拿来转头会像自己跑起来 |
+| 快速划过（≥0.9 px/ms） | `jump` | 追光，650ms 后回落 |
+| 聊天框打字 | `work` | 700ms 无按键后回落，不采集输入内容 |
+| 单击角色 | `wave` | 被摸一下，900ms |
+| 表情 / 派发结果 | 指定行 | 可带自定义时长，优先级高于点击和打字 |
+| 拖动 | `moveRight` | 由 `drag-start` / `drag-end` 显式界定 |
+| 15 秒无任何输入 | `wait` | 打盹；一有输入立刻回 `idle` |
+
+优先级：拖动 > 表情 > 点击 > 打字 > 追光 > 转身 > 打盹 > 待机。「降低动效」开启时完全静止。
+`pet-ui.js` 用 rAF 每 110ms 取一次结果，只在行或朝向变化时写 DOM。
+
+**同时修掉的闪烁**：旧 `setRow()` 只改 `--pet-row`，切到 4 帧的 `wave` / 5 帧的 `jump` 时
+仍按 idle 的 6 帧播，每轮扫到素材空白格就闪一下。现在统一走 `applyRow()`，
+`--pet-frames`、`--pet-dur`、`--pet-flip` 一起写。
+
+**仿制边界**：借鉴的是交互模式，不是移植。`ayangweb/BongoCat`（Apache-2.0）的 Live2D 模型、
+`vishnuace/CatPet`（MIT）的像素猫、两家的全局键鼠钩子和自定义模型导入都没搬。
+不装 `uiohook-napi` 之类的新依赖，也不读全局键盘——只处理桌宠窗口自己收得到的事件，
+所以角色不会在你登录别的窗口时敲键盘。来源与许可见 `THIRD_PARTY.md`。

@@ -39,23 +39,53 @@
   let outfit = OUTFITS[0] || 'roster:deepseek-chibi';
   let opaque = false;
   let bubbleTimer = null;
-  let rowTimer = null;
   let chatTimers = [];
   let dragging = false;
   let dragReady = false;
   let dragFrame = false;
 
-  function renderActor(row) {
-    AVATARS.mount(actor, petModel, outfit, { state: 'waiting', scene: 'discuss' });
-    const sprite = actor.querySelector('[data-sprite]');
-    if (sprite && row) sprite.style.setProperty('--pet-row', String(AVATARS.ACTIONS[row] ?? 0));
-  }
-  function setRow(row, ms = 0) {
+  // 输入驱动动作（仿 BongoCat / CatPet 的交互模式），纯逻辑在 pet-motion.js。
+  const motion = window.__petMotion ? window.__petMotion.create() : null;
+  let applied = '';
+  // 只读快照，供真机验证确认动作确实在切，而不是只看 CSS 变量初值。
+  window.__petMotionState = () => (motion ? motion.snapshot() : null);
+
+  function applyRow(row, facing) {
     const sprite = actor.querySelector('[data-sprite]');
     if (!sprite) return;
-    if (rowTimer) clearTimeout(rowTimer);
+    // 帧数和时长必须跟动作行一起换：素材每行有效帧数不同（idle 6 / wave 4 / jump 5），
+    // 只改 --pet-row 会扫到空白格，表现就是「角色闪一下」。
+    const frames = AVATARS.ACTION_FRAMES[row] || 8;
+    sprite.style.setProperty('--pet-frames', String(frames));
+    sprite.style.setProperty('--pet-dur', (frames * AVATARS.FRAME_MS) + 'ms');
     sprite.style.setProperty('--pet-row', String(AVATARS.ACTIONS[row] ?? 0));
-    if (ms) rowTimer = setTimeout(() => sprite.style.setProperty('--pet-row', '0'), ms);
+    sprite.style.setProperty('--pet-flip', facing === 'left' ? '-1' : '1');
+  }
+  function applyMotion(force) {
+    if (!motion) return;
+    if (window.__motion) motion.poke('reduced', window.__motion.get());
+    const next = motion.tick();
+    const key = next.row + '/' + next.facing;
+    if (!force && key === applied) return;
+    applied = key;
+    applyRow(next.row, next.facing);
+  }
+  let motionAt = 0;
+  function motionLoop(ts) {
+    if (ts - motionAt >= 110) { motionAt = ts; applyMotion(false); }
+    requestAnimationFrame(motionLoop);
+  }
+
+  function renderActor() {
+    AVATARS.mount(actor, petModel, outfit, { state: 'waiting', scene: 'discuss' });
+    applied = '';           // DOM 重建，强制把状态机当前结果写回新 sprite
+    applyMotion(true);
+  }
+  // 显式动作（表情 / 派发结果）也交给状态机统一排队，避免多个 setTimeout 互相把行改回 0。
+  function setRow(row, ms = 0) {
+    if (!motion) { applyRow(row, 'right'); return; }
+    motion.poke('emote', { row, ms });
+    applyMotion(false);
   }
   function showBubble(text, face) {
     if (bubbleTimer) clearTimeout(bubbleTimer);
@@ -196,12 +226,16 @@
     dragReady = false;
     try { pet.setPointerCapture(event.pointerId); } catch {}
     pet.classList.add('is-dragging');
-    setRow('moveRight');
+    if (motion) motion.poke('drag-start');
     window.workbench.petControl('drag-start', { x: event.clientX, y: event.clientY })
       .then(() => { dragReady = true; })
       .catch(() => { dragReady = false; });
   });
-  pet.addEventListener('pointermove', () => {
+  pet.addEventListener('pointermove', (event) => {
+    // 光标在角色左/右决定朝向，划得快就「追光」跳一下；拖动时只挪窗，不改动作。
+    if (motion && !dragging) {
+      motion.poke('pointer', { x: event.clientX, centerX: window.innerWidth / 2 });
+    }
     if (!dragging || !dragReady || dragFrame) return;
     dragFrame = true;
     requestAnimationFrame(() => {
@@ -213,7 +247,7 @@
     if (!dragging) return;
     dragging = false; dragReady = false;
     pet.classList.remove('is-dragging');
-    setRow('idle');
+    if (motion) motion.poke('drag-end');
     window.workbench.petControl('drag-end').catch(() => {});
   };
   // 把「真正能点的地方」告诉主进程（角色 / 工具栏 / 气泡 / 面板的合并包围盒）。
@@ -244,6 +278,8 @@
   pet.addEventListener('pointerup', endDrag);
   pet.addEventListener('pointercancel', endDrag);
   actor.addEventListener('pointerdown', () => { closeMenu(); if (outfitsPanel) outfitsPanel.hidden = true; }, true);
+  // 单击 = 被摸一下（招手），双击 = 表情，两者不抢：dblclick 的动作优先级更高。
+  actor.addEventListener('click', () => { if (motion) motion.poke('tap'); });
   actor.addEventListener('dblclick', () => {
     const e = EMOTES[Math.floor(Math.random() * EMOTES.length)];
     showBubble(e.text, e.face);
@@ -405,6 +441,7 @@
   });
   sendBtn.addEventListener('click', sendChat);
   input.addEventListener('keydown', (event) => {
+    if (motion && event.key !== 'Enter') motion.poke('type');  // 打字 → 敲键盘动作
     if (event.key === 'Enter') { event.preventDefault(); sendChat(); }
   });
   modelSelect.addEventListener('change', () => window.workbench.petControl('model', modelSelect.value));
@@ -424,6 +461,7 @@
       $('pet-top').classList.toggle('is-on', alwaysOnTop);
     }
     renderActor();
+    if (motion) requestAnimationFrame(motionLoop);
     await loadModels();
     if (reply && reply.ok && reply.data && reply.data.modelId) modelSelect.value = reply.data.modelId;
     showBubble('在呢，双击发表情', '👋');

@@ -310,7 +310,7 @@ function updateState(el, choice, state, scene, facing) {
 
 const api = {
   BRAND_ID, CHARACTER_ID, CRAB_ID, GIF_ID, EMOJIS, CHARACTERS, BRANDS, ROSTER,
-  ACTIONS, ACTION_FRAMES, STATE_ACTION, SCENE_ACTION, R,
+  ACTIONS, ACTION_FRAMES, FRAME_MS, STATE_ACTION, SCENE_ACTION, R,
   keyOf, brandOf, optionsFor, choicesFor, rosterFor, defaultChoice, resolve,
   stateFile, actionRow, actionName, actionFrames, actionDuration, hashEmoji, hueOf, mount, updateState,
 };
