@@ -467,6 +467,95 @@ async function main() {
   if (!stage.chatLabels.includes('小鲸')) throw new Error(`改 ID 后对话页下拉没同步：${stage.chatLabels}`);
   result.checks.push('collab-online-only', 'collab-ecosystem-zones', 'collab-context-menu', 'collab-dialogue-flow', 'pet-open-ipc-dispatch', 'collab-reference-graph');
 
+  // 侧栏 MIT 图标 + 协作舱状态情绪标：真机确认图片真的解码了，不是只查 DOM 里有 <img>。
+  const vendorVisual = await js(`(async () => {
+    const wait = (ms) => new Promise(r => setTimeout(r, ms));
+    const imgs = [...document.querySelectorAll('img.vendor-ico')];
+    const states = [];
+    for (const img of imgs) {
+      try { await img.decode(); } catch (e) {}
+      states.push({ src: img.getAttribute('src') || '', width: img.naturalWidth, complete: img.complete,
+        boxW: img.offsetWidth, opacity: Number(getComputedStyle(img).opacity) });
+    }
+    document.querySelector('#nav-stage').click();
+    await wait(400);
+    const actor = document.querySelector('.stage-actor');
+    const id = actor ? actor.dataset.modelId : null;
+    const mood = actor ? actor.querySelector('.actor-mood') : null;
+    // 前面的用例刚跑完一轮讨论，角色可能停在 done/speaking；先显式复位再测，
+    // 否则「待机时隐藏」这条断言依赖上一段测试的残留状态。
+    if (id && window.__stageUi) window.__stageUi.setActorState(id, 'waiting');
+    await wait(200);
+    const before = mood ? { hidden: mood.hidden, mood: mood.dataset.mood || '' } : null;
+    if (id && window.__stageUi) window.__stageUi.setActorState(id, 'thinking');
+    await wait(300);
+    let shown = null, moodRect = null;
+    if (mood) {
+      try { await mood.decode(); } catch (e) {}
+      const cs = getComputedStyle(mood), r = mood.getBoundingClientRect();
+      moodRect = { x: r.x, y: r.y, w: r.width, h: r.height };
+      shown = { hidden: mood.hidden, mood: mood.dataset.mood || '', width: mood.naturalWidth,
+        src: mood.getAttribute('src') || '', opacity: Number(cs.opacity), boxW: mood.offsetWidth };
+    }
+    // 故意停在 thinking：Node 侧要在这个状态下抓像素，之后再单独复位。
+    return { count: imgs.length, states, before, shown, moodRect, id, innerWidth: window.innerWidth };
+  })()`);
+  if (vendorVisual.count < 12) throw new Error(`侧栏图标只有 ${vendorVisual.count} 个`);
+  // 除了解码，还要真的「看得见」：有尺寸、非透明。隐藏窗口里 CSS 动画不推进，
+  // 从 opacity:0 起步的入场动画会永远停在透明帧，只查 DOM/解码会漏掉这种缺陷。
+  const badIcons = vendorVisual.states.filter((s) =>
+    !(s.complete && s.width > 0 && s.src.startsWith('assets/vendor/') && s.boxW >= 12 && s.opacity > 0.5));
+  if (badIcons.length) throw new Error(`侧栏图标未解码、不可见或引用越界：${JSON.stringify(badIcons)}`);
+  result.checks.push('sidebar-vendor-icons-decoded');
+  if (!vendorVisual.before || !vendorVisual.shown) throw new Error('协作舱缺少状态情绪标');
+  if (!vendorVisual.before.hidden) throw new Error('待机状态不该显示情绪标');
+  if (vendorVisual.shown.hidden || vendorVisual.shown.mood !== 'thinking' || vendorVisual.shown.width <= 0) {
+    throw new Error(`思考态情绪标没显示或没解码：${JSON.stringify(vendorVisual.shown)}`);
+  }
+  if (!vendorVisual.shown.src.startsWith('assets/vendor/fluent-emoji/')) {
+    throw new Error(`情绪标不是本地 Fluent Emoji：${vendorVisual.shown.src}`);
+  }
+  if (!(vendorVisual.shown.opacity > 0.99) || vendorVisual.shown.boxW < 12) {
+    throw new Error(`情绪标解码了却不可见（动画停在透明帧？）：${JSON.stringify(vendorVisual.shown)}`);
+  }
+
+  // 像素实证：DOM「有尺寸 + opacity:1 + 已解码」仍不等于屏幕上有颜色
+  // （换成灰白表情、或图片只画出白底，这些断言全都会过）。
+  // capturePage 的位图是设备像素，getBoundingClientRect 是 CSS 像素，必须按 DPR 换算，
+  // 否则采样到的完全是别的区域，之前就因此得到过一组看似合理、实则无关的数字。
+  const shot = await win.capturePage();
+  const bmp = shot.toBitmap();
+  const bmpSize = shot.getSize();
+  const dpr = bmpSize.width / vendorVisual.innerWidth;
+  const mr = vendorVisual.moodRect;
+  let moodColorful = 0, moodOpaque = 0;
+  if (mr && mr.w > 0) {
+    for (let y = Math.round(mr.y * dpr); y < Math.round((mr.y + mr.h) * dpr); y += 1) {
+      for (let x = Math.round(mr.x * dpr); x < Math.round((mr.x + mr.w) * dpr); x += 1) {
+        if (x < 0 || y < 0 || x >= bmpSize.width || y >= bmpSize.height) continue;
+        const i = (y * bmpSize.width + x) * 4;
+        const b = bmp[i], g = bmp[i + 1], r = bmp[i + 2], a = bmp[i + 3];
+        if (a < 80) continue;
+        moodOpaque += 1;
+        if (Math.max(r, g, b) - Math.min(r, g, b) > 40) moodColorful += 1;
+      }
+    }
+  }
+  const moodRatio = moodOpaque ? moodColorful / moodOpaque : 0;
+  if (moodOpaque < 100 || moodRatio < 0.12) {
+    throw new Error(`情绪标区域没有可见彩色像素：${moodColorful}/${moodOpaque} (${moodRatio.toFixed(3)}), dpr=${dpr.toFixed(2)}`);
+  }
+  result.checks.push('collab-mood-visible-pixels');
+
+  const moodReset = await js(`(async () => {
+    window.__stageUi.setActorState(${JSON.stringify(vendorVisual.id)}, 'waiting');
+    await new Promise(r => setTimeout(r, 150));
+    const m = document.querySelector('.stage-actor .actor-mood');
+    return { hidden: m ? m.hidden : null, mood: m ? (m.dataset.mood || '') : null };
+  })()`);
+  if (!moodReset.hidden) throw new Error(`回到待机后情绪标没隐藏：${JSON.stringify(moodReset)}`);
+  result.checks.push('collab-mood-follows-state');
+
   // 本轮 UI 复查的四条回归：性能、对话框、历史一致性、不可逆操作确认
   const ux = await js(`(async () => {
    try {

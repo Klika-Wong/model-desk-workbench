@@ -1,0 +1,27 @@
+/* 主界面图标：Tabler Icons (MIT) 的本地 SVG，路径/哈希见 assets/vendor/SOURCES.json。
+   这些 SVG 内部是 stroke="currentColor"，作为 <img> 加载时 currentColor 会解析成黑色，
+   并不继承按钮文字颜色，所以深色主题统一反相；浅色与 classic 主题保持原样。 */
+.vendor-ico {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  margin-right: 8px;
+  vertical-align: -3px;
+  flex: none;
+  pointer-events: none;
+  opacity: .88;
+}
+html[data-theme="dark"] .vendor-ico { filter: invert(1) brightness(.88); }
+
+.nav-button .vendor-ico { width: 17px; height: 17px; }
+.nav-button.active .vendor-ico { opacity: 1; }
+
+/* icon-button 原本装的是 20px 字符，改成 17px 图形后去掉右间距、保持正方形点击区。 */
+.icon-button .vendor-ico,
+.sidebar-toggle .vendor-ico { width: 17px; height: 17px; margin-right: 0; vertical-align: middle; }
+.sidebar-search .vendor-ico { width: 15px; height: 15px; margin-right: 0; opacity: .7; }
+
+.sidebar #open-settings,
+.sidebar #open-performance { display: flex; align-items: center; }
+.sidebar #open-settings .vendor-ico,
+.sidebar #open-performance .vendor-ico { width: 15px; height: 15px; opacity: .7; }

@@ -29,6 +29,20 @@
   const PAGE_IDS = ['memory-page', 'tasks-page', 'designer-page', 'chat-page', 'models-page', 'stage-page'];
   const POKE_LINES = ['在呢', '等我一下，我在想', '刚说到我？', '这条我记下了'];
   const SVG_NS = 'http://www.w3.org/2000/svg';
+  // 状态情绪标：Fluent Emoji (MIT) 的本地 SVG，跟头顶 ID 条排在一起。
+  // 只反映真实派发状态，不编造模型情绪；waiting 不显示，避免满屏图标。
+  const MOOD_DIR = 'assets/vendor/fluent-emoji/';
+  // 只用缩到 14px 后仍有饱和色块的图。💭/💬 主色是 #CECECE 和近白，贴在半透明白色
+  // ID 牌上等于隐形；💡 的橙黄只占很小一块，缩略后实测彩色像素为 0。
+  // 这组用真机像素统计挑过：生成中 ✨ / 输出中 🔥 / 已发言 👍 / 失败 ❌ / 等待 💤。
+  const MOOD_ART = {
+    thinking: 'sparkles_color.svg',
+    speaking: 'fire_color.svg',
+    done: 'thumbs_up_color_default.svg',
+    failed: 'cross_mark_color.svg',
+    stalled: 'zzz_color.svg',
+  };
+  const MOOD_LABEL = { thinking: '思考中', speaking: '正在输出', done: '已发言', failed: '失败', stalled: '等待中' };
 
   let models = [];
   let actors = new Map();
@@ -380,6 +394,21 @@
     actor.el.setAttribute('aria-label', `${aliasOf(actor.model)}，${STATE_LABEL[state] || state}；回车选中，Shift+F10 打开设置`);
     actor.stateEl.textContent = STATE_LABEL[state] || state;
     applyActorVisual(actor);
+    // 情绪标只跟真实状态走；src 相同时不重写，避免每轮日志轮询都重解码一次图片。
+    if (actor.mood) {
+      const art = MOOD_ART[state];
+      actor.mood.hidden = !art;
+      if (art) {
+        const src = MOOD_DIR + art;
+        if (actor.mood.getAttribute('src') !== src) actor.mood.src = src;
+        const label = MOOD_LABEL[state] || '';
+        actor.mood.alt = label;
+        actor.mood.title = label;
+        actor.mood.dataset.mood = state;
+      } else {
+        actor.mood.removeAttribute('data-mood');
+      }
+    }
     if ((state === 'done' || state === 'failed') && text) {
       actor.bubble.hidden = false;
       actor.bubble.textContent = text.length > 26 ? text.slice(0, 26) + '…' : text;
@@ -940,7 +969,10 @@
       idTag.title = `形象 ID：${model.id}`;
       const idDot = document.createElement('i');
       const idText = document.createElement('span'); idText.textContent = idCode(model);
-      idTag.append(idDot, idText);
+      const mood = document.createElement('img');
+      mood.className = 'actor-mood'; mood.alt = ''; mood.hidden = true;
+      mood.onerror = () => { mood.hidden = true; };
+      idTag.append(idDot, idText, mood);
       const avatar = document.createElement('div'); avatar.className = 'stage-actor-avatar';
       const name = document.createElement('div'); name.className = 'stage-actor-name';
       name.textContent = aliasOf(model); name.title = aliasOf(model);
@@ -951,7 +983,7 @@
       el.append(pokeBubble, idTag, avatar, name, stateEl, meta, bubble);
       floor.append(el);
       const saved = savedPos(id);
-      const actor = { model, el, avatar, idTag, name, stateEl, meta, bubble, pokeBubble,
+      const actor = { model, el, avatar, idTag, mood, name, stateEl, meta, bubble, pokeBubble,
         pokeTimer: null, visualState: null, visualTimer: null, picker: null,
         pos: saved || { x: 0.5, y: 0.38 }, manualPos: Boolean(saved), zone: 'rest' };
       setActorPos(el, actor.pos.x, actor.pos.y);

@@ -92,8 +92,9 @@ npm run verify:pet
 在真实 Electron 中验证。这些自动测试**不代表**真实付费调用，也**不代表**完整产品验收。
 本文不给出任何通过数量结论。
 
-桌宠的表情与工具条图标来自 Fluent Emoji / Tabler Icons（均为 MIT），SVG 已随仓库自带，
-运行时不联网。在仓库根目录可离线核对文件完整性：
+桌宠的表情与工具条图标、主界面侧栏导航图标、协作舱角色状态情绪标来自
+Fluent Emoji / Tabler Icons（均为 MIT），SVG 已随仓库自带，运行时不联网。
+在仓库根目录可离线核对文件完整性：
 
 ```powershell
 node scripts/vendor-assets.cjs --check

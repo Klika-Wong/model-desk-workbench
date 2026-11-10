@@ -77,3 +77,50 @@ test('表情映射都指向清单里的 Fluent Emoji，脚本没有外链', () =
   assert.doesNotMatch(js, /(?:src|href)\s*=\s*["']https?:/i);
   assert.doesNotMatch(js, /(?:EMOJI_DIR|ICON_DIR)\s*=\s*['"]https?:/i);
 });
+
+test('主界面侧栏图标引用都在清单里，且没有外链或 inline 回退脚本', () => {
+  const html = fs.readFileSync(path.join(DESKTOP, 'index.html'), 'utf8');
+  const refs = [...html.matchAll(/src="(assets\/vendor\/[^"]+)"/g)].map((m) => m[1]);
+  assert.ok(refs.length >= 12, `expected 12 sidebar icons, got ${refs.length}`);
+  for (const ref of refs) {
+    assert.ok(files.some((f) => f.local === 'desktop/' + ref), ref);
+  }
+  assert.doesNotMatch(html, /src="https?:/i);
+  assert.match(html, /<script src="vendor-icons\.js"><\/script>/);
+  assert.match(html, /href="vendor-icons\.css"/);
+  // CSP 是 script-src 'self'：回退必须走外部文件里的 addEventListener。
+  assert.doesNotMatch(html, /onerror\s*=/i);
+  assert.ok(fs.existsSync(path.join(DESKTOP, 'vendor-icons.js')));
+  assert.ok(fs.existsSync(path.join(DESKTOP, 'vendor-icons.css')));
+});
+
+test('协作舱状态情绪图都指向清单里的 Fluent Emoji', () => {
+  const js = fs.readFileSync(path.join(DESKTOP, 'stage-ui.js'), 'utf8');
+  const block = js.slice(js.indexOf('const MOOD_ART'), js.indexOf('const MOOD_LABEL'));
+  const names = [...block.matchAll(/'([a-z0-9_-]+\.svg)'/g)].map((m) => m[1]);
+  assert.ok(names.length >= 5, `expected 5 mood images, got ${names.length}`);
+  for (const name of names) {
+    const local = 'desktop/assets/vendor/fluent-emoji/' + name;
+    assert.ok(files.some((f) => f.local === local), local);
+  }
+  assert.doesNotMatch(js, /MOOD_DIR\s*=\s*['"]https?:/i);
+});
+
+test('状态情绪标用的表情缩到 14px 后仍有饱和色', () => {
+  const js = fs.readFileSync(path.join(DESKTOP, 'stage-ui.js'), 'utf8');
+  const block = js.slice(js.indexOf('const MOOD_ART'), js.indexOf('const MOOD_LABEL'));
+  const names = [...block.matchAll(/'([a-z0-9_-]+\.svg)'/g)].map((m) => m[1]);
+  assert.equal(names.length, 5, `expected 5 mood images, got ${names.length}`);
+  for (const name of names) {
+    const text = fs.readFileSync(path.join(DESKTOP, 'assets/vendor/fluent-emoji', name), 'utf8');
+    const hexes = [...text.matchAll(/#([0-9a-fA-F]{6})\b/g)].map((m) => m[1]);
+    const sats = hexes.map((h) => {
+      const r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16);
+      return Math.max(r, g, b) - Math.min(r, g, b);
+    });
+    const ratio = sats.length ? sats.filter((s) => s > 60).length / sats.length : 0;
+    // 💭/💬 是 #CECECE 灰 + 近白（占比 0.17~0.36），贴在半透明白色 ID 牌上等于隐形。
+    assert.ok(ratio >= 0.9, `${name} 饱和色占比只有 ${ratio.toFixed(2)}，缩略后会看不清`);
+    assert.ok(Math.max(...sats) >= 150, `${name} 没有足够鲜艳的颜色`);
+  }
+});

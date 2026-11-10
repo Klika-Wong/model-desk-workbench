@@ -1,5 +1,32 @@
 # 本次发布验证
 
+## 2026-11-10 侧栏图标统一与协作舱状态情绪标
+
+| 检查 | 命令 | 结果 | 边界 |
+| --- | --- | --- | --- |
+| 单元 | `node --test *.test.cjs` | 203/203 | 含新增 3 项素材单测 |
+| 素材离线完整性 | `node scripts/vendor-assets.cjs --check` | 37 文件、2 来源 | 只比对本地 SHA-256，不联网 |
+| 主界面真机 | `npm run verify:ui` | 55 项，console 错误 0 | 桩 preload，不建桌宠窗口 |
+| 桌宠真机 | `npm run verify:pet` | 20 项，errors 0 | 独立 userData，不启动完整主进程 |
+
+新增 3 项真机检查：`sidebar-vendor-icons-decoded`（侧栏 12 张图标全部 `decode()` 成功、
+`offsetWidth ≥ 12`、`opacity > 0.5`、src 都在本地 vendor 目录）、
+`collab-mood-follows-state`（`setActorState('thinking')` 显示并切回 `waiting` 隐藏）、
+`collab-mood-visible-pixels`（抓 `capturePage()` 的 BGRA，数情绪标矩形内的饱和像素）。
+
+**为什么不只查 DOM**：情绪标最初有 `opacity:0 → 1` 的入场动画加 `fill-mode:both`。
+真机验证窗口是 `show:false`，Chromium 不推进隐藏窗口里的 CSS 动画，`currentTime` 卡在 0，
+于是「DOM 在 + 已解码 + 单测全过」但人看不见。现在断言覆盖
+「解码成功 / 有布局尺寸 / `opacity:1` / 屏幕上真有彩色像素」四层，并去掉了入场动画。
+像素统计还踩过一个坐标坑：位图是 1899×1137 设备像素，`getBoundingClientRect()` 是
+1280×820 CSS 像素，必须按 `bitmap.width / window.innerWidth` 换算；不换算会采样到无关区域，
+得到看似合理实则无意义的数字。修正后实测 ✨ 29.9%、🔥 44.7% 彩色像素，
+另用可见窗口截图人工核对过侧栏深浅主题与三个角色的 ID 牌。
+
+`vendor-assets.test.cjs` 新增 3 项：主界面 `index.html` 的 12 个引用都在清单里且无外链 /
+无 inline handler、协作舱 `MOOD_ART` 的 5 张图都在清单里、这 5 张图的饱和色占比 ≥0.9
+（💭/💬 只有 0.17~0.36，贴在白色 ID 牌上等于隐形）。仓库与运行实例两侧各跑一遍，结果一致。
+
 ## 2026-11-10 第三方素材接进桌宠
 
 | 检查 | 命令 | 结果 | 边界 |

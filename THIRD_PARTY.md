@@ -51,19 +51,28 @@ Clawd 形象未获原作者授权，本项目**没有采用 Clawd 素材**，只
 
 | 项目 | 固定 commit | 许可 | 复制内容 | 本地位置 |
 | --- | --- | --- | --- | --- |
-| [microsoft/fluentui-emoji](https://github.com/microsoft/fluentui-emoji) | `1ffb34c752ecf5d402f04cfb4b392c77f57c54bc` | MIT，Copyright (c) Microsoft Corporation | Color 风格 SVG 15 张（8 个表情 + 7 个状态气泡） | `desktop/assets/vendor/fluent-emoji/` |
-| [tabler/tabler-icons](https://github.com/tabler/tabler-icons) | `58f60538fe2fab2e1459a09198f9bd3b033bf90e` | MIT，Copyright (c) 2020-2026 Paweł Kuna | outline / filled SVG 8 张，用于桌宠工具栏 6 个按钮及锁定、置顶两种状态 | `desktop/assets/vendor/tabler-icons/` |
+| [microsoft/fluentui-emoji](https://github.com/microsoft/fluentui-emoji) | `1ffb34c752ecf5d402f04cfb4b392c77f57c54bc` | MIT，Copyright (c) Microsoft Corporation | Color 风格 SVG 16 张（桌宠 8 个表情 + 7 个状态气泡 + 协作舱状态情绪标用的 1 张叉号） | `desktop/assets/vendor/fluent-emoji/` |
+| [tabler/tabler-icons](https://github.com/tabler/tabler-icons) | `58f60538fe2fab2e1459a09198f9bd3b033bf90e` | MIT，Copyright (c) 2020-2026 Paweł Kuna | outline / filled SVG 19 张：桌宠工具栏 6 个按钮及锁定、置顶状态；主界面侧栏 6 个导航、刷新 / 搜索 / 新建 / 侧栏切换 / 设置 / 性能监测 | `desktop/assets/vendor/tabler-icons/` |
+
+2026-11-10 第二批：从同两个固定 commit 追加 11 张 Tabler 图标与 1 张 Fluent 叉号，
+把侧栏的 `▦ ✦ ◉ ◷ ◇ ▤` 等 Unicode 符号一并换掉，并在协作舱角色头顶 ID 条里加状态情绪标。
+情绪标只反映 `setActorState()` 的真实派发状态（生成中 / 正在输出 / 已发言 / 失败 / 等待），
+不推测模型情绪。选图用静态饱和色占比筛过：💭/💬 主色是 `#CECECE` 与近白，
+在半透明白色 ID 牌上等于隐形，故改用 5 张饱和色占比 ≥0.98 的彩色图。
 
 `desktop/assets/vendor/SOURCES.json` 逐文件记录上游路径、本地路径、SHA-256 和字节数；
 `node scripts/vendor-assets.cjs --check` 纯离线核对，`node scripts/vendor-assets.cjs`
 按固定 commit 重新拉取（需要系统 `curl`，网络受限时可加 `--proxy URL`，中途断线可直接重跑）。
-**没有引入 npm 依赖**，也没有把整包 emoji / 图标库塞进仓库，只取实际用到的 23 张 SVG + 2 份 LICENSE。
+**没有引入 npm 依赖**，也没有把整包 emoji / 图标库塞进仓库，只取实际用到的 35 张 SVG + 2 份 LICENSE（合计 37 个文件）。
 素材目录里的 `.gitattributes` 用 `* -text` 禁止 Git 行尾转换；否则 Windows 上 `core.autocrlf=true`
 会把 LF 改成 CRLF，`--check` 记录的 SHA-256 会全部对不上。
 
-**为什么换**：原来工具栏和表情用 Unicode 字符，由系统 emoji 字体渲染，不同 Windows 版本字形不一致，
-`✕`、`⇄` 这类符号还和彩色 emoji 混在一起。换成固定矢量文件后跨机器一致。素材加载失败时
-代码会退回原来的 Unicode 字符，不显示破图。
+**为什么换**：原来桌宠工具栏、表情和主界面侧栏导航都用 Unicode 字符，由系统字体渲染，
+不同 Windows 版本字形不一致，`✕`、`⇄` 这类符号还和彩色 emoji 混在一起。换成固定矢量文件后
+跨机器一致。Tabler SVG 内部是 `stroke="currentColor"`，作为 `<img>` 加载时 `currentColor` 解析成
+黑色、并不继承按钮文字色，所以深色主题用 CSS `filter: invert()` 反相（浅色 / classic 保持原样）。
+素材加载失败时代码会退回原来的 Unicode 字符——桌宠在 `pet-ui.js` 里逐个绑定，主界面由
+`vendor-icons.js` 统一绑定（CSP 是 `script-src 'self'`，不能写 inline `onerror`），不显示破图。
 
 **许可边界**：MIT 覆盖这些 SVG 文件本身，不覆盖相关名称 / 商标。这两批素材可商用，
 但项目里其它形象素材（`llm-pet`、`assets/pets/`）仍受非商业限制，整体发布 / 商业化状态**没有改变**。

@@ -181,6 +181,16 @@
   background: color-mix(in srgb, var(--muted) 55%, transparent);
   transition: background .2s, box-shadow .2s;
 }
+/* 状态情绪标：挂在头顶 ID 条内部，跟着代号牌一起定位，
+   不另起一层绝对定位，也就不会和临时气泡、设施铭牌抢位置。 */
+/* 刻意不做入场动画。隐藏窗口（自动化验证就是 show:false）里 Chromium 不推进
+   CSS 动画：从 opacity:0 起步会永远停在透明帧，从 scale() 起步会一直缩着。
+   DOM 在、图片也解码了，人却看不见——16px 的小图不值得背这个风险。 */
+.actor-id-tag .actor-mood {
+  width: 14px; height: 14px; flex: none; object-fit: contain;
+  filter: drop-shadow(0 1px 2px rgba(15, 23, 42, .28));
+}
+.actor-mood[hidden] { display: none; }
 .stage-actor[data-state="thinking"] .actor-id-tag,
 .stage-actor[data-state="speaking"] .actor-id-tag {
   color: var(--accent); box-shadow: 0 0 0 1px var(--accent-line);
