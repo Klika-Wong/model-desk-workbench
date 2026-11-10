@@ -64,6 +64,7 @@ desktop/.*.json
 desktop/*.log
 desktop/*-result.json
 desktop/*-report.json
+desktop/.main-verify*
 desktop/user-data/
 desktop/coverage/
 *.sqlite*

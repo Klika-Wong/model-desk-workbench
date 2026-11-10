@@ -1,5 +1,36 @@
 # 更新记录
 
+## 补上主进程真实启动路径的自动验证（2026-11-10）
+
+之前号称「三层验证」，实际上只有两层真的跑在 Electron 里：`verify:ui` 用桩 preload，
+`verify:pet` 单独建桌宠窗口。而 `npm run smoke` 在 `whenReady` 里**建窗口之前就 return 了**，
+所以「用户双击图标」真正走的那条分支——建主窗、注册桌宠、拉托盘、点 X 收进托盘、
+从托盘恢复、退出时停后台服务——一直没有人自动验过，只能靠人肉点。
+
+这轮补的是这条分支本身，不是再写一层文档：
+
+- 新增 `--verify-main` / `MODEL_DESK_MAIN_VERIFY=1` 模式：用系统临时目录里的**独立 profile**
+  （所以既能真的走 `requestSingleInstanceLock`，又不会和用户正开着的实例抢锁、也不写真实记忆目录），
+  按真实顺序跑完启动链路，13 项断言，结果写 JSON 由 `main-verify-run.cjs` 判读。
+  验证模式不拉起外部 Python 服务——那是别人的进程，不该是自动测试的副作用。
+- 覆盖的点：单实例锁、主窗由 `createWindow()` 交给 `mainWindow`、尺寸容差 2px、标题、
+  `contextIsolation/nodeIntegration/sandbox`、首帧后才显示、加载的是本地 `index.html`、
+  渲染层拿到 `workbench` 桥且没有 `require`、`app:render-info` 真的往返一次、
+  托盘存在且菜单项与顺序正确、`petWindowCtl.open()` 真的开出 `pet.html`、
+  关窗只 hide 不销毁且桌宠跟着收起、托盘恢复能再次显示、退出走完停服务流程。
+- **两个坑值得记**：
+  1. 一开始断言 `getLastWebPreferences().backgroundThrottling`，结果那个键在当前 Electron 里
+     根本不返回（实测键列表里没有），改成源码断言「只有 smoke 才关」，不假装运行时验过。
+  2. 这台机器上 `isVisible()` 不可靠：`show` 事件里读是 `true`，同一窗口稍后又读回 `false`，
+     而窗口确实已经画出来了。所以判定改用窗口事件 + 首帧标记（`__shown`），
+     `isVisible()` 只作为诊断写进结果，不参与通过与否——否则会造出「看似严谨、实则随机」的断言。
+- `package.json` 补了 `test`（`node --test`）和 `verify:main`。README 早就写着 `npm test`，
+  但仓库里根本没有这个脚本，直接报 `Missing script`。
+
+**边界**：验证仍不是产品验收。拖到第二块屏幕、多显示器 DPI 混合、系统休眠唤醒、
+安装包升级、真实模型调用都没有覆盖。验证运行时会短暂显示一次主窗和一只桌宠
+（不显示就验不了首帧），这点在 `docs/VALIDATION.md` 里写明了。
+
 ## 图标体系统一到主界面 + 协作舱状态情绪标（2026-11-10）
 
 上一轮只把 MIT 素材装进了桌宠，主界面侧栏还是 `▦ ✦ ◉ ◷ ◇ ▤` 这类 Unicode 符号，

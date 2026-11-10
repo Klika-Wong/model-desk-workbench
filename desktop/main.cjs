@@ -23,12 +23,17 @@ if (process.platform === 'win32' && process.env.WORKBENCH_DISABLE_OCCLUSION === 
 const MOCK_WORKSPACE = 'desktop-shell-prototype';
 const backendScript = path.join(__dirname, 'mock-backend.cjs');
 const smokeMode = process.env.MODEL_DESK_SMOKE === '1' || process.argv.includes('--smoke');
+// smoke 模式在 createWindow 之前就 return 了，走不到「用户双击图标」那条路。
+// 这个模式专门补那条路：真建主窗、真注册桌宠、真拉托盘、真关闭、真退出。
+const mainVerifyMode = process.env.MODEL_DESK_MAIN_VERIFY === '1' || process.argv.includes('--verify-main');
+const mainVerifyResult = mainVerifyMode ? (process.env.MODEL_DESK_MAIN_VERIFY_RESULT || '') : '';
 let mainWindow = null;
 let petWindowCtl = null;
 let panelWindow = null;
 let panelView = null;
 let panelAttached = false;
 let tray = null;
+let trayMenu = null;
 let exitRequested = false;
 let pendingShow = false;
 let miniWindow = null;
@@ -50,7 +55,12 @@ let sendPermission = null;
 let writeClipboard = (text) => clipboard.writeText(text);
 let smokeClipboard = null;
 let primaryInstance = true;
-if (!smokeMode) {
+if (mainVerifyMode) {
+  // 验证用独立 userData：既能真的走到 requestSingleInstanceLock，
+  // 又不会跟用户正开着的实例抢锁，也不会写进真实的记忆/会话目录。
+  app.setPath('userData', process.env.MODEL_DESK_MAIN_VERIFY_PROFILE || `${mainVerifyResult}.userdata`);
+  primaryInstance = app.requestSingleInstanceLock();
+} else if (!smokeMode) {
   app.setPath('userData', path.join(app.getPath('appData'), 'ModelDesk-Memory-Preview'));
   primaryInstance = app.requestSingleInstanceLock();
   if (!primaryInstance) app.quit();
@@ -318,7 +328,9 @@ async function createWindow({ show = true } = {}) {
   // ready-to-show 时首帧已经画好，此时再 show 才不会有白底一闪。
   window.once('ready-to-show', () => {
     window.__painted = true;
-    if (window.__wantShow) { window.show(); window.focus(); }
+    // 留给 --verify-main 判定「窗口是自己在首帧后弹出来的」，
+    // 比事后读 isVisible() 可靠：事件可能早于验证脚本挂监听。
+    if (window.__wantShow) { window.__shown = true; window.show(); window.focus(); }
   });
   if (show) window.__wantShow = true;
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
@@ -840,6 +852,10 @@ app.whenReady().then(async () => {
       app.quit();
       return;
     }
+    if (mainVerifyMode) {
+      await runMainVerify();
+      return;
+    }
     await createWindow();
     petWindowCtl = require('./pet-window.cjs').registerPetWindow(app.getPath('userData'));
     if (pendingShow) showWorkbench();
@@ -1068,7 +1084,8 @@ const panelStarter = panelService.createPanelStarter({
 });
 
 async function ensurePanelService(options) {
-  if (smokeMode || !PANEL_AUTOSTART) return { started: false, reason: 'disabled' };
+  // 验证模式不拉起外部 Python 服务：那是别人的进程，不该作为自动测试的副作用。
+  if (smokeMode || mainVerifyMode || !PANEL_AUTOSTART) return { started: false, reason: 'disabled' };
   return panelStarter.ensure(options);
 }
 
@@ -1337,18 +1354,188 @@ async function createTray(getIcon = () => app.getFileIcon(process.execPath, {siz
     const icon = await getIcon();
     candidate = new Tray(icon);
     candidate.setToolTip('模型工作台体验版 · 本机运行 · 真实 AI 未连接');
-    candidate.setContextMenu(Menu.buildFromTemplate([
+    // 留在模块变量里，验证模式能核对菜单项，而不是只看到「有个托盘」。
+    trayMenu = Menu.buildFromTemplate([
       {label:'打开模型工作台',click:showWorkbench},
       {label:'本机体验版 · 真实 AI 未连接',enabled:false},
       {type:'separator'},
       {label:'退出工作台（停止后台服务）',click:requestExit}
-    ]));
+    ]);
+    candidate.setContextMenu(trayMenu);
     candidate.on('click',showWorkbench);
     candidate.on('double-click',showWorkbench);
     tray = candidate;
   } catch (error) {
     if (candidate) candidate.destroy();
     throw error;
+  }
+}
+
+// ---- 真实启动路径验证（--verify-main / MODEL_DESK_MAIN_VERIFY=1）----
+// 为什么要有它：`--smoke` 在 createWindow 之前就 return 了，所以「用户双击图标」
+// 实际走的那条分支（建主窗 → 注册桌宠 → 拉托盘 → 关窗收进托盘 → 退出停服务）
+// 一直没有自动验证过，只能靠人肉点。这里用独立 userData 把这条分支完整跑一遍。
+// 与真实启动唯一的差别是 userData 指向临时目录、不拉起 Python 服务；
+// 窗口本身照常显示（不显示就没有首帧，首帧这条验收没法伪造）。
+async function runMainVerify() {
+  const checks = [];
+  const write = (stage, ok, extra) => {
+    if (!mainVerifyResult) return;
+    try {
+      fs.writeFileSync(mainVerifyResult, JSON.stringify(Object.assign({ ok, stage, checks }, extra || {})));
+    } catch {}
+  };
+  const waitFor = async (predicate, timeoutMs) => {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      if (predicate()) return true;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    return false;
+  };
+  let stage = 'verify profile';
+  try {
+    write(stage, false);
+    if (!mainVerifyResult) throw new Error('缺少 MODEL_DESK_MAIN_VERIFY_RESULT，没法写结果文件。');
+    if (!primaryInstance || !app.hasSingleInstanceLock()) throw new Error('独立 userData 下没拿到单实例锁。');
+    checks.push('single-instance-lock');
+
+    stage = 'main window creation';
+    write(stage, false);
+    const win = await createWindow();
+    // 断言用窗口事件而不是 isVisible()：这台机器上实测「show 事件已触发、事件里
+    // isVisible() 为 true，之后又读回 false」，而窗口确实已经画出来了。
+    // isVisible() 只作为诊断写进结果，不参与判定。
+    const events = { show: 0, hide: 0, close: 0 };
+    for (const name of Object.keys(events)) win.on(name, () => { events[name] += 1; });
+    if (!mainWindow || mainWindow !== win || win.isDestroyed()) {
+      throw new Error('createWindow 没有把 mainWindow 指向一个活着的窗口。');
+    }
+    const bounds = win.getBounds();
+    // 高 DPI（125%）下 Windows 会把 1380x900 取整成 1381x901，所以给 2px 容差。
+    if (Math.abs(bounds.width - 1380) > 2 || Math.abs(bounds.height - 900) > 2) {
+      throw new Error(`主窗尺寸与 createWindow 声明不一致：${bounds.width}x${bounds.height}`);
+    }
+    if (win.getTitle() !== 'Model Desk — Desktop Shell Prototype') {
+      throw new Error(`主窗标题不对：${win.getTitle()}`);
+    }
+    checks.push('main-window-created');
+
+    stage = 'main window isolation';
+    write(stage, false);
+    const preferences = win.webContents.getLastWebPreferences();
+    if (preferences.contextIsolation !== true || preferences.nodeIntegration !== false || preferences.sandbox !== true) {
+      throw new Error('主窗 webPreferences 没有隔离。');
+    }
+    // backgroundThrottling 没有被 getLastWebPreferences 暴露（Electron 45 实测键里没有），
+    // 所以这里断言不了；由 main-verify-wiring.test.cjs 用源码断言「只有 smoke 才关」。
+    checks.push('main-window-isolation');
+
+    // 真实启动的时序是 createWindow() 默认 show:true → ready-to-show 里自己显示。
+    stage = 'first show';
+    write(stage, false);
+    if (!await waitFor(() => win.__shown === true, 15000)) {
+      throw new Error(`主窗没有在首帧后自己显示（painted=${Boolean(win.__painted)}, wantShow=${Boolean(win.__wantShow)}, visible=${win.isVisible()}）。`);
+    }
+    if (!win.__painted) throw new Error('窗口显示了但 ready-to-show 没触发过，首帧状态不可信。');
+    checks.push('main-window-shown');
+    checks.push('main-window-first-paint');
+
+    stage = 'main window loaded';
+    write(stage, false);
+    const url = win.webContents.getURL();
+    if (!url.startsWith('file://') || !url.endsWith('/index.html')) {
+      throw new Error(`主窗没有加载本地 index.html：${url}`);
+    }
+    const renderer = await win.webContents.executeJavaScript(`({
+      ready: document.readyState,
+      bridge: typeof window.workbench,
+      node: typeof require,
+      petOpen: typeof (window.workbench && window.workbench.petOpen),
+      title: document.title
+    })`);
+    if (renderer.ready !== 'complete' || renderer.bridge !== 'object' || renderer.node !== 'undefined'
+      || renderer.petOpen !== 'function' || renderer.title !== 'Model Desk — Desktop Shell Prototype') {
+      throw new Error(`渲染层契约不满足：${JSON.stringify(renderer)}`);
+    }
+    checks.push('main-window-loaded');
+
+    stage = 'ipc round trip';
+    write(stage, false);
+    const info = await win.webContents.executeJavaScript('window.workbench.renderInfo()');
+    if (!info || info.platform !== process.platform || !Array.isArray(info.displaySize)
+      || info.displaySize.length !== 2 || typeof info.gpuCompositing !== 'string') {
+      throw new Error(`app:render-info 返回不符预期：${JSON.stringify(info)}`);
+    }
+    checks.push('ipc-round-trip');
+
+    stage = 'tray';
+    write(stage, false);
+    await createTray();
+    if (!tray || tray.isDestroyed()) throw new Error('托盘没有建起来。');
+    const labels = trayMenu ? trayMenu.items.map((item) => item.type === 'separator' ? '---' : item.label) : [];
+    const expected = ['打开模型工作台', '本机体验版 · 真实 AI 未连接', '---', '退出工作台（停止后台服务）'];
+    if (JSON.stringify(labels) !== JSON.stringify(expected)) {
+      throw new Error(`托盘菜单项不符合预期：${JSON.stringify(labels)}`);
+    }
+    if (trayMenu.items[1].enabled !== false) throw new Error('托盘里的说明项不该可点。');
+    checks.push('tray-created');
+    checks.push('tray-menu');
+
+    stage = 'pet window from main process';
+    write(stage, false);
+    petWindowCtl = require('./pet-window.cjs').registerPetWindow(app.getPath('userData'));
+    if (!petWindowCtl || typeof petWindowCtl.open !== 'function') throw new Error('桌宠窗口没有注册。');
+    const petOpen = petWindowCtl.open();
+    if (!petOpen || petOpen.isDestroyed()) throw new Error('petWindowCtl.open() 没有返回窗口。');
+    const petEvents = { show: 0, hide: 0 };
+    for (const name of Object.keys(petEvents)) petOpen.on(name, () => { petEvents[name] += 1; });
+    const petVisible = await waitFor(() => {
+      const pet = BrowserWindow.getAllWindows().find((item) => !item.isDestroyed()
+        && item.webContents.getURL().endsWith('/pet.html'));
+      return Boolean(pet) && pet.webContents.getURL().endsWith('/pet.html');
+    }, 15000, 'pet.html');
+    if (!petVisible) throw new Error('桌宠窗口没有加载 pet.html。');
+    checks.push('pet-window-registered');
+
+    stage = 'close hides to tray';
+    write(stage, false);
+    const hideBefore = events.hide;
+    win.close();
+    if (!await waitFor(() => events.hide > hideBefore || win.isDestroyed(), 5000)) {
+      throw new Error('关闭主窗后既没有 hide 事件，窗口也没有销毁，状态不明。');
+    }
+    if (win.isDestroyed()) throw new Error('有托盘时关闭主窗把窗口销毁了，用户会以为程序退出了。');
+    if (exitRequested) throw new Error('关闭主窗错误地设置了 exitRequested（会直接退出而不是留在托盘）。');
+    // 桌宠也要跟着收起：之前用户报过「关掉后桌面上还留着一只」。
+    if (!await waitFor(() => petEvents.hide >= 1, 5000)) {
+      throw new Error('主窗关闭后桌宠没有被收起。');
+    }
+    checks.push('close-hides-to-tray');
+
+    stage = 'restore from tray';
+    write(stage, false);
+    const showBefore = events.show;
+    const hideBeforeRestore = events.hide;
+    showWorkbench();
+    if (!await waitFor(() => events.show > showBefore, 5000)) {
+      throw new Error('从托盘恢复时没有再次触发 show。');
+    }
+    win.hide();
+    if (!await waitFor(() => events.hide > hideBeforeRestore, 5000)) {
+      throw new Error('恢复之后无法再隐藏主窗。');
+    }
+    checks.push('restore-from-tray');
+
+    stage = 'clean exit';
+    write(stage, false, { diagnostics: { visibleAfterShow: win.isVisible(), events } });
+    checks.push('ready-to-quit');
+    write(stage, true, { diagnostics: { visibleAfterShow: win.isVisible(), events } });
+    // 走真实退出：停本机服务 → 关桌宠 → 关主窗 → app.quit。
+    requestExit();
+  } catch (error) {
+    write(stage, false, { error: error.stack || String(error) });
+    app.exit(1);
   }
 }
 

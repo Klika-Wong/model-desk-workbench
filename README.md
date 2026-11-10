@@ -86,10 +86,14 @@ npm test
 npm run smoke
 npm run verify:ui
 npm run verify:pet
+npm run verify:main
 ```
 
-`verify:ui` 使用桩 preload，只验证界面逻辑；独立桌宠窗口是否真的创建由 `verify:pet`
-在真实 Electron 中验证。这些自动测试**不代表**真实付费调用，也**不代表**完整产品验收。
+四层验证各管一段，别把它们当成一回事：`verify:ui` 用桩 preload，只验证界面逻辑；
+`verify:pet` 单独建桌宠窗口；`verify:main` 走「双击图标」那条真实启动分支（建主窗、拉托盘、
+关窗收进托盘、托盘恢复、退出停服务），运行时会在屏幕上短暂显示一次主窗和桌宠；
+`npm run smoke` 反而在建窗之前就返回，它验的是主进程里的数据与 IPC 链路，不验窗口。
+这些自动测试**不代表**真实付费调用，也**不代表**完整产品验收。
 本文不给出任何通过数量结论。
 
 桌宠的表情与工具条图标、主界面侧栏导航图标、协作舱角色状态情绪标来自

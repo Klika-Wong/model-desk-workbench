@@ -1,5 +1,38 @@
 # 本次发布验证
 
+## 2026-11-10 主进程真实启动路径
+
+| 检查 | 命令 | 结果 | 边界 |
+| --- | --- | --- | --- |
+| 单元 | `npm test` | 210/210 | 含 `main-verify-wiring.test.cjs` 7 项接线断言 |
+| 主进程真机 | `npm run verify:main` | 13 项，errors 0 | 独立临时 profile，不拉起 Python 服务 |
+| 冒烟 | `npm run smoke` | 65 项 | smoke 分支在建窗前返回，走不到本轮这条路 |
+| 主界面真机 | `npm run verify:ui` | 55 项，console 错误 0 | 桩 preload，不建桌宠窗口 |
+| 桌宠真机 | `npm run verify:pet` | 20 项，errors 0 | 独立 userData，不启动完整主进程 |
+
+`verify:main` 覆盖的是此前唯一没有自动验证的分支：`whenReady` 之后建主窗 → 注册桌宠 →
+拉托盘 → 关窗收进托盘 → 托盘恢复 → 退出停服务。逐项为
+`single-instance-lock`、`main-window-created`、`main-window-isolation`、`main-window-shown`、
+`main-window-first-paint`、`main-window-loaded`、`ipc-round-trip`、`tray-created`、`tray-menu`、
+`pet-window-registered`、`close-hides-to-tray`、`restore-from-tray`、`ready-to-quit`。
+
+三条踩过的坑，写在这里免得下次重新踩：
+
+1. **`isVisible()` 不能当唯一证据**。这台机器上出现过：`show` 事件已触发、事件回调里
+   `isVisible()` 为 `true`，几十毫秒后同一窗口读回 `false`，而窗口确实已经显示。
+   现在的判定用窗口事件计数 + `ready-to-show` 里置的 `__shown` 标记，`isVisible()` 只写进
+   `diagnostics` 供排查。另外 `ready-to-show` 对**只创建不显示**的窗口不会来，
+   所以「首帧是否画完」必须真的显示一次才能验，不能省。
+2. **`getLastWebPreferences()` 不返回 `backgroundThrottling`**。想在运行时断言它一定会失败，
+   改成源码层断言「只有 `smokeMode` 才把它关掉」。
+3. **别对固定目录做递归删除**。第一版把结果和 userData 放在 `desktop/` 下，清理时撞上
+   批量删除保护。现在每次 `mkdtemp` 一个系统临时目录，清不掉也不影响判定。
+
+运行 `verify:main` 时会短暂显示一次主窗和一只桌宠——不显示就没有首帧，这条验收无法伪造。
+
+**仍然没覆盖**：多显示器与混合 DPI、拖到第二块屏、系统休眠唤醒、安装包与升级、
+真实模型调用与计费。这是开发预览的自动验收，不是产品验收。
+
 ## 2026-11-10 侧栏图标统一与协作舱状态情绪标
 
 | 检查 | 命令 | 结果 | 边界 |

@@ -6,9 +6,11 @@
   "main": "main.cjs",
   "scripts": {
     "start": "electron .",
+    "test": "node --test",
     "smoke": "node smoke-runner.cjs",
     "verify:ui": "node ui-verify-run.cjs",
-    "verify:pet": "node pet-verify-run.cjs"
+    "verify:pet": "node pet-verify-run.cjs",
+    "verify:main": "node main-verify-run.cjs"
   },
   "devDependencies": {
     "electron": "45.0.0"
