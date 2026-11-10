@@ -10,12 +10,13 @@
     <div id="pet-bubble" class="pet-bubble" hidden></div>
     <div id="pet-actor" class="pet-actor" title="拖动我 · 双击发表情"></div>
     <div id="pet-toolbar" class="pet-toolbar">
-      <button id="pet-lock" type="button" title="锁定位置">🔓</button>
-      <button id="pet-top" type="button" title="始终置顶">📌</button>
-      <button id="pet-emote" type="button" title="表情包">😀</button>
-      <button id="pet-chat" type="button" title="连模型聊一句">💬</button>
-      <button id="pet-swap" type="button" title="换形象">⇄</button>
-      <button id="pet-close" type="button" title="关掉桌宠">✕</button>
+      <!-- 图标来自 tabler/tabler-icons (MIT)，本地自带；data-fallback 在图片缺失时退回系统字符。 -->
+      <button id="pet-lock" type="button" title="锁定位置" data-fallback="🔓"><img class="ico" src="assets/vendor/tabler-icons/lock-open.svg" alt=""></button>
+      <button id="pet-top" type="button" title="始终置顶" data-fallback="📌"><img class="ico" src="assets/vendor/tabler-icons/pin-filled.svg" alt=""></button>
+      <button id="pet-emote" type="button" title="表情包" data-fallback="😀"><img class="ico" src="assets/vendor/tabler-icons/mood-smile.svg" alt=""></button>
+      <button id="pet-chat" type="button" title="连模型聊一句" data-fallback="💬"><img class="ico" src="assets/vendor/tabler-icons/message-circle.svg" alt=""></button>
+      <button id="pet-swap" type="button" title="换形象" data-fallback="⇄"><img class="ico" src="assets/vendor/tabler-icons/arrows-exchange.svg" alt=""></button>
+      <button id="pet-close" type="button" title="关掉桌宠" data-fallback="✕"><img class="ico" src="assets/vendor/tabler-icons/x.svg" alt=""></button>
     </div>
     <div id="pet-emotes" class="pet-emotes" hidden></div>
     <div id="pet-menu" class="pet-menu" role="menu" aria-label="桌宠设置" hidden></div>

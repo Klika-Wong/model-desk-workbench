@@ -92,6 +92,16 @@ npm run verify:pet
 在真实 Electron 中验证。这些自动测试**不代表**真实付费调用，也**不代表**完整产品验收。
 本文不给出任何通过数量结论。
 
+桌宠的表情与工具条图标来自 Fluent Emoji / Tabler Icons（均为 MIT），SVG 已随仓库自带，
+运行时不联网。在仓库根目录可离线核对文件完整性：
+
+```powershell
+node scripts/vendor-assets.cjs --check
+```
+
+逐文件的上游 commit、路径、SHA-256 与许可见 `desktop/assets/vendor/SOURCES.json` 和
+[THIRD_PARTY.md](THIRD_PARTY.md)。重新拉取用 `node scripts/vendor-assets.cjs`（需要系统 `curl`）。
+
 改完桌面代码后，若本机桌面快捷方式指向的是另一份目录，需运行
 `node scripts/sync-to-runtime.cjs` 把 `desktop/` 同步过去（可先加 `--dry-run` 查看差异），
 再完全退出应用重新打开；只 push 到 GitHub 不会改变本机正在运行的实例。

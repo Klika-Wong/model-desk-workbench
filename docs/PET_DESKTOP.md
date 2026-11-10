@@ -100,3 +100,22 @@ client 坐标会反向变化，表现为"往反方向跑"和抖动。现改为�
 `vishnuace/CatPet`（MIT）的像素猫、两家的全局键鼠钩子和自定义模型导入都没搬。
 不装 `uiohook-napi` 之类的新依赖，也不读全局键盘——只处理桌宠窗口自己收得到的事件，
 所以角色不会在你登录别的窗口时敲键盘。来源与许可见 `THIRD_PARTY.md`。
+
+## 表情与工具条改用本地开源素材（2026-11-10）
+
+`pet.html` 的 6 个工具条按钮和 `pet-ui.js` 的 8 个表情、7 种状态气泡，原来都是 Unicode 字符，
+由系统字体渲染。现在换成随仓库自带的 SVG：
+
+| 位置 | 素材 | 来源 |
+| --- | --- | --- |
+| 工具条 6 个按钮 | Tabler Icons outline；锁定 / 置顶切换用 `lock` ↔ `lock-open`、`pin-filled` ↔ `pin` | `tabler/tabler-icons` MIT |
+| 表情面板 8 格 | Fluent Emoji Color | `microsoft/fluentui-emoji` MIT |
+| 气泡前缀（💭💬🔒🔓📌✨👋） | Fluent Emoji Color | 同上 |
+
+`GLYPH_ART` 把 Unicode 当语义键映射到本地文件名，所以 `showBubble(text, face)` 的十来个调用点
+不用改；`artNode()` 生成 `<img>`，`onerror` 时替换成原来的字符 span。`setIcon()` 负责锁定 /
+置顶切换图标。CSS 里 `.emote-glyph` / `.emote-face` / `.ico` 同时兼容 img 和回退 span。
+
+清单、commit、SHA-256 与许可见 `assets/vendor/SOURCES.json` 和 `THIRD_PARTY.md`。
+`node scripts/vendor-assets.cjs --check` 可离线复核；`verify:pet` 会用 `img.decode()` 和
+`naturalWidth > 0` 在真机里确认 SVG 解码成功，并断言没有 `http(s)` 外链。

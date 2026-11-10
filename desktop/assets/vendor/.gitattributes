@@ -1,0 +1,4 @@
+# Vendored files are byte-pinned by SOURCES.json (SHA-256) and re-checked offline.
+# Keep them verbatim: core.autocrlf would otherwise turn LF into CRLF on Windows
+# clones and break `node scripts/vendor-assets.cjs --check`.
+* -text

@@ -1,7 +1,7 @@
 {
   "project": "Model Desk Workbench",
   "version": "0.1.0-preview",
-  "date": "2026-11-09",
+  "date": "2026-11-10",
   "scope": "Source-only snapshot; excludes runtime data and this manifest itself.",
   "files": [
     {
@@ -1071,8 +1071,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "9edade54b8164a335eab5dfad2f86184e12ad712f2067246011c0336dde3c7af",
-      "bytes": 35632
+      "sha256": "6556256b43ab3c5490ee0d6ee38af2047d9a1230ac2c9e099128ee7d73d3ceb9",
+      "bytes": 37336
     },
     {
       "path": "LICENSE",
@@ -1081,13 +1081,13 @@
     },
     {
       "path": "README.md",
-      "sha256": "6e7c067dc3c6babac38d522fb1457af804964451b1163a1187cf5448d2865f82",
-      "bytes": 4781
+      "sha256": "efa8ac51c97cf580d62c1afcdaafaf295b707c779038461364068c9fa5502cb2",
+      "bytes": 5247
     },
     {
       "path": "THIRD_PARTY.md",
-      "sha256": "734d1b311f5b37dacba450feece58ce9897fb9c43781c788332a208c9753a9f7",
-      "bytes": 5729
+      "sha256": "1bbebee73ad591ec9c40b082c590db6bed56ebf9c960170650d57d89833a58f8",
+      "bytes": 7901
     },
     {
       "path": "desktop/.smoke-result.json.workspace/model-cache.json",
@@ -1635,6 +1635,141 @@
       "bytes": 2298
     },
     {
+      "path": "desktop/assets/vendor/.gitattributes",
+      "sha256": "a2798c11ccf344e90f73d17d1a397dbdb55bb75d857fe011272ed3057a642999",
+      "bytes": 233
+    },
+    {
+      "path": "desktop/assets/vendor/SOURCES.json",
+      "sha256": "c26cc69314e234eaf007a69e29329171e37dc6df74185a9dc049a5cd061b6d36",
+      "bytes": 7629
+    },
+    {
+      "path": "desktop/assets/vendor/fluent-emoji/LICENSE",
+      "sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383",
+      "bytes": 1141
+    },
+    {
+      "path": "desktop/assets/vendor/fluent-emoji/eyes_color.svg",
+      "sha256": "4385b1b7641f5876523d30bf313a79be99e3d0c80675500988a603fb49d9b473",
+      "bytes": 6892
+    },
+    {
+      "path": "desktop/assets/vendor/fluent-emoji/fire_color.svg",
+      "sha256": "91b3c47c883d41055b8fa1cc1488e6e98b3468a6307cd57478b6c55178d9bcfe",
+      "bytes": 11399
+    },
+    {
+      "path": "desktop/assets/vendor/fluent-emoji/hot_beverage_color.svg",
+      "sha256": "5aa5c0030c1be77bf4ab276f2496962a3b044ed22fa3709cf36f116fbdd13d45",
+      "bytes": 10527
+    },
+    {
+      "path": "desktop/assets/vendor/fluent-emoji/light_bulb_color.svg",
+      "sha256": "2a0c668466667f15e256600ccdfb6c245410db7ef7e3ea6bf39389fa9b0f4b36",
+      "bytes": 12476
+    },
+    {
+      "path": "desktop/assets/vendor/fluent-emoji/locked_color.svg",
+      "sha256": "6a7eb7fc918d0df66bde0adb81d8b7e628458468bff32f00f57319eee6e23590",
+      "bytes": 8770
+    },
+    {
+      "path": "desktop/assets/vendor/fluent-emoji/party_popper_color.svg",
+      "sha256": "c27a0185f142c94f389429c22cb7632d900fd08eb9259f75566f3888b5d53551",
+      "bytes": 28858
+    },
+    {
+      "path": "desktop/assets/vendor/fluent-emoji/pushpin_color.svg",
+      "sha256": "5f50051e970f51ca55f2a90267793084a34ad8b26bfe333c591c2f9f71539e0e",
+      "bytes": 9469
+    },
+    {
+      "path": "desktop/assets/vendor/fluent-emoji/red_question_mark_color.svg",
+      "sha256": "aa59f7cfe293f597d87046d97709d5554c66a0f8314b14222143b16d20ad8264",
+      "bytes": 4582
+    },
+    {
+      "path": "desktop/assets/vendor/fluent-emoji/sparkles_color.svg",
+      "sha256": "27103e1c20965f97432e911bac8f3479af60910cab752cf0a4526ea0a9e892c0",
+      "bytes": 9043
+    },
+    {
+      "path": "desktop/assets/vendor/fluent-emoji/speech_balloon_color.svg",
+      "sha256": "3166b258bd24468e8fff08c2bc8215d11f2b819f8ff6b2349b3ffddc9e6935e9",
+      "bytes": 6765
+    },
+    {
+      "path": "desktop/assets/vendor/fluent-emoji/thought_balloon_color.svg",
+      "sha256": "24ec19da970ab6979964109e07119459465e2d8321464e604df8638bd79ac3c4",
+      "bytes": 16765
+    },
+    {
+      "path": "desktop/assets/vendor/fluent-emoji/thumbs_up_color_default.svg",
+      "sha256": "c13afe53c62947039b737ec6f6c150bca447774ea9b057e5707e13259c979932",
+      "bytes": 21943
+    },
+    {
+      "path": "desktop/assets/vendor/fluent-emoji/unlocked_color.svg",
+      "sha256": "e597db8fa1fc2bdf14e478275a9f453b6fa2e31b368722dd6f2fe2646b97b71b",
+      "bytes": 9392
+    },
+    {
+      "path": "desktop/assets/vendor/fluent-emoji/waving_hand_color_default.svg",
+      "sha256": "a4264cfcb0807d0e223ff95174321ce4e5bebc9558a7281fc57203d089bf34b6",
+      "bytes": 31309
+    },
+    {
+      "path": "desktop/assets/vendor/fluent-emoji/zzz_color.svg",
+      "sha256": "18c95facac03b518f75c4e5f1a3bc9ae91642770f662c02c69ed72acb7aac735",
+      "bytes": 16779
+    },
+    {
+      "path": "desktop/assets/vendor/tabler-icons/LICENSE",
+      "sha256": "b740a1d46122672da62833e97f7e7c8a13fa85cbc7445b584b297cc00dde93db",
+      "bytes": 1073
+    },
+    {
+      "path": "desktop/assets/vendor/tabler-icons/arrows-exchange.svg",
+      "sha256": "67be2e2afc04e53c70a4b81f58b18c232edd5b6124eff81a285fcd513f857016",
+      "bytes": 426
+    },
+    {
+      "path": "desktop/assets/vendor/tabler-icons/lock-open.svg",
+      "sha256": "f1b1ef8aa7cdaad103e0062298ba5bf26c698b9f8a5c142cddeff19ab20b271c",
+      "bytes": 513
+    },
+    {
+      "path": "desktop/assets/vendor/tabler-icons/lock.svg",
+      "sha256": "407856048124fdd63239f75a3640ca8f20a9acbc1f49cac9de0bcdb1cb42ec5f",
+      "bytes": 527
+    },
+    {
+      "path": "desktop/assets/vendor/tabler-icons/message-circle.svg",
+      "sha256": "b91882d50b30e3884b289a51c2f1134464844fbd5bb5f61633d2d068db2d57a0",
+      "bytes": 597
+    },
+    {
+      "path": "desktop/assets/vendor/tabler-icons/mood-smile.svg",
+      "sha256": "9a695309e620af65351ab5f311b0c7e15378faf9c1b80e088d0ebb5f9f9e53d5",
+      "bytes": 512
+    },
+    {
+      "path": "desktop/assets/vendor/tabler-icons/pin-filled.svg",
+      "sha256": "085872f56463a7b5975f600b01b34af68f81c7a0f97f85e2387b20b998599ec0",
+      "bytes": 538
+    },
+    {
+      "path": "desktop/assets/vendor/tabler-icons/pin.svg",
+      "sha256": "f21a39f28e474725a175d6c132a1657ecc0b55c92d44ec8b272f0d06f94b4769",
+      "bytes": 484
+    },
+    {
+      "path": "desktop/assets/vendor/tabler-icons/x.svg",
+      "sha256": "9350785360414c39450c3505f17d1745e55a7534edace8548e30cf49e3727d43",
+      "bytes": 406
+    },
+    {
       "path": "desktop/async-defects-verify.cjs",
       "sha256": "dd43a5d0d7a2580408800108969aef5a7939d760f3b4e03104c548e1d86f6992",
       "bytes": 10792
@@ -2011,8 +2146,8 @@
     },
     {
       "path": "desktop/pet-ui.js",
-      "sha256": "b16242f80a39aebbc09ee408b542de7b2748575130fcb4e0b89164897863f67f",
-      "bytes": 20325
+      "sha256": "74eeabe2849464a478c9eb7c013afecef361bec92566d387788359d678026a35",
+      "bytes": 22287
     },
     {
       "path": "desktop/pet-verify-run.cjs",
@@ -2021,8 +2156,8 @@
     },
     {
       "path": "desktop/pet-verify.cjs",
-      "sha256": "ee4f7218bb82ab3756f7dad8453d8d3d80b196b61fc3a79ff77d1a38ecc7b976",
-      "bytes": 9740
+      "sha256": "c8222a7cde8a6b074aa203c8a95551f1b5ac82f0fe868e9bb4bfe280c3f4ab0b",
+      "bytes": 11422
     },
     {
       "path": "desktop/pet-window.cjs",
@@ -2036,13 +2171,13 @@
     },
     {
       "path": "desktop/pet.css",
-      "sha256": "32fa8c6974b3c3d0b9d8ddeb52f5e896e7520cfa1ee145642ff6b0274876196e",
-      "bytes": 8189
+      "sha256": "13412990f383815a90eeea4765487c93790f1d250094138ad72e3b7162e72a85",
+      "bytes": 8572
     },
     {
       "path": "desktop/pet.html",
-      "sha256": "4531bec197232075e672a3cd4eb5d5b5d6340b608cfacc3c8cdfb1c58790f9ab",
-      "bytes": 1808
+      "sha256": "56bf30db835345c86f1474fe290bee4442864cc2d5ea507c89f3f9658c016115",
+      "bytes": 2467
     },
     {
       "path": "desktop/preload.cjs",
@@ -2138,6 +2273,11 @@
       "path": "desktop/ui-verify.cjs",
       "sha256": "0d55252314fcd2eccb2c5b77c94dde5edd52b9aabd6c7cb03a903f7b03e53afe",
       "bytes": 80720
+    },
+    {
+      "path": "desktop/vendor-assets.test.cjs",
+      "sha256": "0c1907d52ab170e6f60d747614d8c585a9d458728fe9debf1f858ed940800a92",
+      "bytes": 3553
     },
     {
       "path": "desktop/verify-routing.cjs",
@@ -2281,8 +2421,8 @@
     },
     {
       "path": "docs/PET_DESKTOP.md",
-      "sha256": "433eebe44ef3871328b725ee769f94fc1ae4a02cc545b7e4c59f4111f5185a7e",
-      "bytes": 6424
+      "sha256": "9616dd28c0e9da9af8e61ab3138569c6675e41737a79cff98c0c78627f510a0e",
+      "bytes": 7667
     },
     {
       "path": "docs/PET_INTERACTION_FIXES.md",
@@ -2356,8 +2496,8 @@
     },
     {
       "path": "docs/VALIDATION.md",
-      "sha256": "5523c7e70bf710ac69cbc90d9358512646b6889328d273c4b4e362effe0abf28",
-      "bytes": 5053
+      "sha256": "ae3aa650e969618381ded429712338321c53057f4850f1a828fab3feb07ce420",
+      "bytes": 6445
     },
     {
       "path": "docs/WORKBUDDY_EXECUTOR.md",
@@ -2438,6 +2578,11 @@
       "path": "scripts/sync-to-runtime.cjs",
       "sha256": "ad05470718e1ad4165001098edb7558bed4ddeceae5783c9fde91ba840e75c58",
       "bytes": 4550
+    },
+    {
+      "path": "scripts/vendor-assets.cjs",
+      "sha256": "e5f0cc360a3b15cbe7a8ffd32e73eec1a526416120df73ff6dfd1baa192d5990",
+      "bytes": 5115
     },
     {
       "path": "setup.ps1",

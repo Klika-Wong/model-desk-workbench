@@ -94,6 +94,32 @@ app.whenReady().then(async () => {
       && dom.sprite === 1 && dom.strip === 1 && dom.anim === 'pet-play' && /roster\/.+\.webp/.test(dom.sheet), dom);
     check('pet-toolbar-complete', dom.buttons === 6, dom.buttons);
 
+    // 第三方素材：SVG 必须真的解码出来，且全部来自本地 vendor 目录，不能是 CDN 外链。
+    const art = await petWin.webContents.executeJavaScript(`(async () => {
+      const toolbarImgs = [...document.querySelectorAll('#pet-toolbar img.ico')];
+      const emoteBtn = document.getElementById('pet-emote');
+      emoteBtn.click();
+      const emoteImgs = [...document.querySelectorAll('#pet-emotes img.emote-face')];
+      await Promise.all([...toolbarImgs, ...emoteImgs].map((i) =>
+        i.decode ? i.decode().catch(() => {}) : Promise.resolve()));
+      const out = {
+        toolbar: toolbarImgs.length,
+        toolbarLoaded: toolbarImgs.filter((i) => i.complete && i.naturalWidth > 0).length,
+        toolbarSrc: toolbarImgs.map((i) => i.getAttribute('src')),
+        emotes: emoteImgs.length,
+        emotesLoaded: emoteImgs.filter((i) => i.complete && i.naturalWidth > 0).length,
+        emoteSrc: emoteImgs.map((i) => i.getAttribute('src')),
+        external: [...document.images].filter((i) => /^https?:/i.test(i.getAttribute('src') || '')).length,
+      };
+      emoteBtn.click();   // 关回表情面板，别影响后面的菜单/形象库断言
+      return out;
+    })()`);
+    check('pet-toolbar-icons-local-and-loaded', art.toolbar === 6 && art.toolbarLoaded === 6
+      && art.toolbarSrc.every((s) => s && s.startsWith('assets/vendor/tabler-icons/')), art);
+    check('pet-emotes-use-vendored-emoji', art.emotes === 8 && art.emotesLoaded === 8
+      && art.emoteSrc.every((s) => s && s.startsWith('assets/vendor/fluent-emoji/')), art);
+    check('pet-no-external-images', art.external === 0, art.external);
+
     // isVisible() 为真不代表屏幕上真有像素，数一次 BGRA 的 alpha。
     trace('capture pet pixels');
     const img = await petWin.webContents.capturePage();

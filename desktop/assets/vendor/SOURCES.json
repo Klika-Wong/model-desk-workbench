@@ -1,0 +1,175 @@
+{
+  "note": "Vendored third-party assets. Refresh with: node scripts/vendor-assets.cjs ; verify offline with: node scripts/vendor-assets.cjs --check . Every file is pinned to an upstream commit and SHA-256. Do not edit vendored SVG files by hand.",
+  "sources": [
+    {
+      "id": "fluent-emoji",
+      "repo": "microsoft/fluentui-emoji",
+      "commit": "1ffb34c752ecf5d402f04cfb4b392c77f57c54bc",
+      "license": "MIT",
+      "copyright": "Copyright (c) Microsoft Corporation.",
+      "licenseLocal": "desktop/assets/vendor/fluent-emoji/LICENSE",
+      "files": [
+        {
+          "upstream": "LICENSE",
+          "local": "desktop/assets/vendor/fluent-emoji/LICENSE",
+          "sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383",
+          "bytes": 1141
+        },
+        {
+          "upstream": "assets/Party popper/Color/party_popper_color.svg",
+          "local": "desktop/assets/vendor/fluent-emoji/party_popper_color.svg",
+          "sha256": "c27a0185f142c94f389429c22cb7632d900fd08eb9259f75566f3888b5d53551",
+          "bytes": 28858
+        },
+        {
+          "upstream": "assets/Light bulb/Color/light_bulb_color.svg",
+          "local": "desktop/assets/vendor/fluent-emoji/light_bulb_color.svg",
+          "sha256": "2a0c668466667f15e256600ccdfb6c245410db7ef7e3ea6bf39389fa9b0f4b36",
+          "bytes": 12476
+        },
+        {
+          "upstream": "assets/Eyes/Color/eyes_color.svg",
+          "local": "desktop/assets/vendor/fluent-emoji/eyes_color.svg",
+          "sha256": "4385b1b7641f5876523d30bf313a79be99e3d0c80675500988a603fb49d9b473",
+          "bytes": 6892
+        },
+        {
+          "upstream": "assets/Hot beverage/Color/hot_beverage_color.svg",
+          "local": "desktop/assets/vendor/fluent-emoji/hot_beverage_color.svg",
+          "sha256": "5aa5c0030c1be77bf4ab276f2496962a3b044ed22fa3709cf36f116fbdd13d45",
+          "bytes": 10527
+        },
+        {
+          "upstream": "assets/Fire/Color/fire_color.svg",
+          "local": "desktop/assets/vendor/fluent-emoji/fire_color.svg",
+          "sha256": "91b3c47c883d41055b8fa1cc1488e6e98b3468a6307cd57478b6c55178d9bcfe",
+          "bytes": 11399
+        },
+        {
+          "upstream": "assets/Zzz/Color/zzz_color.svg",
+          "local": "desktop/assets/vendor/fluent-emoji/zzz_color.svg",
+          "sha256": "18c95facac03b518f75c4e5f1a3bc9ae91642770f662c02c69ed72acb7aac735",
+          "bytes": 16779
+        },
+        {
+          "upstream": "assets/Red question mark/Color/red_question_mark_color.svg",
+          "local": "desktop/assets/vendor/fluent-emoji/red_question_mark_color.svg",
+          "sha256": "aa59f7cfe293f597d87046d97709d5554c66a0f8314b14222143b16d20ad8264",
+          "bytes": 4582
+        },
+        {
+          "upstream": "assets/Thumbs up/Default/Color/thumbs_up_color_default.svg",
+          "local": "desktop/assets/vendor/fluent-emoji/thumbs_up_color_default.svg",
+          "sha256": "c13afe53c62947039b737ec6f6c150bca447774ea9b057e5707e13259c979932",
+          "bytes": 21943
+        },
+        {
+          "upstream": "assets/Thought balloon/Color/thought_balloon_color.svg",
+          "local": "desktop/assets/vendor/fluent-emoji/thought_balloon_color.svg",
+          "sha256": "24ec19da970ab6979964109e07119459465e2d8321464e604df8638bd79ac3c4",
+          "bytes": 16765
+        },
+        {
+          "upstream": "assets/Speech balloon/Color/speech_balloon_color.svg",
+          "local": "desktop/assets/vendor/fluent-emoji/speech_balloon_color.svg",
+          "sha256": "3166b258bd24468e8fff08c2bc8215d11f2b819f8ff6b2349b3ffddc9e6935e9",
+          "bytes": 6765
+        },
+        {
+          "upstream": "assets/Locked/Color/locked_color.svg",
+          "local": "desktop/assets/vendor/fluent-emoji/locked_color.svg",
+          "sha256": "6a7eb7fc918d0df66bde0adb81d8b7e628458468bff32f00f57319eee6e23590",
+          "bytes": 8770
+        },
+        {
+          "upstream": "assets/Unlocked/Color/unlocked_color.svg",
+          "local": "desktop/assets/vendor/fluent-emoji/unlocked_color.svg",
+          "sha256": "e597db8fa1fc2bdf14e478275a9f453b6fa2e31b368722dd6f2fe2646b97b71b",
+          "bytes": 9392
+        },
+        {
+          "upstream": "assets/Pushpin/Color/pushpin_color.svg",
+          "local": "desktop/assets/vendor/fluent-emoji/pushpin_color.svg",
+          "sha256": "5f50051e970f51ca55f2a90267793084a34ad8b26bfe333c591c2f9f71539e0e",
+          "bytes": 9469
+        },
+        {
+          "upstream": "assets/Sparkles/Color/sparkles_color.svg",
+          "local": "desktop/assets/vendor/fluent-emoji/sparkles_color.svg",
+          "sha256": "27103e1c20965f97432e911bac8f3479af60910cab752cf0a4526ea0a9e892c0",
+          "bytes": 9043
+        },
+        {
+          "upstream": "assets/Waving hand/Default/Color/waving_hand_color_default.svg",
+          "local": "desktop/assets/vendor/fluent-emoji/waving_hand_color_default.svg",
+          "sha256": "a4264cfcb0807d0e223ff95174321ce4e5bebc9558a7281fc57203d089bf34b6",
+          "bytes": 31309
+        }
+      ]
+    },
+    {
+      "id": "tabler-icons",
+      "repo": "tabler/tabler-icons",
+      "commit": "58f60538fe2fab2e1459a09198f9bd3b033bf90e",
+      "license": "MIT",
+      "copyright": "Copyright (c) 2020-2026 Pawel Kuna",
+      "licenseLocal": "desktop/assets/vendor/tabler-icons/LICENSE",
+      "files": [
+        {
+          "upstream": "LICENSE",
+          "local": "desktop/assets/vendor/tabler-icons/LICENSE",
+          "sha256": "b740a1d46122672da62833e97f7e7c8a13fa85cbc7445b584b297cc00dde93db",
+          "bytes": 1073
+        },
+        {
+          "upstream": "icons/outline/lock-open.svg",
+          "local": "desktop/assets/vendor/tabler-icons/lock-open.svg",
+          "sha256": "f1b1ef8aa7cdaad103e0062298ba5bf26c698b9f8a5c142cddeff19ab20b271c",
+          "bytes": 513
+        },
+        {
+          "upstream": "icons/outline/lock.svg",
+          "local": "desktop/assets/vendor/tabler-icons/lock.svg",
+          "sha256": "407856048124fdd63239f75a3640ca8f20a9acbc1f49cac9de0bcdb1cb42ec5f",
+          "bytes": 527
+        },
+        {
+          "upstream": "icons/outline/pin.svg",
+          "local": "desktop/assets/vendor/tabler-icons/pin.svg",
+          "sha256": "f21a39f28e474725a175d6c132a1657ecc0b55c92d44ec8b272f0d06f94b4769",
+          "bytes": 484
+        },
+        {
+          "upstream": "icons/filled/pin.svg",
+          "local": "desktop/assets/vendor/tabler-icons/pin-filled.svg",
+          "sha256": "085872f56463a7b5975f600b01b34af68f81c7a0f97f85e2387b20b998599ec0",
+          "bytes": 538
+        },
+        {
+          "upstream": "icons/outline/mood-smile.svg",
+          "local": "desktop/assets/vendor/tabler-icons/mood-smile.svg",
+          "sha256": "9a695309e620af65351ab5f311b0c7e15378faf9c1b80e088d0ebb5f9f9e53d5",
+          "bytes": 512
+        },
+        {
+          "upstream": "icons/outline/message-circle.svg",
+          "local": "desktop/assets/vendor/tabler-icons/message-circle.svg",
+          "sha256": "b91882d50b30e3884b289a51c2f1134464844fbd5bb5f61633d2d068db2d57a0",
+          "bytes": 597
+        },
+        {
+          "upstream": "icons/outline/arrows-exchange.svg",
+          "local": "desktop/assets/vendor/tabler-icons/arrows-exchange.svg",
+          "sha256": "67be2e2afc04e53c70a4b81f58b18c232edd5b6124eff81a285fcd513f857016",
+          "bytes": 426
+        },
+        {
+          "upstream": "icons/outline/x.svg",
+          "local": "desktop/assets/vendor/tabler-icons/x.svg",
+          "sha256": "9350785360414c39450c3505f17d1745e55a7534edace8548e30cf49e3727d43",
+          "bytes": 406
+        }
+      ]
+    }
+  ]
+}

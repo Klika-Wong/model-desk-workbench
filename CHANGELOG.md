@@ -1,5 +1,25 @@
 # 更新记录
 
+## 把两个 MIT 项目的真实素材装进桌宠（2026-11-10）
+
+上一轮是「借鉴交互模式」，这一轮是**真的把上游文件复制进仓库并让界面加载**：
+
+- `microsoft/fluentui-emoji`（MIT，固定 `1ffb34c`）的 15 张 Color SVG，替换表情面板与状态气泡里的
+  Unicode emoji；`tabler/tabler-icons`（MIT，固定 `58f6053`）的 8 张 SVG，替换工具栏 6 个按钮的
+  字符图标，锁定 / 置顶各有独立状态图。全部本地自带，无 CDN、无新 npm 依赖、不联网。
+- 新增 `desktop/assets/vendor/SOURCES.json`：逐文件记录上游路径、本地路径、SHA-256、字节数；
+  两份上游 LICENSE 原文随附。新增 `scripts/vendor-assets.cjs`，`--check` 纯离线核对，
+  不带参数按固定 commit 重新拉取（支持 `--proxy`，断点续跑）。
+- `pet-ui.js` 统一走 `artNode()` / `setIcon()`，图片加载失败时退回原来的 Unicode 字符，不显示破图。
+  原来的工具栏字符由系统 emoji 字体渲染，不同 Windows 版本字形不一致，`✕`、`⇄` 还和彩色 emoji
+  混在一起；换成固定矢量文件后跨机器一致。
+- 新增 `desktop/vendor-assets.test.cjs` 6 项单测（路径按桌宠目录相对定位，运行实例同样能跑）；
+  `pet-verify.cjs` 新增 3 条真机断言，
+  用 `img.decode()` + `naturalWidth > 0` 确认 SVG 真的解码出来，而不是只看 DOM 里有没有 `<img>` 节点。
+
+**边界**：只换了桌宠的图标和表情。主界面 `avatars.js` 的 emoji 兜底形象、协作舱房间仍是原样；
+MIT 只覆盖这 23 张 SVG，项目里 `llm-pet` 与 `assets/pets/` 的非商业限制没有变化。
+
 ## 桌宠改成输入驱动动作（仿 BongoCat / CatPet，2026-11-09）
 
 之前桌宠平时恒播 idle，只有点表情、双击、拖动时短暂切一次动作，像贴了张会动的图。

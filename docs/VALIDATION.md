@@ -1,5 +1,24 @@
 # 本次发布验证
 
+## 2026-11-10 第三方素材接进桌宠
+
+| 检查 | 命令 | 结果 | 边界 |
+| --- | --- | --- | --- |
+| 单元 | `node --test *.test.cjs` | 200/200 | 含新增 `vendor-assets.test.cjs` 6 项 |
+| 素材离线完整性 | `node scripts/vendor-assets.cjs --check` | 25 文件、2 来源 | 只比对本地 SHA-256，不联网 |
+| 主界面真机 | `npm run verify:ui` | 52 项，console 错误 0 | 桩 preload，不建桌宠窗口 |
+| 桌宠真机 | `npm run verify:pet` | 20 项，errors 0 | 独立 userData，不启动完整主进程 |
+
+`verify:pet` 新增 3 条：工具栏 6 张 Tabler SVG 全部 `decode()` 成功且 src 都在
+`assets/vendor/tabler-icons/`；表情面板 8 张 Fluent Emoji SVG 同样解码成功；页面所有 `<img>`
+没有一条 `http(s)` 外链。判据是 `complete && naturalWidth > 0`，不是只看 DOM 里有没有 `<img>` 节点。
+
+`vendor-assets.test.cjs` 锁住：来源固定到 40 位 commit、每个文件 SHA-256 / 字节数与清单一致、
+两份 LICENSE 原文存在且为 MIT、SVG 不是 404 页面、`pet.html` 与 `pet-ui.js` 的引用都在清单里
+且无外链。测试按桌宠目录相对定位素材，所以同步后的运行实例跑的是同一套断言。
+`node scripts/vendor-assets.cjs --check` 是仓库侧的独立离线核对，不依赖 Electron。
+仓库与运行实例两侧各跑一遍，结果一致。
+
 ## 2026-11-09 桌宠链路：桩验证与真机验证分开
 
 此前 `verify:ui` 中的 `pet-desktop-window` 是误报：它使用桩 preload，`petOpen` 直接返回

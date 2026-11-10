@@ -28,6 +28,60 @@
     { face: '❓', text: '啊？', row: 'fail' },
     { face: '👍', text: '收到', row: 'wave' },
   ];
+  // 表情与工具条图标用本地 vendor 的开源素材，不再靠系统 emoji 字体渲染。
+  // 来源、上游 commit、SHA-256 和两份 MIT LICENSE 原文都在 assets/vendor/SOURCES.json 同目录。
+  const EMOJI_DIR = 'assets/vendor/fluent-emoji/';
+  const ICON_DIR = 'assets/vendor/tabler-icons/';
+  const GLYPH_ART = {
+    '🎉': 'party_popper_color.svg',
+    '💡': 'light_bulb_color.svg',
+    '👀': 'eyes_color.svg',
+    '☕': 'hot_beverage_color.svg',
+    '🔥': 'fire_color.svg',
+    '💤': 'zzz_color.svg',
+    '❓': 'red_question_mark_color.svg',
+    '👍': 'thumbs_up_color_default.svg',
+    '💭': 'thought_balloon_color.svg',
+    '💬': 'speech_balloon_color.svg',
+    '🔒': 'locked_color.svg',
+    '🔓': 'unlocked_color.svg',
+    '📌': 'pushpin_color.svg',
+    '✨': 'sparkles_color.svg',
+    '👋': 'waving_hand_color_default.svg',
+  };
+  // 图片缺失时退回原来的 Unicode 字符，不显示破图；字符仍是这张表情的语义键。
+  function artNode(face, className) {
+    const name = GLYPH_ART[face];
+    if (!name) {
+      const span = document.createElement('span');
+      span.className = className;
+      span.textContent = face || '';
+      return span;
+    }
+    const img = document.createElement('img');
+    img.className = className;
+    img.src = EMOJI_DIR + name;
+    img.alt = face || '';
+    img.onerror = () => {
+      const span = document.createElement('span');
+      span.className = className;
+      span.textContent = face || '';
+      img.replaceWith(span);
+    };
+    return img;
+  }
+  function setIcon(button, name) {
+    if (!button) return;
+    let img = button.querySelector('img.ico');
+    if (!img) {
+      img = document.createElement('img');
+      img.className = 'ico';
+      img.alt = '';
+      button.replaceChildren(img);
+    }
+    img.onerror = () => img.replaceWith(document.createTextNode(button.dataset.fallback || ''));
+    img.src = ICON_DIR + name + '.svg';
+  }
   // 全部用 GitHub 开源素材（llm-pet：15 个模型 × 标准版 / Q 版 = 30 个）。
   const ROSTER = (AVATARS && AVATARS.ROSTER) || {};
   const OUTFITS = Object.values(ROSTER).flatMap((def) => (def.ids || []).map((id) => 'roster:' + id));
@@ -90,12 +144,7 @@
   function showBubble(text, face) {
     if (bubbleTimer) clearTimeout(bubbleTimer);
     bubble.replaceChildren();
-    if (face) {
-      const glyph = document.createElement('span');
-      glyph.className = 'emote-glyph';
-      glyph.textContent = face;
-      bubble.append(glyph);
-    }
+    if (face) bubble.append(artNode(face, 'emote-glyph'));
     const body = document.createElement('span');
     body.textContent = text;
     bubble.append(body);
@@ -109,9 +158,7 @@
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.title = emote.text;
-      const face = document.createElement('span');
-      face.className = 'emote-face';
-      face.textContent = emote.face;
+      const face = artNode(emote.face, 'emote-face');
       const cap = document.createElement('span');
       cap.textContent = emote.text.slice(0, 4);
       btn.append(face, cap);
@@ -292,7 +339,7 @@
     if (reply && reply.ok) {
       locked = reply.data.locked;
       pet.classList.toggle('is-locked', locked);
-      $('pet-lock').textContent = locked ? '🔒' : '🔓';
+      setIcon($('pet-lock'), locked ? 'lock' : 'lock-open');
       $('pet-lock').classList.toggle('is-on', locked);
       showBubble(locked ? '锁定啦，拖不动了' : '解锁，可以拖我', locked ? '🔒' : '🔓');
     }
@@ -301,6 +348,7 @@
     const reply = await window.workbench.petControl('top', !alwaysOnTop);
     if (reply && reply.ok) {
       alwaysOnTop = reply.data.alwaysOnTop;
+      setIcon($('pet-top'), alwaysOnTop ? 'pin-filled' : 'pin');
       $('pet-top').classList.toggle('is-on', alwaysOnTop);
       showBubble(alwaysOnTop ? '已置顶' : '取消置顶', '📌');
     }
@@ -456,10 +504,11 @@
       opaque = s.opaque === true;
       if (typeof s.outfit === 'string' && OUTFITS.includes(s.outfit)) outfit = s.outfit;
       pet.classList.toggle('is-locked', locked);
-      $('pet-lock').textContent = locked ? '🔒' : '🔓';
       $('pet-lock').classList.toggle('is-on', locked);
       $('pet-top').classList.toggle('is-on', alwaysOnTop);
     }
+    setIcon($('pet-lock'), locked ? 'lock' : 'lock-open');
+    setIcon($('pet-top'), alwaysOnTop ? 'pin-filled' : 'pin');
     renderActor();
     if (motion) requestAnimationFrame(motionLoop);
     await loadModels();

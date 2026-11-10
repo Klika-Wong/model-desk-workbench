@@ -44,6 +44,30 @@ Clawd 形象未获原作者授权，本项目**没有采用 Clawd 素材**，只
 **公开发布或商业化前**：必须把 `char-*.svg` 换成自有 / CC0 的拟人素材，把 `assets/pets/` 三个 GIF
 换成自有素材，并相应更新或删除对应 NOTICE。完整条款、压缩方式与替换步骤见三个目录里的 `NOTICE.md`。
 
+## 实际复制进仓库的第三方素材（2026-11-10）
+
+与下一节「只借鉴模式」不同，这一节的文件是**从上游仓库逐字复制进来的**，运行时直接加载，
+不经过 CDN、不需要联网。两份上游 LICENSE 原文已随附。
+
+| 项目 | 固定 commit | 许可 | 复制内容 | 本地位置 |
+| --- | --- | --- | --- | --- |
+| [microsoft/fluentui-emoji](https://github.com/microsoft/fluentui-emoji) | `1ffb34c752ecf5d402f04cfb4b392c77f57c54bc` | MIT，Copyright (c) Microsoft Corporation | Color 风格 SVG 15 张（8 个表情 + 7 个状态气泡） | `desktop/assets/vendor/fluent-emoji/` |
+| [tabler/tabler-icons](https://github.com/tabler/tabler-icons) | `58f60538fe2fab2e1459a09198f9bd3b033bf90e` | MIT，Copyright (c) 2020-2026 Paweł Kuna | outline / filled SVG 8 张，用于桌宠工具栏 6 个按钮及锁定、置顶两种状态 | `desktop/assets/vendor/tabler-icons/` |
+
+`desktop/assets/vendor/SOURCES.json` 逐文件记录上游路径、本地路径、SHA-256 和字节数；
+`node scripts/vendor-assets.cjs --check` 纯离线核对，`node scripts/vendor-assets.cjs`
+按固定 commit 重新拉取（需要系统 `curl`，网络受限时可加 `--proxy URL`，中途断线可直接重跑）。
+**没有引入 npm 依赖**，也没有把整包 emoji / 图标库塞进仓库，只取实际用到的 23 张 SVG + 2 份 LICENSE。
+素材目录里的 `.gitattributes` 用 `* -text` 禁止 Git 行尾转换；否则 Windows 上 `core.autocrlf=true`
+会把 LF 改成 CRLF，`--check` 记录的 SHA-256 会全部对不上。
+
+**为什么换**：原来工具栏和表情用 Unicode 字符，由系统 emoji 字体渲染，不同 Windows 版本字形不一致，
+`✕`、`⇄` 这类符号还和彩色 emoji 混在一起。换成固定矢量文件后跨机器一致。素材加载失败时
+代码会退回原来的 Unicode 字符，不显示破图。
+
+**许可边界**：MIT 覆盖这些 SVG 文件本身，不覆盖相关名称 / 商标。这两批素材可商用，
+但项目里其它形象素材（`llm-pet`、`assets/pets/`）仍受非商业限制，整体发布 / 商业化状态**没有改变**。
+
 ## 借鉴的开源交互模式（2026-11-09，未复制代码或素材）
 
 | 参考项目 | 许可 | 借鉴了什么 | 没有搬什么 |
