@@ -107,7 +107,7 @@ test('桌宠右键菜单与按需聚焦没有被删掉', () => {
   }
   assert.ok(ui.includes("addEventListener('contextmenu'"), '没有监听右键菜单');
   // 菜单必须被钳制进窗口，否则超出窗口边界会被裁掉（窗口就是绘制边界）
-  assert.ok(/Math\.min\(Math\.max\(4, x\)/.test(ui), '菜单定位没有钳制到窗口内');
+  assert.ok(/Math\.max\(4, left\)/.test(ui) && /Math\.max\(4, top\)/.test(ui), '菜单定位没有钳制到窗口内');
   // 只-读窗口：默认不夺焦，聊天时才临时打开
   assert.ok(ui.includes("petControl('focusable'"), '没有按需切换窗口 focusable');
   const win = fs.readFileSync(path.join(__dirname, 'pet-window.cjs'), 'utf8');

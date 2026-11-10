@@ -223,7 +223,11 @@ function registerPetWindow(userDataPath) {
     }
     if (action === 'drag-move') {
       if (!dragOffset || state.locked) return { ok: true };
-      const p = screen.getCursorScreenPoint();
+      // 优先用渲染层刚报上来的屏幕坐标（比主进程再轮询一次光标更新鲜、少一跳）。
+      const v = value || {};
+      const p = (Number.isFinite(v.sx) && Number.isFinite(v.sy))
+        ? { x: v.sx, y: v.sy }
+        : screen.getCursorScreenPoint();
       // 绝对计算：窗口左上角 = 光标 − 按下时的窗口内偏移。鼠标相对窗口的位置因此恒定。
       const nx = Math.round(p.x - dragOffset.x);
       const ny = Math.round(p.y - dragOffset.y);

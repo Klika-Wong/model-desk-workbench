@@ -95,7 +95,6 @@
   let bubbleTimer = null;
   let chatTimers = [];
   let dragging = false;
-  let dragReady = false;
   let dragFrame = false;
 
   // 输入驱动动作（仿 BongoCat / CatPet 的交互模式），纯逻辑在 pet-motion.js。
@@ -270,29 +269,27 @@
   pet.addEventListener('pointerdown', (event) => {
     if (locked || event.target.closest('button, input, select, .pet-chatbox, .pet-emotes, .pet-toolbar, .pet-menu')) return;
     dragging = true;
-    dragReady = false;
     try { pet.setPointerCapture(event.pointerId); } catch {}
     pet.classList.add('is-dragging');
     if (motion) motion.poke('drag-start');
-    window.workbench.petControl('drag-start', { x: event.clientX, y: event.clientY })
-      .then(() => { dragReady = true; })
-      .catch(() => { dragReady = false; });
+    // 按下时就带窗口内偏移；move 直接带屏幕坐标，主进程不再轮询全局光标。
+    window.workbench.petControl('drag-start', { x: event.clientX, y: event.clientY }).catch(() => {});
   });
   pet.addEventListener('pointermove', (event) => {
     // 光标在角色左/右决定朝向，划得快就「追光」跳一下；拖动时只挪窗，不改动作。
     if (motion && !dragging) {
       motion.poke('pointer', { x: event.clientX, centerX: window.innerWidth / 2 });
     }
-    if (!dragging || !dragReady || dragFrame) return;
+    if (!dragging || dragFrame) return;
     dragFrame = true;
     requestAnimationFrame(() => {
       dragFrame = false;
-      if (dragging && dragReady) window.workbench.petControl('drag-move').catch(() => {});
+      if (dragging) window.workbench.petControl('drag-move', { sx: event.screenX, sy: event.screenY }).catch(() => {});
     });
   });
   const endDrag = () => {
     if (!dragging) return;
-    dragging = false; dragReady = false;
+    dragging = false;
     pet.classList.remove('is-dragging');
     if (motion) motion.poke('drag-end');
     window.workbench.petControl('drag-end').catch(() => {});
@@ -440,10 +437,19 @@
     }
     return b;
   }
-  function openMenu(x, y) {
+  function openMenu() {
     if (!menu) return;
     bubble.hidden = true; // 气泡和菜单叠在一起太挤，开菜单先收气泡
     menu.replaceChildren();
+    // 拖柄：菜单浮在角色头顶后，还能再拖到顺手的位置（右键菜单不该钉死）。
+    const handle = document.createElement('div');
+    handle.className = 'pet-menu-handle';
+    const grip = document.createElement('span');
+    grip.textContent = '⠿';
+    const cap = document.createElement('span');
+    cap.textContent = '桌宠设置';
+    handle.append(grip, cap);
+    menu.append(handle);
     menu.append(item('选择形象', `${OUTFITS.length} 个开源形象`, 'outfit'));
     menu.append(item(opaque ? '不透明窗口：开' : '不透明窗口：关', '透明窗在部分显卡上会闪', 'opaque', opaque));
     menu.append(item(locked ? '锁定位置：开' : '锁定位置：关', locked ? '拖不动' : '可以拖动', 'lock', locked));
@@ -454,18 +460,47 @@
     menu.append(sep);
     menu.append(item('关掉桌宠', '', 'close'));
     menu.hidden = false;
-    // 菜单必须整体留在窗口内，否则超出的部分会被窗口边界裁掉。
-    const w = menu.offsetWidth || 190;
-    const h = menu.offsetHeight || 200;
-    const left = Math.min(Math.max(4, x), Math.max(4, window.innerWidth - w - 4));
-    const top = Math.min(Math.max(4, y), Math.max(4, window.innerHeight - h - 4));
-    menu.style.left = Math.round(left) + 'px';
-    menu.style.top = Math.round(top) + 'px';
+    anchorMenu();
     queueHitbox();
   }
+  // 浮在角色头顶：水平居中，底边贴角色头顶再留 8px；超界就收进窗口。
+  function anchorMenu() {
+    const w = menu.offsetWidth || 190;
+    const h = menu.offsetHeight || 200;
+    const r = actor.getBoundingClientRect();
+    let left = r.left + r.width / 2 - w / 2;
+    let top = r.top - h - 8;
+    left = Math.min(Math.max(4, left), Math.max(4, window.innerWidth - w - 4));
+    top = Math.min(Math.max(4, top), Math.max(4, window.innerHeight - h - 4));
+    menu.style.left = Math.round(left) + 'px';
+    menu.style.top = Math.round(top) + 'px';
+  }
+  // 拖柄拖动：只在标题条上触发，不跟菜单项的点击打架。
+  function makeMenuDraggable() {
+    let drag = null;
+    menu.addEventListener('pointerdown', (event) => {
+      if (!event.target.closest('.pet-menu-handle')) return;
+      event.preventDefault();
+      const r = menu.getBoundingClientRect();
+      drag = { dx: event.clientX - r.left, dy: event.clientY - r.top };
+      try { menu.setPointerCapture(event.pointerId); } catch {}
+    });
+    menu.addEventListener('pointermove', (event) => {
+      if (!drag) return;
+      const w = menu.offsetWidth, h = menu.offsetHeight;
+      const left = Math.min(Math.max(0, event.clientX - drag.dx), Math.max(0, window.innerWidth - w));
+      const top = Math.min(Math.max(0, event.clientY - drag.dy), Math.max(0, window.innerHeight - h));
+      menu.style.left = Math.round(left) + 'px';
+      menu.style.top = Math.round(top) + 'px';
+    });
+    const stop = () => { drag = null; };
+    menu.addEventListener('pointerup', stop);
+    menu.addEventListener('pointercancel', stop);
+  }
+  makeMenuDraggable();
   pet.addEventListener('contextmenu', (event) => {
     event.preventDefault();
-    openMenu(event.clientX, event.clientY);
+    openMenu();
   });
   menu.addEventListener('click', async (event) => {
     const btn = event.target.closest('[data-action]');

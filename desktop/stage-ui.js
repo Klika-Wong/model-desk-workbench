@@ -263,7 +263,13 @@
     const cur = currentPet(actor.model);
     contextMenu.replaceChildren();
     const head = document.createElement('div');
-    head.className = 'ctx-head'; head.textContent = aliasOf(actor.model); head.title = head.textContent;
+    head.className = 'ctx-head';
+    const grip = document.createElement('span');
+    grip.className = 'ctx-grip'; grip.textContent = '⠿';
+    const nameText = document.createElement('span');
+    nameText.className = 'ctx-name'; nameText.textContent = aliasOf(actor.model);
+    head.append(grip, nameText);
+    head.title = `拖动标题条可移动菜单 · ${aliasOf(actor.model)}`;
     contextMenu.append(head);
     const sub = document.createElement('div'); sub.className = 'ctx-sub';
     sub.textContent = `${STATE_LABEL[actor.el.dataset.state] || '待机'} · ${zoneOf(actor.el.dataset.state) === 'work' ? '工作区' : '摸鱼角'}`;
@@ -295,9 +301,16 @@
     contextMenu.append(menuButton('去「模型与额度」查看连接', 'activate'));
     contextMenu.append(menuButton('清空交流记录', 'clear', '需二次确认'));
     contextMenu.hidden = false;
-    const rect = contextMenu.getBoundingClientRect();
-    contextMenu.style.left = Math.min(clientX, window.innerWidth - rect.width - 8) + 'px';
-    contextMenu.style.top = Math.min(clientY, window.innerHeight - rect.height - 8) + 'px';
+    // 浮在角色头顶：水平居中，底边贴角色头顶再留 10px；超界就收进视口。
+    const r = actor.el.getBoundingClientRect();
+    const w = contextMenu.offsetWidth || 232;
+    const h = contextMenu.offsetHeight || 320;
+    let left = r.left + r.width / 2 - w / 2;
+    let top = r.top - h - 10;
+    left = Math.min(Math.max(8, left), Math.max(8, window.innerWidth - w - 8));
+    top = Math.min(Math.max(8, top), Math.max(8, window.innerHeight - h - 8));
+    contextMenu.style.left = Math.round(left) + 'px';
+    contextMenu.style.top = Math.round(top) + 'px';
     // 键盘打开（Shift+F10 / ContextMenu）时把焦点交给菜单，否则四项配置仍无法用键盘完成。
     if (fromKeyboard) {
       const first = contextMenu.querySelector('.ctx-outfits .outfit, [data-action]');
@@ -1228,6 +1241,24 @@
       const btn = event.target.closest('[data-action]');
       if (btn) { event.stopPropagation(); handleContextAction(btn.dataset.action); }
     });
+    // 右键菜单浮在角色头顶后，还能抓着标题条拖到顺手位置（不跟菜单项点击抢）。
+    let menuDrag = null;
+    contextMenu.addEventListener('pointerdown', (event) => {
+      if (!event.target.closest('.ctx-head')) return;
+      event.preventDefault();
+      const r = contextMenu.getBoundingClientRect();
+      menuDrag = { dx: event.clientX - r.left, dy: event.clientY - r.top };
+      try { contextMenu.setPointerCapture(event.pointerId); } catch {}
+    });
+    contextMenu.addEventListener('pointermove', (event) => {
+      if (!menuDrag) return;
+      const w = contextMenu.offsetWidth, h = contextMenu.offsetHeight;
+      contextMenu.style.left = Math.round(Math.min(Math.max(0, event.clientX - menuDrag.dx), Math.max(0, window.innerWidth - w))) + 'px';
+      contextMenu.style.top = Math.round(Math.min(Math.max(0, event.clientY - menuDrag.dy), Math.max(0, window.innerHeight - h))) + 'px';
+    });
+    const stopMenuDrag = () => { menuDrag = null; };
+    contextMenu.addEventListener('pointerup', stopMenuDrag);
+    contextMenu.addEventListener('pointercancel', stopMenuDrag);
   }
   floor.addEventListener('contextmenu', (event) => {
     if (event.target.closest('.stage-actor')) return;
