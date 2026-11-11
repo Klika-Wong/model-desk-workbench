@@ -1,5 +1,14 @@
 # Pet interaction fixes (2026-11-08)
 
+> **Updated 2026-11-11 — section 3 below is superseded.** The claim that polling the cursor every
+> 80ms in the main process was deliberate, and that renderer `mousemove` is too unreliable to use,
+> no longer holds. The pet now reports `petControl('hover', …)` from renderer `mousemove` (which
+> Electron does forward under `setIgnoreMouseEvents(true, { forward: true })`), with a 200ms
+> main-process poll only as a fallback. An 8px hysteresis keeps cursor jitter on the hitbox edge
+> from repeatedly toggling the window style. Polling alone cost up to 80ms of missed clicks when
+> moving onto the pet, and the repeated style toggles forced DWM surface recomposition.
+> Everything else in this file is the 2026-11-08 record and is kept as written.
+
 Four issues reported together: dragging was offset from the cursor, clicking other windows stopped
 working after touching the pet, the "full avatar library" entry did nothing, and the pet kept showing
 up on the desktop after being closed.

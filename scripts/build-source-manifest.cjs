@@ -4,6 +4,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { execSync } = require('node:child_process');
+// 规则放在 desktop/ 里：E 盘运行实例是 desktop 的平铺副本，也要能跑同一套核对。
+const { canonicalBytes } = require('../desktop/source-manifest-bytes.cjs');
 
 const ROOT = path.resolve(__dirname, '..');
 const OUT = path.join(ROOT, 'SOURCE-MANIFEST.json');
@@ -19,7 +21,9 @@ for (const rel of tracked) {
   let stat;
   try { stat = fs.statSync(abs); } catch { continue; }
   if (!stat.isFile()) continue;
-  const buf = fs.readFileSync(abs);
+  // 按规范化字节记录，不能用工作区原始字节：本机 core.autocrlf=true 会把检出转成 CRLF，
+  // 换台机器（LF）按原字节核对就会全量 mismatch。二进制由 canonicalBytes 原样保留。
+  const buf = canonicalBytes(fs.readFileSync(abs));
   files.push({
     path: rel.replace(/\\/g, '/'),
     sha256: crypto.createHash('sha256').update(buf).digest('hex'),
@@ -32,6 +36,7 @@ const manifest = {
   version: '0.1.0-preview',
   date: new Date().toISOString().slice(0, 10),
   scope: 'Source-only snapshot; excludes runtime data and this manifest itself.',
+  hashing: 'sha256 over LF-normalized bytes; files containing NUL bytes are hashed verbatim',
   files,
 };
 fs.writeFileSync(OUT, JSON.stringify(manifest, null, 2) + '\n');

@@ -65,6 +65,8 @@ desktop/*.log
 desktop/*-result.json
 desktop/*-report.json
 desktop/.main-verify*
+# smoke 的临时工作区：每次运行都会写入本机项目路径，绝不能进版本库或源码清单。
+desktop/.smoke-result.json.workspace/
 desktop/user-data/
 desktop/coverage/
 *.sqlite*

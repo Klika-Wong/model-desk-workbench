@@ -96,6 +96,20 @@
   let chatTimers = [];
   let dragging = false;
   let dragFrame = false;
+  let hoverFrame = false;
+  // 只存「此刻」的屏幕坐标。rAF 回调里必须读这个变量，不能闭包捕获触发节流的那个旧
+  // event：同一帧内后续 pointermove 会被丢掉，最后一段位移就永远发不出去。
+  let lastPointer = null;
+  // 窗口默认 focusable:false（点了不抢别处的焦点）。菜单和聊天框各自登记需求，
+  // 都关掉了才还原，避免「关菜单顺手把正在打字的聊天框也弄失焦」。
+  const focusNeeds = new Set();
+  function requestFocus(reason, on) {
+    if (on) focusNeeds.add(reason); else focusNeeds.delete(reason);
+    let pending;
+    try { pending = window.workbench.petControl('focusable', focusNeeds.size > 0); } catch { pending = null; }
+    // 桩 preload 可能返回普通值，统一包成 Promise；窗口夺焦失败不该抛到界面上。
+    return Promise.resolve(pending).catch(() => {});
+  }
 
   // 输入驱动动作（仿 BongoCat / CatPet 的交互模式），纯逻辑在 pet-motion.js。
   const motion = window.__petMotion ? window.__petMotion.create() : null;
@@ -262,17 +276,32 @@
     which.hidden = !which.hidden;
   }
 
-  // 拖动：主进程读屏幕绝对坐标，渲染层只报告「按下时光标在窗口内的位置」。
-  // 之前只报 start/move/end，主进程在收到 start 时自己采样光标——按下后到 IPC 到达之间
-  // 掉的那几帧位移会被永久丢掉，于是窗口始终比光标偏一截。现在把 offset 直接带过去，
-  // 主进程每次都用「光标 − offset」绝对定位，偏移被彻底消掉。
+  // 拖动：主进程按「屏幕光标 − 按下时的窗口内偏移」绝对定位，不累加增量，所以不会漂移。
+  // 渲染层按帧上报最新坐标；松手时把最终坐标随 drag-end 一起送出去补最后一帧。
+  function notePointer(event) {
+    if (event && Number.isFinite(event.screenX) && Number.isFinite(event.screenY)) {
+      lastPointer = { sx: event.screenX, sy: event.screenY };
+    }
+  }
+  function flushDrag() {
+    dragFrame = false;
+    if (!dragging || !lastPointer) return;
+    const { sx, sy } = lastPointer;
+    window.workbench.petControl('drag-move', { sx, sy }).catch(() => {});
+  }
+  function flushHover() {
+    hoverFrame = false;
+    if (dragging || !lastPointer) return;
+    const { sx, sy } = lastPointer;
+    window.workbench.petControl('hover', { sx, sy }).catch(() => {});
+  }
   pet.addEventListener('pointerdown', (event) => {
     if (locked || event.target.closest('button, input, select, .pet-chatbox, .pet-emotes, .pet-toolbar, .pet-menu')) return;
+    notePointer(event);
     dragging = true;
     try { pet.setPointerCapture(event.pointerId); } catch {}
     pet.classList.add('is-dragging');
     if (motion) motion.poke('drag-start');
-    // 按下时就带窗口内偏移；move 直接带屏幕坐标，主进程不再轮询全局光标。
     window.workbench.petControl('drag-start', { x: event.clientX, y: event.clientY }).catch(() => {});
   });
   pet.addEventListener('pointermove', (event) => {
@@ -280,19 +309,30 @@
     if (motion && !dragging) {
       motion.poke('pointer', { x: event.clientX, centerX: window.innerWidth / 2 });
     }
-    if (!dragging || dragFrame) return;
-    dragFrame = true;
-    requestAnimationFrame(() => {
-      dragFrame = false;
-      if (dragging) window.workbench.petControl('drag-move', { sx: event.screenX, sy: event.screenY }).catch(() => {});
-    });
+    notePointer(event);
+    if (dragging) {
+      if (!dragFrame) { dragFrame = true; requestAnimationFrame(flushDrag); }
+    } else if (!hoverFrame) {
+      hoverFrame = true;
+      requestAnimationFrame(flushHover);
+    }
   });
-  const endDrag = () => {
+  // 穿透状态下 Electron 只转发 mousemove（不保证有 pointermove），所以 hover 判定挂在这里：
+  // 「移进角色」当帧就解除穿透，不用等主进程兜底轮询，按下不会被漏到下层窗口。
+  pet.addEventListener('mousemove', (event) => {
+    notePointer(event);
+    if (dragging || hoverFrame) return;
+    hoverFrame = true;
+    requestAnimationFrame(flushHover);
+  });
+  const endDrag = (event) => {
     if (!dragging) return;
     dragging = false;
     pet.classList.remove('is-dragging');
     if (motion) motion.poke('drag-end');
-    window.workbench.petControl('drag-end').catch(() => {});
+    notePointer(event);
+    // 最后一次 pointermove 常按帧合并掉；把最终坐标随 drag-end 送去补定位再落盘。
+    window.workbench.petControl('drag-end', lastPointer || undefined).catch(() => {});
   };
   // 把「真正能点的地方」告诉主进程（角色 / 工具栏 / 气泡 / 面板的合并包围盒）。
   // 主进程按光标位置动态开关注透：落在外面就让点击穿透到桌面和其他窗口。
@@ -394,9 +434,9 @@
   function toggleChat() {
     toggleBox(chatbox);
     const open = !chatbox.hidden;
-    // 只有要打字时才让窗口夺焦；平时保持「点了也不抢焦点」。
-    window.workbench.petControl('focusable', open).catch(() => {});
-    if (open) input.focus();
+    // 只有要打字时才让窗口夺焦；平时保持「点了也不抢焦点」。菜单和聊天各自登记，
+    // 关掉其中一个不会顺手把另一个弄失焦。
+    requestFocus('chat', open).then(() => { if (open) input.focus(); });
   }
   async function toggleOpaque() {
     const next = !opaque;
@@ -415,12 +455,19 @@
   $('pet-swap').addEventListener('click', openOutfits);
 
   // ---- 右键菜单：配置都收在这里，工具条只留常用的 ----
-  function closeMenu() {
+  function closeMenu(returnFocus) {
     if (!menu) return;
+    const wasOpen = !menu.hidden;
     menu.hidden = true;
     menu.replaceChildren();
     queueHitbox();
+    if (!wasOpen) return;
+    requestFocus('menu', false);
+    // Esc 退出时把焦点还给角色本身，别让焦点掉进 body 里再也 Tab 不回来。
+    if (returnFocus) actor.focus();
   }
+  // div 本身不进 Tab 序列，tabIndex=-1 只用于「关菜单后把焦点放回原处」。
+  actor.tabIndex = -1;
   function item(label, hint, action, on) {
     const b = document.createElement('button');
     b.type = 'button';
@@ -462,6 +509,17 @@
     menu.hidden = false;
     anchorMenu();
     queueHitbox();
+    // 菜单要能用键盘选：窗口临时可聚焦（异步 IPC），焦点同时落到第一项。
+    // 只在回包里 focus 有竞态——回包慢时「刚打开就按方向键」会落空；
+    // 所以同步先落一次，回包后再兜一次（窗口夺焦有可能重置 DOM 焦点）。
+    // 菜单一关就还原，平时窗口仍是「点了也不抢焦点」。
+    const focusFirst = () => {
+      if (menu.hidden) return;
+      const firstItem = menu.querySelector('[data-action]');
+      if (firstItem) firstItem.focus();
+    };
+    requestFocus('menu', true).then(focusFirst);
+    focusFirst();
   }
   // 浮在角色头顶：水平居中，底边贴角色头顶再留 8px；超界就收进窗口。
   function anchorMenu() {
@@ -498,6 +556,20 @@
     menu.addEventListener('pointercancel', stop);
   }
   makeMenuDraggable();
+  // 菜单里的方向键 / Home / End 走焦点轮转，Enter / Space 交给 button 原生行为。
+  // 与主界面协作视图右键菜单的键盘习惯保持一致。
+  menu.addEventListener('keydown', (event) => {
+    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+    const items = [...menu.querySelectorAll('[data-action]')];
+    if (!items.length) return;
+    event.preventDefault();
+    const i = items.indexOf(document.activeElement);
+    let n;
+    if (event.key === 'Home') n = 0;
+    else if (event.key === 'End') n = items.length - 1;
+    else n = i < 0 ? 0 : (i + (event.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length;
+    items[n].focus();
+  });
   pet.addEventListener('contextmenu', (event) => {
     event.preventDefault();
     openMenu();
@@ -520,7 +592,7 @@
     closeMenu();
   });
   window.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') closeMenu();
+    if (event.key === 'Escape') closeMenu(true);
   });
   sendBtn.addEventListener('click', sendChat);
   input.addEventListener('keydown', (event) => {

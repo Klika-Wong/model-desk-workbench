@@ -523,27 +523,42 @@ async function main() {
   // （换成灰白表情、或图片只画出白底，这些断言全都会过）。
   // capturePage 的位图是设备像素，getBoundingClientRect 是 CSS 像素，必须按 DPR 换算，
   // 否则采样到的完全是别的区域，之前就因此得到过一组看似合理、实则无关的数字。
-  const shot = await win.capturePage();
-  const bmp = shot.toBitmap();
-  const bmpSize = shot.getSize();
-  const dpr = bmpSize.width / vendorVisual.innerWidth;
-  const mr = vendorVisual.moodRect;
-  let moodColorful = 0, moodOpaque = 0;
-  if (mr && mr.w > 0) {
-    for (let y = Math.round(mr.y * dpr); y < Math.round((mr.y + mr.h) * dpr); y += 1) {
-      for (let x = Math.round(mr.x * dpr); x < Math.round((mr.x + mr.w) * dpr); x += 1) {
-        if (x < 0 || y < 0 || x >= bmpSize.width || y >= bmpSize.height) continue;
-        const i = (y * bmpSize.width + x) * 4;
-        const b = bmp[i], g = bmp[i + 1], r = bmp[i + 2], a = bmp[i + 3];
-        if (a < 80) continue;
-        moodOpaque += 1;
-        if (Math.max(r, g, b) - Math.min(r, g, b) > 40) moodColorful += 1;
+  // capturePage 可能交回合成器缓存的上一帧：DOM 里表情已解码、opacity=1，
+  // 位图里却还是没有颜色的旧画面（实测过 0/441 全灰度）。阈值一个都不放宽，
+  // 只给合成器几次提交机会；每次采样值都留着，真失败时能看出是「没上屏」还是「位置算错」。
+  const sampleMood = async () => {
+    const shot = await win.capturePage();
+    const bmp = shot.toBitmap();
+    const bmpSize = shot.getSize();
+    const dpr = bmpSize.width / vendorVisual.innerWidth;
+    const mr = vendorVisual.moodRect;
+    let colorful = 0, opaque = 0;
+    if (mr && mr.w > 0) {
+      for (let y = Math.round(mr.y * dpr); y < Math.round((mr.y + mr.h) * dpr); y += 1) {
+        for (let x = Math.round(mr.x * dpr); x < Math.round((mr.x + mr.w) * dpr); x += 1) {
+          if (x < 0 || y < 0 || x >= bmpSize.width || y >= bmpSize.height) continue;
+          const i = (y * bmpSize.width + x) * 4;
+          const b = bmp[i], g = bmp[i + 1], r = bmp[i + 2], a = bmp[i + 3];
+          if (a < 80) continue;
+          opaque += 1;
+          if (Math.max(r, g, b) - Math.min(r, g, b) > 40) colorful += 1;
+        }
       }
     }
+    return { colorful, opaque, dpr };
+  };
+  const moodSamples = [];
+  let moodSample = null;
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    await new Promise((r) => setTimeout(r, 120)); // 等一帧合成提交再抓
+    moodSample = await sampleMood();
+    moodSamples.push({ ...moodSample });
+    const ratio = moodSample.opaque ? moodSample.colorful / moodSample.opaque : 0;
+    if (moodSample.opaque >= 100 && ratio >= 0.12) break;
   }
-  const moodRatio = moodOpaque ? moodColorful / moodOpaque : 0;
-  if (moodOpaque < 100 || moodRatio < 0.12) {
-    throw new Error(`情绪标区域没有可见彩色像素：${moodColorful}/${moodOpaque} (${moodRatio.toFixed(3)}), dpr=${dpr.toFixed(2)}`);
+  const moodRatio = moodSample.opaque ? moodSample.colorful / moodSample.opaque : 0;
+  if (moodSample.opaque < 100 || moodRatio < 0.12) {
+    throw new Error(`情绪标区域没有可见彩色像素：${moodSamples.map((s) => `${s.colorful}/${s.opaque}`).join(' → ')} (${moodRatio.toFixed(3)}), dpr=${moodSample.dpr.toFixed(2)}`);
   }
   result.checks.push('collab-mood-visible-pixels');
 

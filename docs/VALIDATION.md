@@ -1,5 +1,42 @@
 # 本次发布验证
 
+## 2026-11-11 桌宠输入链路、清单跨机器核对、临时数据排除
+
+| 检查 | 命令 | 结果 |
+| --- | --- | --- |
+| 单元测试 | `npm test` | 229/229（新增 10 项：桌宠拖拽/滞回 3、清单规则与真跑校验 7） |
+| 界面真机 | `npm run verify:ui` | 71 项，console 错误 0（回归，未改主界面） |
+| 桌宠真机 | `npm run verify:pet` | 21 项，errors 0（新增 `pet-menu-keyboard`） |
+| 主进程真机 | `npm run verify:main` | 13 项（回归） |
+| 桌面冒烟 | `npm run smoke` | 通过 |
+| vendor 素材离线校验 | `node scripts/vendor-assets.cjs --check` | 37 文件 / 2 来源 |
+| 源码清单 | `node scripts/build-source-manifest.cjs` | 536 文件 |
+| 发布源码扫描 | `python scripts/check_public_source.py` | `{"files":536,"findings":[]}`，退出码 0 |
+| E 盘运行实例 | `node scripts/sync-to-runtime.cjs` 后复跑 | 单测 224 通过 + 5 明确跳过（0 失败）、`verify:ui` 71 项、`verify:pet` 21 项、`verify:main` 13 项 |
+
+新增断言不是只看字符串：
+
+- `pet-drag.test.cjs` 用假 Electron 真调 `pet:control`：松手只带最终坐标时窗口落到该位置并落盘；
+  hover 在穿透 / 可点两种状态下擦边不切、真正进出才切，且 `lastProbe.source` 必须是 `renderer`。
+- `source-manifest.test.cjs` 证明 CRLF / LF 规范化后哈希一致、二进制不被改写，
+  并**真的启动 Python** 跑一遍校验脚本，断言 findings 为空。
+- `pet-verify.cjs` 在真桌宠窗口里派发 `ArrowDown` / `Escape`，断言焦点轮转、菜单收起、焦点归还角色。
+
+**边界与未解决**：
+
+- E 盘四层验证首轮串行时 `verify:pet` 有一次退出 1，当时输出被截断、原因未定位；
+  随后单独复跑 3 次、按相同顺序（先 `verify:ui` 再 `verify:pet`）复现 1 次，均为 21 项通过。
+  这不记为「已修好」，只记为未定位的偶发。代码里补掉的菜单聚焦竞态是独立的可解释缺陷，
+  不宣称它就是那次失败的原因。
+- 透明桌宠窗口在部分显卡上的偶发闪烁仍缺可靠复现；8px 滞回只减少窗口样式切换次数，
+  不等于根治，右键「不透明窗口」仍是可用的缓解手段。
+- `hover` 依赖 Electron 在穿透状态下转发 `mousemove`，转发中断时由 200ms 轮询兜底；
+  混合 DPI 多显示器与真实鼠标手感的量化没有测。
+- 历史提交里曾跟踪过 smoke 临时工作区，本轮只停止继续跟踪，没有重写 Git 历史。
+- 最终全量时 `verify:ui` 的情绪标像素断言曾报 `0/441 全灰度`（DOM 解码 / 尺寸 / opacity
+  检查全过），符合已知的 `capturePage` 缓存帧行为。已改为最多 4 次抓帧重试、每次等 120ms，
+  阈值不变、失败时保留 4 次采样值；改的是验证脚本不是产品代码，改后连续 3 次 71 项通过。
+
 ## 2026-11-11 走路帧真生效、空房间分状态、项目定位写清
 
 | 检查 | 命令 | 结果 |

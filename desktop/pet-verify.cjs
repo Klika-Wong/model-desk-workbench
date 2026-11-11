@@ -186,6 +186,23 @@ app.whenReady().then(async () => {
     })()`);
     check('pet-context-menu-works', menu.hidden === false && menu.items === 6, menu);
 
+    trace('menu keyboard path');
+    // 真机里走一遍键盘：开菜单自动聚焦第一项 → ArrowDown 轮到第二项 → Esc 收起并归还焦点。
+    // 这些是 DOM 层面的 KeyboardEvent，不依赖操作系统是否真的把焦点给了这个无边框小窗。
+    const menuKeys = await petWin.webContents.executeJavaScript(`(async () => {
+      const m = document.getElementById('pet-menu');
+      const items = [...m.querySelectorAll('[data-action]')];
+      const firstFocused = document.activeElement === items[0];
+      items[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+      const afterDown = document.activeElement === items[1];
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      await new Promise(r => setTimeout(r, 80));
+      return { firstFocused, afterDown, hidden: m.hidden,
+        returnedTo: document.activeElement === document.getElementById('pet-actor') };
+    })()`);
+    check('pet-menu-keyboard', menuKeys.firstFocused && menuKeys.afterDown
+      && menuKeys.hidden === true && menuKeys.returnedTo, menuKeys);
+
     trace('menu done, snapshot');
     const snap = ctl.snapshot();
     check('pet-hitbox-reported', Boolean(snap.hitbox && snap.hitbox.w > 0 && snap.hitbox.h > 0), snap);

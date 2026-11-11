@@ -22,6 +22,9 @@ let hitbox = null;
 let hitTimer = null;
 let ignoring = false;
 let lastProbe = null;
+// 进出用两套边界做滞回。每次 setIgnoreMouseEvents 都会改 Windows 窗口扩展样式、
+// 让 DWM 重组合成表面；光标在角色包围盒边缘抖几个像素就来回切，观感就是「偶尔闪一下」。
+const HIT_HYSTERESIS = 8;
 
 function applyIgnore(next) {
   if (!petWindow || petWindow.isDestroyed() || next === ignoring) return;
@@ -29,22 +32,37 @@ function applyIgnore(next) {
   try { petWindow.setIgnoreMouseEvents(next, { forward: true }); } catch {}
 }
 
-function syncIgnoreFromCursor() {
-  if (!petWindow || petWindow.isDestroyed() || !hitbox) return;
-  if (dragOffset) return; // 拖动中保持可点，否则会把自己锁住
-  const p = screen.getCursorScreenPoint();
+function hitTest(lx, ly, pad) {
+  return !!hitbox
+    && lx >= hitbox.x + pad && lx <= hitbox.x + hitbox.w - pad
+    && ly >= hitbox.y + pad && ly <= hitbox.y + hitbox.h - pad;
+}
+
+// p 是屏幕坐标（DIP），source 只写进诊断快照，方便真机验证判断走的是哪条链路。
+function updateIgnoreFromScreen(p, source) {
+  if (!petWindow || petWindow.isDestroyed() || !hitbox || dragOffset) return;
   const [wx, wy] = petWindow.getPosition();
   const lx = p.x - wx;
   const ly = p.y - wy;
-  const inside = lx >= hitbox.x && lx <= hitbox.x + hitbox.w
-    && ly >= hitbox.y && ly <= hitbox.y + hitbox.h;
-  lastProbe = { lx, ly, inside, at: Date.now() };
+  // 当前穿透 → 内缩边界，必须真的进到里面才切回可点；
+  // 当前可点 → 外扩边界，必须真的走出去才切回穿透。边缘抖动不再触发切换。
+  const pad = ignoring ? HIT_HYSTERESIS : -HIT_HYSTERESIS;
+  const inside = hitTest(lx, ly, pad);
+  lastProbe = { lx, ly, inside, at: Date.now(), source: source || 'poll' };
   applyIgnore(!inside);
+}
+
+function syncIgnoreFromCursor() {
+  if (!petWindow || petWindow.isDestroyed() || !hitbox) return;
+  if (dragOffset) return; // 拖动中保持可点，否则会把自己锁住
+  updateIgnoreFromScreen(screen.getCursorScreenPoint(), 'poll');
 }
 
 function startHitPoll() {
   stopHitPoll();
-  hitTimer = setInterval(syncIgnoreFromCursor, 80);
+  // 渲染层每次 mousemove 会即时上报坐标，这里只兜底（光标移出窗口矩形后转发事件断了）。
+  // 从 80ms 放宽到 200ms，少轮询、也少一次无谓的全局光标采样。
+  hitTimer = setInterval(syncIgnoreFromCursor, 200);
 }
 
 function stopHitPoll() {
@@ -212,6 +230,15 @@ function registerPetWindow(userDataPath) {
       applyIgnore(Boolean(value));
       return { ok: true, data: { ignore: ignoring } };
     }
+    if (action === 'hover') {
+      // 渲染层转发过来的即时光标位置：移进角色不用等轮询周期，按下就能被接住。
+      // 拖动中 updateIgnoreFromScreen 会自行跳过，不会把正在拖的窗口锁成穿透。
+      const v = value || {};
+      if (Number.isFinite(v.sx) && Number.isFinite(v.sy)) {
+        updateIgnoreFromScreen({ x: v.sx, y: v.sy }, 'renderer');
+      }
+      return { ok: true, data: { ignore: ignoring } };
+    }
     if (action === 'drag-start') {
       if (state.locked) return { ok: true, data: { locked: true } };
       const v = value || {};
@@ -236,6 +263,15 @@ function registerPetWindow(userDataPath) {
       return { ok: true };
     }
     if (action === 'drag-end') {
+      const v = value || {};
+      // 渲染层按帧合并 pointermove，最后一帧常常来不及发；松手事件带的坐标在这里补一次，
+      // 窗口才不会停在倒数第二帧（表现为「松手后差一截、不贴手」）。
+      if (dragOffset && Number.isFinite(v.sx) && Number.isFinite(v.sy)) {
+        const nx = Math.round(v.sx - dragOffset.x);
+        const ny = Math.round(v.sy - dragOffset.y);
+        const [cx, cy] = petWindow.getPosition();
+        if (nx !== cx || ny !== cy) petWindow.setPosition(nx, ny);
+      }
       dragOffset = null;
       const [x, y] = petWindow.getPosition();
       state.x = x; state.y = y;
