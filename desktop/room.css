@@ -179,3 +179,94 @@ html[data-reduce-motion="1"] .rp-screen-glow,
 html[data-reduce-motion="1"] .rp-led,
 html[data-reduce-motion="1"] .rp-steam,
 html[data-reduce-motion="1"] .room-screen i { animation: none !important; }
+
+/* ---- 设施代号牌：可点的入口 ----
+   #stage-room 整体 pointer-events:none（不挡角色拖拽），只有铭牌单独放行。 */
+.room-plate { pointer-events: auto; cursor: pointer; }
+.room-plate:hover, .room-plate.is-open {
+  color: var(--accent); box-shadow: 0 0 0 1px var(--accent-line);
+}
+
+/* ---- 时段光照：只叠一层低透明度色温，不改主题变量，深浅主题都不会打架 ----
+   跟着本机时间走，不是装饰动画；面板里显示同一份时间。 */
+#stage-floor::after {
+  content: ''; position: absolute; inset: 0; z-index: 0;
+  border-radius: 18px; pointer-events: none; background: transparent;
+  transition: background .8s ease;
+}
+#stage-floor[data-daypart="morning"]::after { background: rgba(255, 214, 170, .10); }
+#stage-floor[data-daypart="day"]::after { background: transparent; }
+#stage-floor[data-daypart="dusk"]::after { background: rgba(255, 150, 90, .12); }
+#stage-floor[data-daypart="night"]::after { background: rgba(60, 90, 170, .16); }
+html[data-reduce-motion="1"] #stage-floor::after { transition: none; }
+
+/* ---- 头顶状态条：只表示进行中 / 完成 / 失败，不画百分比 ----
+   waiting 是静态透明（不是从 opacity:0 起步的入场动画）；隐藏窗口里
+   Chromium 不推进动画，但从 .85 起步的条仍可见，不会整条消失。 */
+.actor-id-tag .actor-activity {
+  position: absolute; left: 7px; right: 7px; bottom: -1px;
+  height: 2px; border-radius: 2px; overflow: hidden;
+}
+.actor-activity::before {
+  content: ''; position: absolute; left: 0; top: 0; height: 100%;
+  width: 0; border-radius: 2px; background: var(--accent); opacity: 0;
+}
+.stage-actor[data-state="thinking"] .actor-activity::before,
+.stage-actor[data-state="speaking"] .actor-activity::before {
+  width: 38%; opacity: .85; animation: actor-scan 1.4s ease-in-out infinite;
+}
+.stage-actor[data-state="done"] .actor-activity::before { width: 100%; opacity: .8; background: var(--ok-ink); }
+.stage-actor[data-state="failed"] .actor-activity::before { width: 100%; opacity: .8; background: var(--danger); }
+@keyframes actor-scan { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(160%); } }
+html[data-reduce-motion="1"] .actor-activity::before { animation: none !important; }
+
+/* ---- 设施详情浮层：锚在代号牌上方，标题条可拖动 ---- */
+.collab-canvas-wrap { position: relative; }
+.facility-panel {
+  position: absolute; z-index: 950; width: 240px; max-width: calc(100% - 12px);
+  border-radius: 12px; overflow: hidden;
+  background: var(--surface); color: var(--ink-2); font-size: 12px;
+  box-shadow: 0 0 0 1px var(--line-strong), 0 18px 40px -18px rgba(15, 23, 42, .45);
+}
+.facility-panel[hidden] { display: none; }
+.facility-head {
+  display: flex; align-items: center; gap: 8px; padding: 6px 8px 6px 10px;
+  background: var(--surface-2); border-bottom: 1px solid var(--line);
+  cursor: grab; user-select: none; touch-action: none;
+}
+.facility-panel.is-dragging .facility-head { cursor: grabbing; }
+.facility-grip { color: var(--muted); font-size: 13px; }
+.facility-name {
+  flex: 1; min-width: 0; font-weight: 600; color: var(--ink);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.facility-close {
+  flex: none; width: 20px; height: 20px; padding: 0; border: 0; border-radius: 5px;
+  background: transparent; color: var(--muted); font-size: 16px; line-height: 1; cursor: pointer;
+}
+.facility-close:hover { background: var(--surface-3); color: var(--ink); }
+.facility-clock {
+  margin: 0; padding: 6px 10px 0; font-size: 10px; color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.facility-body { padding: 4px 10px 6px; max-height: 150px; overflow-y: auto; }
+.facility-use { margin: 0 0 4px; font-size: 11px; line-height: 1.5; }
+.facility-section-title { margin: 0 0 4px; font-size: 10px; color: var(--muted); }
+.facility-empty { margin: 0; font-size: 11px; color: var(--muted); line-height: 1.5; }
+.facility-person { display: flex; align-items: baseline; gap: 6px; font-size: 12px; }
+.facility-person-name {
+  flex: 1; min-width: 0; color: var(--ink);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.facility-person-state { flex: none; font-size: 10px; color: var(--muted); }
+.facility-person-state[data-state="thinking"],
+.facility-person-state[data-state="speaking"] { color: var(--accent); }
+.facility-person-state[data-state="done"] { color: var(--ok-ink); }
+.facility-person-state[data-state="failed"] { color: var(--danger); }
+.facility-acts { display: flex; gap: 5px; margin: 4px 0 6px; }
+.facility-act {
+  flex: 1; min-width: 0; padding: 4px 2px; font-size: 10px;
+  border: 1px solid var(--line); border-radius: 6px;
+  background: var(--surface-2); color: var(--ink-2); cursor: pointer;
+}
+.facility-act:hover { border-color: var(--accent-line); color: var(--accent); }

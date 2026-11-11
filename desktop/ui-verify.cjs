@@ -773,6 +773,92 @@ async function main() {
   result.checks.push('room-facility-plates', 'room-plates-not-clipped', 'room-plates-overhead', 'room-plate-head-gap', 'room-plate-occupancy',
     'collab-actor-id-tags', 'collab-actor-id-overhead', 'collab-actor-id-state-sync');
 
+  // 设施详情浮层：铭牌真的可点（elementFromPoint 命中，不是只改了 CSS）、
+  // 面板锚在牌子上且拖得动、内容只来自真实座位与本机时间、操作真的接到已有能力。
+  const facilityCheck = await js(`(async () => {
+    document.getElementById('nav-stage').click();
+    await new Promise(r => setTimeout(r, 200));
+    const floor = document.getElementById('stage-floor');
+    const panel = document.getElementById('facility-panel');
+    const wrap = panel.parentElement;
+    const plates = [...document.querySelectorAll('.room-plate')];
+    const pe = getComputedStyle(plates[0]).pointerEvents;
+    const cursor = getComputedStyle(plates[0]).cursor;
+    const hit = plates.filter((p) => {
+      const r = p.getBoundingClientRect();
+      const el = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      return el && (el === p || p.contains(el));
+    }).length;
+
+    const target = document.querySelector('.room-plate[data-prop-id="desk-a"]');
+    target.click();
+    const opened = !panel.hidden;
+    const headText = panel.querySelector('.facility-name')?.textContent || '';
+    const clockText = panel.querySelector('.facility-clock')?.textContent || '';
+    const bodyText = panel.querySelector('.facility-body')?.textContent || '';
+    const info = window.__stageUi.facilityInfo('desk-a');
+    const namesMatch = info.occupants.length > 0 && info.occupants.every((o) => bodyText.includes(o.name));
+    const noFakeMetrics = !/%|效率|产出|心情|收益|产能/.test(bodyText + headText);
+    const wr = wrap.getBoundingClientRect(), pr = panel.getBoundingClientRect();
+    const inWrap = pr.left >= wr.left - 1 && pr.right <= wr.right + 1 && pr.top >= wr.top - 1 && pr.bottom <= wr.bottom + 1;
+    const plateRect = target.getBoundingClientRect();
+    const anchored = Math.abs((pr.left + pr.width / 2) - (plateRect.left + plateRect.width / 2)) < 130;
+
+    const head = panel.querySelector('.facility-head');
+    const beforeLeft = parseFloat(panel.style.left) || 0;
+    const beforeTop = parseFloat(panel.style.top) || 0;
+    const mk = (type, x, y) => new PointerEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, pointerId: 7 });
+    const hr = head.getBoundingClientRect();
+    head.dispatchEvent(mk('pointerdown', hr.left + 20, hr.top + 10));
+    panel.dispatchEvent(mk('pointermove', hr.left + 60, hr.top + 40));
+    panel.dispatchEvent(mk('pointerup', hr.left + 60, hr.top + 40));
+    const moved = (parseFloat(panel.style.left) || 0) !== beforeLeft || (parseFloat(panel.style.top) || 0) !== beforeTop;
+    const pr2 = panel.getBoundingClientRect();
+    const stillInWrap = pr2.left >= wr.left - 1 && pr2.right <= wr.right + 1 && pr2.top >= wr.top - 1 && pr2.bottom <= wr.bottom + 1;
+
+    const dayparts = ['morning', 'day', 'dusk', 'night'];
+    const daypartOk = dayparts.includes(floor.dataset.daypart)
+      && floor.dataset.daypart === window.__stageUi.daypartOf(new Date().getHours());
+    const clockOk = /^本机 \\d{2}:\\d{2}/.test(clockText);
+
+    const actorCountLive = document.querySelectorAll('.stage-actor:not([hidden])').length;
+    const activities = [...document.querySelectorAll('.stage-actor:not([hidden]) .actor-id-tag')]
+      .map((t) => t.querySelector('.actor-activity')).filter(Boolean).length;
+    window.__stageUi.setActorState('m-local', 'thinking');
+    const bar = document.querySelector('.stage-actor[data-model-id="m-local"] .actor-activity');
+    const busyBar = bar ? Number(getComputedStyle(bar, '::before').opacity) : -1;
+    window.__stageUi.setActorState('m-local', 'waiting');
+    const idleBar = bar ? Number(getComputedStyle(bar, '::before').opacity) : -1;
+
+    const pokeBtn = panel.querySelector('button[data-action="poke"]');
+    let poked = null;
+    if (pokeBtn) {
+      pokeBtn.click();
+      poked = Boolean(document.querySelector('.stage-actor:not([hidden]) .actor-poke-bubble:not([hidden])'));
+    }
+    panel.querySelector('.facility-close').click();
+    const closed = panel.hidden && !document.querySelector('.room-plate.is-open');
+    window.__stageUi.setActorState('m-local', 'waiting');
+    await window.__stageUi.applyEcosystem(true);
+    return { pe, cursor, hit, opened, headText, clockText, occupantCount: info.occupants.length,
+      namesMatch, noFakeMetrics, inWrap, anchored, moved, stillInWrap, daypartOk, clockOk,
+      activities, actorCountLive, busyBar, idleBar, poked, closed };
+  })()`);
+  if (facilityCheck.pe !== 'auto' || facilityCheck.cursor !== 'pointer' || facilityCheck.hit < 1) {
+    throw new Error(`设施铭牌不可点：${JSON.stringify(facilityCheck)}`);
+  }
+  if (!facilityCheck.opened || !facilityCheck.headText.includes('PC-01')) throw new Error(`点铭牌没打开设施详情：${JSON.stringify(facilityCheck)}`);
+  if (!facilityCheck.namesMatch || !facilityCheck.noFakeMetrics) throw new Error(`设施详情不是真实占用或混进了编造指标：${JSON.stringify(facilityCheck)}`);
+  if (!facilityCheck.inWrap || !facilityCheck.anchored) throw new Error(`设施面板没锚在代号牌上或跑出画布：${JSON.stringify(facilityCheck)}`);
+  if (!facilityCheck.moved || !facilityCheck.stillInWrap) throw new Error(`设施面板拖不动或拖出画布：${JSON.stringify(facilityCheck)}`);
+  if (!facilityCheck.daypartOk || !facilityCheck.clockOk) throw new Error(`时段光照 / 本机时间不对：${JSON.stringify(facilityCheck)}`);
+  if (facilityCheck.activities !== facilityCheck.actorCountLive) throw new Error(`头顶状态条数量不对：${JSON.stringify(facilityCheck)}`);
+  if (!(facilityCheck.busyBar > 0) || facilityCheck.idleBar !== 0) throw new Error(`状态条没跟真实状态走：${JSON.stringify(facilityCheck)}`);
+  if (!facilityCheck.poked || !facilityCheck.closed) throw new Error(`面板操作没接到已有能力或关不掉：${JSON.stringify(facilityCheck)}`);
+  result.checks.push('facility-plates-clickable', 'facility-panel-opens', 'facility-panel-real-occupancy',
+    'facility-panel-anchored', 'facility-panel-draggable', 'daypart-follows-clock',
+    'actor-activity-follows-state', 'facility-actions-wired', 'facility-panel-closes');
+
   // 留两张图：默认关系图、桌宠模式。
   const spriteReady = await js(`(async () => {
     ['m-local', 'm-cloud', 'm-deepseek'].forEach((id) => {

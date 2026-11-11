@@ -99,3 +99,43 @@ ZipZipPipe 角色不匹配。自绘 SVG 有三个实际好处：跟随主题变�
 - 临时预览页 + headless Chrome 截图核对深/浅两套主题（预览页不入库），
   另用 `--dump-dom` 实测每条 ID 条与家具 `getBBox()` 的像素差；
 - 桌宠小窗（176×200）下房间层与角色代号牌一起隐藏。
+
+## 设施详情、时段光照与头顶状态条（2026-11-11）
+
+这一轮只加交互与氛围，**没有把协作舱改成经营模拟**：不做排班、不做产出结算、
+不做离线推进。房间里出现的每个数字都必须有真实来源。
+
+| 文件 | 职责 |
+| --- | --- |
+| `desktop/facility-panel.js` | 点铭牌打开详情；渲染真实占用、本机时间，操作转交 `stage-ui.js` |
+| `desktop/room.css` | 铭牌可点、时段色温、状态条、浮层样式 |
+| `desktop/stage-ui.js` | `facilityInfo()` / `actorAction()` / `daypartOf()`；缓存 `applyEcosystem` 的座位归属 |
+| `desktop/facility-panel.test.cjs` | 静态断言：接线存在、文案没有凭空捏造的指标 |
+
+**铭牌是设施入口**：`#stage-room` 整体 `pointer-events:none`（不挡角色拖拽），
+只有 `.room-plate` 单独放行。面板水平锚在被点铭牌附近、垂直贴画布顶部墙区
+（`top = 34px`，避开两块分区标签）——最初锚在铭牌下方，实测会盖住中间角色的上半身，
+已改掉。标题条可拖动，位置钳制在画布内；点别处或 Esc 收起。
+
+**面板内容只有事实**：设施编号与名称来自 `__ROOM_LAYOUT`；占用来自
+`applyEcosystem()` 真实算出的 `lastSeats`，不在面板里重算；
+状态文字来自 `STATE_LABEL` 映射的真实派发状态；时间来自本机 `Date`。
+面板里没有百分比、效率、产出、心情——没有真实来源的数字一律不画。
+操作按钮（选中 / 换形象 / 戳一下）走 `stage-ui.actorAction()`，不另写一套状态。
+
+**时段光照**只叠一层低透明度色温（清晨暖、白天透明、傍晚橙、夜里蓝），
+不改 `--room-*` 主题变量，所以深浅两套主题都不会被顶掉。`data-daypart` 写在
+`#stage-floor` 上，进入页面时对齐一次，之后每分钟低频对齐；面板显示同一份本机时间。
+
+**头顶状态条**是 `.actor-id-tag` 里的 `<b class="actor-activity">`（用 `b` 而不是 `i`，
+因为 `i` 已被状态点占用）。生成中 / 输出中扫动，完成绿、失败红、待机静态透明。
+待机不用「从 `opacity:0` 起步的入场动画」：隐藏窗口不推进 CSS 动画，那样会永远停在透明帧。
+
+验证：`npm test` 214/214、`npm run verify:ui` 64 项（新增
+`facility-plates-clickable` / `facility-panel-opens` / `facility-panel-real-occupancy` /
+`facility-panel-anchored` / `facility-panel-draggable` / `daypart-follows-clock` /
+`actor-activity-follows-state` / `facility-actions-wired` / `facility-panel-closes`）。
+其中 `facility-plates-clickable` 用 `elementFromPoint` 检查铭牌真的能接住点击，
+不是只改了个 CSS 属性。
+
+**授权状态没有变化**：本轮未引入新素材；现有角色形象仍仅限本机、个人、非商业使用。

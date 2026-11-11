@@ -1,13 +1,13 @@
 {
   "project": "Model Desk Workbench",
   "version": "0.1.0-preview",
-  "date": "2026-11-10",
+  "date": "2026-11-11",
   "scope": "Source-only snapshot; excludes runtime data and this manifest itself.",
   "files": [
     {
       "path": ".gitignore",
-      "sha256": "30fa8fbb70eab8b02c340b91abc62566a920610c2131743672c29355fc1dc2eb",
-      "bytes": 1730
+      "sha256": "ffa737bf2cb970acd225bd6ab584cd9c2d5929c1ca91f53dafb63c9e0216bcda",
+      "bytes": 1753
     },
     {
       "path": ".local-worker/acceptance_profiles.json",
@@ -1071,8 +1071,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "7485519f4ce3d1a4a511a504125be3c1d9d3e95f6ce39cd34f2a3d238427e74a",
-      "bytes": 40115
+      "sha256": "2c61d611b593df3d2864f88a80c8e71aae542a544cd6fbe319bfd2fec64b1d75",
+      "bytes": 45702
     },
     {
       "path": "LICENSE",
@@ -1081,8 +1081,8 @@
     },
     {
       "path": "README.md",
-      "sha256": "d06a03cfec41da053513d8a139b65174085e5b3515591e1522402d7bb9fff689",
-      "bytes": 5311
+      "sha256": "ce7c5515c2766fde7cb7d1e0d0f7c51abe7d24271c243d066c2933769a03b97b",
+      "bytes": 5663
     },
     {
       "path": "THIRD_PARTY.md",
@@ -1626,13 +1626,13 @@
     },
     {
       "path": "desktop/assets/rooms/office.js",
-      "sha256": "e5415716dc03c14024c99a462ac6031715cd91aaf7fa33fcad2bc2204162fc98",
-      "bytes": 1654
+      "sha256": "5e8532ab4e148ed8e32e9facbaba835219839c6aa682fb0dcbe32238dbabe243",
+      "bytes": 1683
     },
     {
       "path": "desktop/assets/rooms/office.json",
-      "sha256": "2d341eaa5b4f7abee5a7b267a663806db29224c45685282753ca11312afcc6cd",
-      "bytes": 2298
+      "sha256": "04aa6ba9fe4a2e54bf3f66d2585c26ffd8f309da6cd3f274a87da7ccfe357267",
+      "bytes": 2439
     },
     {
       "path": "desktop/assets/vendor/.gitattributes",
@@ -1955,19 +1955,39 @@
       "bytes": 2244
     },
     {
+      "path": "desktop/facility-panel.js",
+      "sha256": "0f5e002c66ec704ef1a7794da66cd7b9c2443154f7312d81d1db07597e29aae8",
+      "bytes": 8101
+    },
+    {
+      "path": "desktop/facility-panel.test.cjs",
+      "sha256": "28abe0dcc68a56a1adbbe647b7f664c7cbc8b29c0f59d41e5ceda6c2d171cf7c",
+      "bytes": 2721
+    },
+    {
       "path": "desktop/fixtures/empty-project/.keep",
       "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "bytes": 0
     },
     {
       "path": "desktop/index.html",
-      "sha256": "4bcd706feb1937ab9e2c0cc6cdbe3751980436ce036a082b5d8b3fc1229a4539",
-      "bytes": 40334
+      "sha256": "42bdda067789b1dc923b8530e9778d8d520057b0ff88a9733e67be1cddda9916",
+      "bytes": 40525
+    },
+    {
+      "path": "desktop/main-verify-run.cjs",
+      "sha256": "00c087c31b45c1fba57bc0a72e461078663f498a0501bc3989a666d43a1d0c2a",
+      "bytes": 3194
+    },
+    {
+      "path": "desktop/main-verify-wiring.test.cjs",
+      "sha256": "2346a11580d6cf56acab1a556592365528dd88bde83c8a9c17b3a34d728bb57c",
+      "bytes": 2363
     },
     {
       "path": "desktop/main.cjs",
-      "sha256": "1ee03442cd41a4eec9351818ce8c3fbe6eb58a5ba8b2c6a8b91fbe851078c2ce",
-      "bytes": 74562
+      "sha256": "407771f052df4ec26801a413d34d11ad9338e3e9c9c16f608dfa782257f8e6ba",
+      "bytes": 84687
     },
     {
       "path": "desktop/memory-bootstrap.cjs",
@@ -2151,8 +2171,8 @@
     },
     {
       "path": "desktop/package.json",
-      "sha256": "af0025e2172749c4fb245181eb15579c35fcf5030794a2723e89b727bbef7640",
-      "bytes": 452
+      "sha256": "a557c81a92659605a5869b56acf023f176345476e6523b04ab06ea293ec876cd",
+      "bytes": 528
     },
     {
       "path": "desktop/panel-connector.cjs",
@@ -2186,8 +2206,8 @@
     },
     {
       "path": "desktop/pet-drag.test.cjs",
-      "sha256": "4df4fe66ccb3ddc3c37675b64dc983fd0b2fff1a7e1fe534f3453e41d95b1c32",
-      "bytes": 5781
+      "sha256": "4c1d6f66c468705978dc59d387ab879a698d1e1194c304226711e9a3f0a14c4d",
+      "bytes": 5807
     },
     {
       "path": "desktop/pet-motion.js",
@@ -2206,8 +2226,8 @@
     },
     {
       "path": "desktop/pet-ui.js",
-      "sha256": "74eeabe2849464a478c9eb7c013afecef361bec92566d387788359d678026a35",
-      "bytes": 22287
+      "sha256": "a6462993b1daa2a4f63251c5f18d8bfd2f4abb05630c3347e202643336a9ed3c",
+      "bytes": 23946
     },
     {
       "path": "desktop/pet-verify-run.cjs",
@@ -2221,8 +2241,8 @@
     },
     {
       "path": "desktop/pet-window.cjs",
-      "sha256": "a978fe18f7faec94f2889d9c299d21cdfbdebc4b22572cb7ca327faf43ce2bc4",
-      "bytes": 13050
+      "sha256": "55c9d4462fa23f5ebf01b7d41baafab4031adc44d2fbc866fd8e3b4e5bb65e64",
+      "bytes": 13291
     },
     {
       "path": "desktop/pet-window.test.cjs",
@@ -2231,8 +2251,8 @@
     },
     {
       "path": "desktop/pet.css",
-      "sha256": "13412990f383815a90eeea4765487c93790f1d250094138ad72e3b7162e72a85",
-      "bytes": 8572
+      "sha256": "95e2eaef2f661c45ab4c7a779f265c67fb3931699c25f18ef9145946908f8c35",
+      "bytes": 8950
     },
     {
       "path": "desktop/pet.html",
@@ -2251,13 +2271,13 @@
     },
     {
       "path": "desktop/room.css",
-      "sha256": "02155faffb8919dd3f132977d38974d06f2d9da3221a7f0b2e3083df08b87ece",
-      "bytes": 8144
+      "sha256": "268410a67c8953b930d9c5c77e10a402a3da4926b2bfa6a8c70145c6ec8167d3",
+      "bytes": 13000
     },
     {
       "path": "desktop/room.js",
-      "sha256": "2fbd5ae6adf343c82a1a354c19a51fd56f221f06bdef89625ba2cb2937ef5ee3",
-      "bytes": 10637
+      "sha256": "e7ef009eca0239231e89466a705f071b5299bd03293b5e0ae3a10f747a010fa9",
+      "bytes": 10869
     },
     {
       "path": "desktop/shell-overrides.css",
@@ -2276,13 +2296,13 @@
     },
     {
       "path": "desktop/stage-ui.js",
-      "sha256": "608ffdb41d721ef1d09663c6bf91c73cad6558983d021c7440004ff690a58ae7",
-      "bytes": 65806
+      "sha256": "2ced89eb74f52dd48742f5fe66f0b7c54d2295e76ea56bc87d64423d8d5cde1c",
+      "bytes": 70389
     },
     {
       "path": "desktop/stage.css",
-      "sha256": "5503eba53e3c3ecd600204aa801d8efc15dc5fa6c208e124b1acb40830e995ed",
-      "bytes": 24922
+      "sha256": "77839bf339f210987f95424cfeb6b22e1e4f9e42aeecbbc98469dff98421cf40",
+      "bytes": 25233
     },
     {
       "path": "desktop/style.css",
@@ -2331,13 +2351,13 @@
     },
     {
       "path": "desktop/ui-verify.cjs",
-      "sha256": "abd63a14abe3758012dad57e2cf5cc8a861170d79b2d7175d49e8ab8ab0dfbc8",
-      "bytes": 86225
+      "sha256": "fc402db7886e30a807012628dbe0a551a8a79c949db84fd20d9346cc5478d4f4",
+      "bytes": 92492
     },
     {
       "path": "desktop/vendor-assets.test.cjs",
-      "sha256": "4e5461b67954f206960fc969209f1899da2f4e79b01a6310b589fb51d7ee83c3",
-      "bytes": 6246
+      "sha256": "9afcc24b415dd014df00229b3e7bd083671ee2d75283e8199e9999f3d57fb452",
+      "bytes": 6372
     },
     {
       "path": "desktop/vendor-icons.css",
@@ -2416,8 +2436,8 @@
     },
     {
       "path": "docs/COLLAB_ROOM.md",
-      "sha256": "d7d8e4c07cf98a94727665a8a751083cf9511b82dc7cd10e34129c4511d0afeb",
-      "bytes": 6066
+      "sha256": "01d1da3479e246df522b27296e9e9e4ff6693e71293657e31b8d8e89cf7405ab",
+      "bytes": 9045
     },
     {
       "path": "docs/COLLAB_VIEW.md",
@@ -2526,8 +2546,8 @@
     },
     {
       "path": "docs/ROADMAP.md",
-      "sha256": "a803224639c0d77dbec44f4ec68a812193b4a5d38f4c3902e34b8efc8f021c0f",
-      "bytes": 1844
+      "sha256": "039f53bbcb2e2a751b66772f955cfe5da5866d907d493986e8b6fa4191bc629a",
+      "bytes": 1925
     },
     {
       "path": "docs/SHELL_GUARD.md",
@@ -2566,8 +2586,8 @@
     },
     {
       "path": "docs/VALIDATION.md",
-      "sha256": "545e69bdf3e9b3660af8bbcf3ef06519f08fb8a0313a462b8ed7440c68c2caab",
-      "bytes": 8578
+      "sha256": "bfe8303e92f37a09566bf023c635264a6849f3578fa6118474676beecbc2d191",
+      "bytes": 13571
     },
     {
       "path": "docs/WORKBUDDY_EXECUTOR.md",
@@ -2641,8 +2661,8 @@
     },
     {
       "path": "scripts/sync-room-layout.cjs",
-      "sha256": "531eef654350cb2e81f5db2d945dc3e901dfa23109b6383a248e0f419149b67a",
-      "bytes": 997
+      "sha256": "2d61a43a9329e7a6eb33c89d3c9b52d9ca1123e440fc9cc846d5022f23b3ac67",
+      "bytes": 1018
     },
     {
       "path": "scripts/sync-to-runtime.cjs",

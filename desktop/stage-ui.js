@@ -54,6 +54,8 @@
   let activeTurn = -1;
   let autoPlace = true;
   let statusRows = new Map();
+  // applyEcosystem 算出的真实座位归属，设施面板据此显示「谁坐在这」，不另算一套。
+  let lastSeats = new Map();
   let lastLinkSig = '';
   let contextActor = null;
   let dialogueTimer = null, dialoguePinned = false, lastMessage = null;
@@ -427,6 +429,7 @@
       actor.bubble.textContent = text.length > 26 ? text.slice(0, 26) + '…' : text;
     } else { actor.bubble.hidden = true; actor.bubble.textContent = ''; }
     updateStatusRow(actor);
+    window.__facilityPanel?.refresh();
     if (zoneOf(state) !== oldZone) applyEcosystem();  // 只在跨区时才重排，避免日志轮询来回跳
   }
 
@@ -463,6 +466,7 @@
     const discussing = running;
 
     const seated = new Map();
+    lastSeats = seated;
     const ROOM = window.__room;
     if (ROOM) {
       // 角色节点约 156×168：两个座位的间距小于这个尺寸，角色就会叠在一起。
@@ -542,6 +546,7 @@
     // 之前这里用 drawLinks(true)，跨区时每轮 8+ 次销毁重建 animateMotion，光点归零重放 = 闪烁。
     drawLinks();
     followLayout(520);
+    window.__facilityPanel?.refresh();
   }
 
   // 连线：只有「结构」变化（边数 / 当前轮 / 选中 / 显隐 / 尺寸）才重建 SVG；
@@ -985,7 +990,11 @@
       const mood = document.createElement('img');
       mood.className = 'actor-mood'; mood.alt = ''; mood.hidden = true;
       mood.onerror = () => { mood.hidden = true; };
-      idTag.append(idDot, idText, mood);
+      // 头顶状态条：只表示「进行中 / 完成 / 失败」，不画百分比（没有真实进度值）。
+      // 用 b 而不是 i：.actor-id-tag i 已经被状态点占用，套上去会变成小圆点。
+      const activity = document.createElement('b');
+      activity.className = 'actor-activity';
+      idTag.append(idDot, idText, mood, activity);
       const avatar = document.createElement('div'); avatar.className = 'stage-actor-avatar';
       const name = document.createElement('div'); name.className = 'stage-actor-name';
       name.textContent = aliasOf(model); name.title = aliasOf(model);
@@ -1260,6 +1269,15 @@
     contextMenu.addEventListener('pointerup', stopMenuDrag);
     contextMenu.addEventListener('pointercancel', stopMenuDrag);
   }
+  // 设施代号牌是设施入口；点别处收起面板，别让它一直挡着角色。
+  floor.addEventListener('click', (event) => {
+    const plate = event.target.closest('.room-plate[data-prop-id]');
+    if (plate) {
+      window.__facilityPanel?.open(plate.dataset.propId, plate);
+      return;
+    }
+    window.__facilityPanel?.close();
+  });
   floor.addEventListener('contextmenu', (event) => {
     if (event.target.closest('.stage-actor')) return;
     event.preventDefault();
@@ -1271,6 +1289,7 @@
     const wasInMenu = contextMenu && contextMenu.contains(document.activeElement);
     const returnTo = wasInMenu && contextActor ? contextActor.el : null;
     closeContextMenu();
+    window.__facilityPanel?.close();
     if (returnTo) returnTo.focus();
   });
   window.addEventListener('resize', () => {
@@ -1324,6 +1343,42 @@
     renderTurns(); renderStatusList();
     lastLinkSig = ''; requestAnimationFrame(() => drawLinks(true));
   }
+  // ---- 设施详情与时段光照：只把已经存在的事实显示出来 ----
+  function daypartOf(hour) {
+    if (hour >= 5 && hour < 9) return 'morning';
+    if (hour >= 9 && hour < 17) return 'day';
+    if (hour >= 17 && hour < 20) return 'dusk';
+    return 'night';
+  }
+  function applyDaypart() {
+    if (!floor) return;
+    floor.dataset.daypart = daypartOf(new Date().getHours());
+    window.__facilityPanel?.refreshClock?.();
+  }
+  // 座位归属来自 applyEcosystem 的真实结果，不在这里另算一遍，避免两处说法不一致。
+  function facilityInfo(id) {
+    const prop = window.__room?.layout?.props?.find((p) => p.id === id) || null;
+    const occupants = [];
+    for (const [a, seat] of lastSeats) {
+      if (!seat || seat.propId !== id || !actors.has(a.model.id)) continue;
+      const live = actors.get(a.model.id);
+      const state = live.el.dataset.state;
+      occupants.push({ id: live.model.id, name: aliasOf(live.model), state,
+        stateLabel: STATE_LABEL[state] || state, manual: Boolean(live.manualPos) });
+    }
+    return { prop, occupants, seatCount: prop?.seats?.length || 0 };
+  }
+  // 面板里的操作全部转交已有能力，不另做一套状态。
+  function actorAction(id, action) {
+    const actor = actors.get(id);
+    if (!actor) return false;
+    if (action === 'select') selectActor(id);
+    else if (action === 'library') { closeContextMenu(); openOutfitLibrary(actor); }
+    else if (action === 'poke') poke(actor);
+    else return false;
+    return true;
+  }
+
   function show() {
     for (const id of PAGE_IDS) { const el = $(id); if (el) el.hidden = id !== 'stage-page'; }
     window.__chatUi?.hidePage?.();
@@ -1337,6 +1392,7 @@
     }
     // 首屏走 loadModels 的分支也必须启动待机节拍，否则角色永远站得笔直。
     scheduleIdleBeat();
+    applyDaypart();
   }
   function hide() {
     page.hidden = true;
@@ -1353,5 +1409,8 @@
   }
 
   restoreMessages();
-  window.__stageUi = { show, hide, refresh: loadModels, drawLinks, buildStage, refreshView, applyEcosystem, clearMessages, idlePoke, setActorState };
+  applyDaypart();
+  // 时段会变（尤其傍晚 / 夜里），低频对齐一次就够；页面隐藏时不折腾。
+  setInterval(() => { if (!page.hidden) applyDaypart(); }, 60000);
+  window.__stageUi = { show, hide, refresh: loadModels, drawLinks, buildStage, refreshView, applyEcosystem, clearMessages, idlePoke, setActorState, facilityInfo, actorAction, daypartOf };
 })();
