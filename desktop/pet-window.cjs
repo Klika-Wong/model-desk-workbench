@@ -7,6 +7,7 @@ try { electronApi = require('electron'); } catch { electronApi = null; }
 const { BrowserWindow, ipcMain, screen } = electronApi || {};
 const path = require('node:path');
 const fs = require('node:fs');
+const geometry = require('./display-geometry.cjs');
 
 const WIDTH = 250;
 const HEIGHT = 300;
@@ -107,6 +108,47 @@ function defaultPosition() {
   return { x: Math.max(area.x, area.x + area.width - WIDTH - 40), y: Math.max(area.y, area.y + area.height - HEIGHT - 40) };
 }
 
+// 列出所有可用显示器的工作区；老 Electron 或纯 Node 测试环境没有 getAllDisplays 时退回主屏。
+function currentDisplays() {
+  try {
+    const all = typeof screen?.getAllDisplays === 'function' ? screen.getAllDisplays() : null;
+    if (Array.isArray(all) && all.length && all.some((d) => geometry.workAreaOf(d))) {
+      return all.filter((d) => geometry.workAreaOf(d));
+    }
+  } catch {}
+  try {
+    const primary = screen.getPrimaryDisplay();
+    return geometry.workAreaOf(primary) ? [primary] : [];
+  } catch { return []; }
+}
+
+// 位置落在所有屏幕之外时按最小平移夹回最近的一块屏，并同步落盘。
+// 拔掉外接显示器、改分辨率或休眠唤醒后，桌宠才不会「明明开着却找不到」。
+function rescueIfOffscreen() {
+  if (!petWindow || petWindow.isDestroyed()) return false;
+  const [x, y] = petWindow.getPosition();
+  const bounds = { x, y, width: WIDTH, height: HEIGHT };
+  const displays = currentDisplays();
+  if (!displays.length || geometry.visibleOnAnyDisplay(bounds, displays)) return false;
+  const target = geometry.clampToDisplays(bounds, displays);
+  if (!target) return false;
+  petWindow.setPosition(target.x, target.y);
+  state.x = target.x; state.y = target.y;
+  save();
+  return true;
+}
+
+// screen 是 app 级单例，只在注册时绑一次；模块可能被单测反复 require。
+const DISPLAY_EVENTS = ['display-added', 'display-removed', 'display-metrics-changed'];
+let displayListenersBound = false;
+function bindDisplayListeners() {
+  if (displayListenersBound || !screen || typeof screen.on !== 'function') return;
+  displayListenersBound = true;
+  for (const name of DISPLAY_EVENTS) {
+    try { screen.on(name, rescueIfOffscreen); } catch {}
+  }
+}
+
 function create() {
   if (petWindow && !petWindow.isDestroyed()) { petWindow.showInactive(); return petWindow; }
   const pos = (typeof state.x === 'number' && typeof state.y === 'number') ? { x: state.x, y: state.y } : defaultPosition();
@@ -127,11 +169,10 @@ function create() {
       backgroundThrottling: true,
     },
   });
-  // 位置可能来自旧显示器配置，落在屏幕外就拉回主屏，否则用户「拖不到」。
-  const area = screen.getPrimaryDisplay().workArea;
-  const outside = pos.x + WIDTH < area.x || pos.x > area.x + area.width
-    || pos.y + HEIGHT < area.y || pos.y > area.y + area.height;
-  if (outside) petWindow.setPosition(defaultPosition().x, defaultPosition().y);
+  // 位置来自上次的显示器配置：在任一块屏上还看得见就原样保留，只有彻底落在
+  // 所有屏幕外才救援。旧逻辑只拿主屏 workArea 比，拖到副屏后每次启动都被拉回来。
+  // 此时窗口仍是 show:false，救援发生在首次绘制之前，不会闪一下。
+  rescueIfOffscreen();
   petWindow.webContents?.once?.('did-finish-load', () => startHitPoll());
   petWindow.loadFile(path.join(__dirname, 'pet.html'));
   petWindow.once('ready-to-show', () => {
@@ -170,6 +211,7 @@ function trusted(event) {
 function registerPetWindow(userDataPath) {
   configPath = path.join(userDataPath, 'pet-window.json');
   load();
+  bindDisplayListeners();
   ipcMain.handle('pet:open', (event) => {
     // 只允许主窗口或桌宠自己打开，避免任意渲染进程弹窗。
     if (event.senderFrame && !isTrustedPetUrl(event.senderFrame.url)) {
@@ -316,8 +358,10 @@ function registerPetWindow(userDataPath) {
     },
     close: () => { if (petWindow && !petWindow.isDestroyed()) petWindow.close(); },
     // 只读快照，供诊断与测试确认内部状态
-    snapshot: () => ({ hitbox: hitbox ? Object.assign({}, hitbox) : null, ignoring, dragOffset: dragOffset ? Object.assign({}, dragOffset) : null, lastProbe }),
+    snapshot: () => ({ hitbox: hitbox ? Object.assign({}, hitbox) : null, ignoring, dragOffset: dragOffset ? Object.assign({}, dragOffset) : null, lastProbe, displays: currentDisplays().length }),
+    // 供验证脚本显式触发一次拓扑变化后的救援，不必真的拔显示器
+    rescueIfOffscreen,
   };
 }
 
-module.exports = { registerPetWindow, defaultPosition, sanitizeState, isTrustedPetUrl };
+module.exports = { registerPetWindow, defaultPosition, sanitizeState, isTrustedPetUrl, DISPLAY_EVENTS };

@@ -12,6 +12,7 @@ const {saveModelSettings} = require('./model-settings.cjs');
 const { composeMiniPayload } = require('./mini-tasks.cjs');
 const chatStore = require('./chat-store.cjs');
 const panelService = require('./panel-service.cjs');
+const geometry = require('./display-geometry.cjs');
 
 // Windows 的原生遮挡计算会在窗口被遮挡时停止渲染、恢复时重新提交整窗表面。
 // 个别机器上这会表现为「切回来闪一下」。默认遵循系统行为（省电、后台不空转），
@@ -305,17 +306,41 @@ function assertTrustedSender(event) {
   }
 }
 
+// 新窗口按光标所在显示器的工作区收缩尺寸：1366x768、125%/150% 缩放、任务栏占位
+// 都会让固定的 1380x900 超出可视区，标题栏和底部内容被切掉。拿不到工作区时保持原尺寸，
+// 不编一块「假屏幕」出来。
+function workAreaForNewWindow() {
+  try {
+    const point = typeof screen.getCursorScreenPoint === 'function' ? screen.getCursorScreenPoint() : null;
+    const display = point && typeof screen.getDisplayNearestPoint === 'function'
+      ? screen.getDisplayNearestPoint(point) : screen.getPrimaryDisplay();
+    if (display && display.workArea && display.workArea.width > 0 && display.workArea.height > 0) {
+      return display.workArea;
+    }
+  } catch {}
+  return null;
+}
+
+const MAIN_DESIRED = { width: 1380, height: 900 };
+const MAIN_MINIMUM = { width: 800, height: 700 };
+function mainWindowSize() {
+  const area = workAreaForNewWindow();
+  if (!area) return { width: MAIN_DESIRED.width, height: MAIN_DESIRED.height, minWidth: MAIN_MINIMUM.width, minHeight: MAIN_MINIMUM.height, area: null };
+  return Object.assign(geometry.fitWindowSize(MAIN_DESIRED, MAIN_MINIMUM, area), { area });
+}
+
 async function createWindow({ show = true } = {}) {
+  const size = mainWindowSize();
   const window = new BrowserWindow({
-    width: 1380,
-    height: 900,
+    width: size.width,
+    height: size.height,
     // 一律先隐藏：等首帧真正绘制完再显示。否则窗口会先露一下未绘制的底色，
     // 深色主题下那次「白闪」尤其明显。
     show: false,
     // 兜底底色用中性深灰，即使露出边缘也不会刺眼地白一下。
     backgroundColor: '#17181c',
-    minWidth: 800,
-    minHeight: 700,
+    minWidth: size.minWidth,
+    minHeight: size.minHeight,
     title: 'Model Desk — Desktop Shell Prototype',
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
@@ -1412,14 +1437,19 @@ async function runMainVerify() {
       throw new Error('createWindow 没有把 mainWindow 指向一个活着的窗口。');
     }
     const bounds = win.getBounds();
-    // 高 DPI（125%）下 Windows 会把 1380x900 取整成 1381x901，所以给 2px 容差。
-    if (Math.abs(bounds.width - 1380) > 2 || Math.abs(bounds.height - 900) > 2) {
-      throw new Error(`主窗尺寸与 createWindow 声明不一致：${bounds.width}x${bounds.height}`);
+    const expectedSize = mainWindowSize();
+    // 高 DPI（125%）下 Windows 会把声明尺寸取整成 1381x901，所以给 2px 容差。
+    if (Math.abs(bounds.width - expectedSize.width) > 2 || Math.abs(bounds.height - expectedSize.height) > 2) {
+      throw new Error(`主窗尺寸与工作区收缩后的声明不一致：${bounds.width}x${bounds.height} vs ${expectedSize.width}x${expectedSize.height}`);
+    }
+    if (expectedSize.area && (bounds.width > expectedSize.area.width + 2 || bounds.height > expectedSize.area.height + 2)) {
+      throw new Error(`主窗超出工作区：${bounds.width}x${bounds.height} > ${expectedSize.area.width}x${expectedSize.area.height}`);
     }
     if (win.getTitle() !== 'Model Desk — Desktop Shell Prototype') {
       throw new Error(`主窗标题不对：${win.getTitle()}`);
     }
     checks.push('main-window-created');
+    if (expectedSize.area) checks.push('main-window-fits-work-area');
 
     stage = 'main window isolation';
     write(stage, false);
@@ -1497,6 +1527,12 @@ async function runMainVerify() {
     }, 15000, 'pet.html');
     if (!petVisible) throw new Error('桌宠窗口没有加载 pet.html。');
     checks.push('pet-window-registered');
+    // 真机里确认桌宠确实读到了显示器工作区，而不是只在假 screen 单测里成立。
+    const petDisplays = petWindowCtl.snapshot().displays;
+    if (!Number.isInteger(petDisplays) || petDisplays < 1) {
+      throw new Error(`桌宠没拿到可用的显示器工作区：${petDisplays}`);
+    }
+    checks.push('pet-display-aware');
 
     stage = 'close hides to tray';
     write(stage, false);
@@ -1530,7 +1566,17 @@ async function runMainVerify() {
     stage = 'clean exit';
     write(stage, false, { diagnostics: { visibleAfterShow: win.isVisible(), events } });
     checks.push('ready-to-quit');
-    write(stage, true, { diagnostics: { visibleAfterShow: win.isVisible(), events } });
+    // 把真机读数写进结果，跨机器排查「窗口超屏」时不用靠猜本机缩放比例。
+    write(stage, true, {
+      diagnostics: { visibleAfterShow: win.isVisible(), events },
+      windowGeometry: {
+        window: [bounds.width, bounds.height],
+        workArea: expectedSize.area
+          ? [expectedSize.area.width, expectedSize.area.height, expectedSize.area.x, expectedSize.area.y]
+          : null,
+        desired: [MAIN_DESIRED.width, MAIN_DESIRED.height],
+      },
+    });
     // 走真实退出：停本机服务 → 关桌宠 → 关主窗 → app.quit。
     requestExit();
   } catch (error) {

@@ -1,5 +1,37 @@
 # 本次发布验证
 
+## 2026-11-11 多显示器窗口几何、主窗按工作区收缩
+
+| 检查 | 命令 | 结果 |
+| --- | --- | --- |
+| 单元测试 | `npm test` | 244/244（新增 13 项：几何 8、桌宠多屏 5） |
+| 界面真机 | `npm run verify:ui` | 71 项，console 错误 0（回归，主界面未改） |
+| 桌宠真机 | `npm run verify:pet` | 21 项，errors 0（回归） |
+| 主进程真机 | `npm run verify:main` | 15 项（新增 `main-window-fits-work-area`、`pet-display-aware`） |
+| 桌面冒烟 | `npm run smoke` | 通过 |
+| vendor 素材离线校验 | `node scripts/vendor-assets.cjs --check` | 37 文件 / 2 来源 |
+| 源码清单 | `node scripts/build-source-manifest.cjs` | 539 文件 |
+| 发布源码扫描 | `python scripts/check_public_source.py` | `{"files":539,"findings":[]}`，退出码 0 |
+| E 盘运行实例 | `node scripts/sync-to-runtime.cjs` 后复跑 | 单测 239 通过 + 5 明确跳过（0 失败）、`verify:ui` 71 项、`verify:pet` 21 项、`verify:main` 15 项；窗口几何读数与仓库侧一致 |
+
+新增断言不是只看字符串：
+
+- `display-geometry.test.cjs` 覆盖双屏、负坐标屏、坏显示器数据、拔屏最小平移、窗口大于工作区、
+  1366×728 与 640×480 下的尺寸及 `minWidth/minHeight` 夹取。
+- `pet-display.test.cjs` 用假 `electron.screen` 真跑 `pet:open` 与 `display-*` 事件：
+  副屏位置不被改动、启动时已越界会夹回并落盘、重复事件不重复搬窗、托盘隐藏时不弹出、
+  三种事件各只绑一次。
+- `verify:main` 在真 Electron 里断言主窗不超出工作区、桌宠确实读到显示器列表；
+  真机读数：`window:[1381,901]`、`workArea:[1707,1067,0,0]`、`desired:[1380,900]`。
+
+**边界与未解决**：
+
+- 本机工作区 1707×1067 DIP 大于原尺寸，**主窗尺寸没有实际变化**；小屏收缩只由纯函数单测
+  与源码断言覆盖，没有在 1366×768 或混合 DPI 双屏真机上实测。
+- 桌宠多屏恢复 / 热插拔只在假 `screen` 下验证，没有真的拔过外接显示器。
+- 透明桌宠窗口在部分显卡上的偶发闪烁仍缺可靠复现，本轮未动。
+- 真实模型调用与计费、安装包与升级、系统休眠唤醒仍未覆盖。
+
 ## 2026-11-11 桌宠输入链路、清单跨机器核对、临时数据排除
 
 | 检查 | 命令 | 结果 |

@@ -7,6 +7,7 @@ const path = require('node:path');
 
 const root = __dirname;
 const mainSource = fs.readFileSync(path.join(root, 'main.cjs'), 'utf8');
+const petSource = fs.readFileSync(path.join(root, 'pet-window.cjs'), 'utf8');
 const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
 
 test('package.json 里有 test 与 verify:main（README 承诺过 npm test）', () => {
@@ -40,6 +41,21 @@ test('backgroundThrottling 只在 smoke 里关掉', () => {
 test('判定不靠 isVisible()：这台机器上它会在 show 事件后读回 false', () => {
   assert.match(mainSource, /window\.__shown = true/);
   assert.doesNotMatch(mainSource, /if \(!await waitFor\(\(\) => win\.isVisible\(\)/);
+});
+
+test('主窗尺寸按工作区收缩，真机验证会真的断言不超屏', () => {
+  assert.match(mainSource, /geometry\.fitWindowSize\(MAIN_DESIRED, MAIN_MINIMUM, area\)/);
+  assert.match(mainSource, /minWidth: size\.minWidth/);
+  assert.match(mainSource, /main-window-fits-work-area/);
+  assert.match(mainSource, /pet-display-aware/);
+});
+
+test('桌宠恢复位置看所有显示器，并挂上拓扑变化监听', () => {
+  assert.match(petSource, /geometry\.visibleOnAnyDisplay\(bounds, displays\)/);
+  assert.match(petSource, /screen\.getAllDisplays\(\)/);
+  for (const name of ['display-added', 'display-removed', 'display-metrics-changed']) {
+    assert.ok(petSource.includes(name), `${name} 监听不能丢`);
+  }
 });
 
 test('运行器用系统临时目录的独立 profile，不递归删固定目录', () => {

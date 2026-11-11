@@ -65,6 +65,9 @@ async function main() {
   }
 
   const checks = Array.isArray(result.checks) ? result.checks : [];
+  if (result.windowGeometry) {
+    process.stdout.write(`窗口几何（真机 DIP）：${JSON.stringify(result.windowGeometry)}\n`);
+  }
   if (result.ok && checks.length) {
     process.stdout.write(`主进程真实启动路径：${checks.length} 项通过\n`);
     for (const check of checks) process.stdout.write(`  ok  ${check}\n`);

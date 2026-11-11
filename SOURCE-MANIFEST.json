@@ -1072,8 +1072,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "0e94cab0aca780190bb3160d5c8015217774e51cebef4f7981d603a035083e3e",
-      "bytes": 51589
+      "sha256": "5e5403ccc29865c2be8fca4b893da6804d1ffdfa5b30064127a9259cea35615f",
+      "bytes": 54131
     },
     {
       "path": "LICENSE",
@@ -1941,6 +1941,16 @@
       "bytes": 7459
     },
     {
+      "path": "desktop/display-geometry.cjs",
+      "sha256": "b3219927603c76c3f2d809de50ad31991b4c7fb2f81b2064a86500ff90ce554c",
+      "bytes": 3537
+    },
+    {
+      "path": "desktop/display-geometry.test.cjs",
+      "sha256": "d2cabb4ad1d0a8edc904f0f68e99c600cf3b83bee3157098a82ed8e8981b00d8",
+      "bytes": 4203
+    },
+    {
       "path": "desktop/embed-lifecycle.test.cjs",
       "sha256": "a9f031f8774aa8218d4bc2e7bc92516ccdd67c37c2d10a29fb51404273fa5ee4",
       "bytes": 2209
@@ -1967,18 +1977,18 @@
     },
     {
       "path": "desktop/main-verify-run.cjs",
-      "sha256": "00c087c31b45c1fba57bc0a72e461078663f498a0501bc3989a666d43a1d0c2a",
-      "bytes": 3194
+      "sha256": "f9dd80f2b82e47fe8c6201496350d1d91a300e0a4c2bc0d298bb5d07c2c08006",
+      "bytes": 3332
     },
     {
       "path": "desktop/main-verify-wiring.test.cjs",
-      "sha256": "2346a11580d6cf56acab1a556592365528dd88bde83c8a9c17b3a34d728bb57c",
-      "bytes": 2363
+      "sha256": "7772c6656cf1f5f2095f99217b807448e4f984a6ab624063a7b58242bd97378b",
+      "bytes": 3171
     },
     {
       "path": "desktop/main.cjs",
-      "sha256": "79d3839ce19c45a3b484d88e49037ec9404d4d27039ff934ebf5672918704e52",
-      "bytes": 83133
+      "sha256": "f9528446fd8d4ee1a9d7c3e5ec0b22979f90543bde13a211f09ce6435ea26ee8",
+      "bytes": 85665
     },
     {
       "path": "desktop/memory-bootstrap.cjs",
@@ -2196,6 +2206,11 @@
       "bytes": 1571
     },
     {
+      "path": "desktop/pet-display.test.cjs",
+      "sha256": "8c2a27a58df575c5d59876b71688e4d8d1ecd49d55f31672392811e11a97174c",
+      "bytes": 4782
+    },
+    {
       "path": "desktop/pet-drag.test.cjs",
       "sha256": "b71962649a9a2908288bca1204da3c59f24b077fec177b11c26542ede48c6965",
       "bytes": 9287
@@ -2232,8 +2247,8 @@
     },
     {
       "path": "desktop/pet-window.cjs",
-      "sha256": "072e3086c7f2b270abdef8e89f8f3852221e4b54d318abd29220355d7a11119f",
-      "bytes": 15145
+      "sha256": "bd050ae1867c630d00b0a0a664bf45190e5ef51b820b88f1832f7f77af5e7c80",
+      "bytes": 17111
     },
     {
       "path": "desktop/pet-window.test.cjs",
@@ -2517,8 +2532,8 @@
     },
     {
       "path": "docs/PET_DESKTOP.md",
-      "sha256": "eb46fd9772b0cd1a4d96fbe3b246027aec16591d4951510888a152c1c1603fb2",
-      "bytes": 9085
+      "sha256": "df5795a23a2912ba64b20dac831c2562213a276a9bc145bbb166aff2ea4d2a37",
+      "bytes": 9979
     },
     {
       "path": "docs/PET_INTERACTION_FIXES.md",
@@ -2552,8 +2567,8 @@
     },
     {
       "path": "docs/ROADMAP.md",
-      "sha256": "2f83e2ae5bf935bf9c5cc0d28b5bd0fa3ada019ce60d5aa0564fac628e044e45",
-      "bytes": 1906
+      "sha256": "7622d6ff2f2e025eb9ec72ecd766e2c71b9ae9d920d9e94ccb34abb1ec291629",
+      "bytes": 2031
     },
     {
       "path": "docs/SHELL_GUARD.md",
@@ -2592,8 +2607,8 @@
     },
     {
       "path": "docs/VALIDATION.md",
-      "sha256": "55a275d6811d9783303644410c34e7a2ecc55d0c1ce92e615d141bef3bd5919c",
-      "bytes": 17949
+      "sha256": "1da4901da92b4909b9494494ae8be4b6416a516c95631a1ec4b0b7ab9cf43691",
+      "bytes": 20187
     },
     {
       "path": "docs/WORKBUDDY_EXECUTOR.md",
