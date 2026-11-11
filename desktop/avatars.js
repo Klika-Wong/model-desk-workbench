@@ -200,9 +200,14 @@ function stateFile(choice, state) {
 }
 
 // 状态 + 场景 → 动作行。场景只覆盖视觉动作，不改变真实状态。
+// setVisual() 会直接传动作名（moveLeft / moveRight / wave / jump），它们本身就是
+// spritesheet 的一行；早先只查 STATE_ACTION，这类名字查不到就回落 idle，
+// 于是「归位走路」实际播的是待机帧，角色看起来是在平移滑行。这里先放行直接动作名。
 function actionName(choice, state, scene) {
   const sceneAction = SCENE_ACTION[scene || 'discuss'];
-  return sceneAction || STATE_ACTION[state] || 'idle';
+  if (sceneAction) return sceneAction;
+  if (Object.prototype.hasOwnProperty.call(ACTIONS, state)) return state;
+  return STATE_ACTION[state] || 'idle';
 }
 function actionRow(choice, state, scene) {
   const row = ACTIONS[actionName(choice, state, scene)];

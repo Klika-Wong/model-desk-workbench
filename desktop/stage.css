@@ -396,3 +396,27 @@ html[data-reduce-motion="1"] .collab-pulse { display: none !important; }
 html[data-reduce-motion="1"] .stage-actor.is-placed { transition-duration: 1ms !important; }
 .motion-toggle { display: flex; align-items: flex-start; gap: 6px; font-size: 12px; line-height: 1.5; color: var(--ink-2); }
 .motion-toggle input { margin-top: 2px; flex: none; }
+
+/* ---- 空房间：没有在线模型时给一步到位的引导，而不是一间空屋子 ----
+   只用真实状态（actors.size === 0）决定显隐，不写任何虚构的进度/数值。 */
+.stage-empty {
+  position: absolute; z-index: 600; left: 50%; top: 54%;
+  transform: translate(-50%, -50%);
+  width: min(320px, calc(100% - 32px));
+  padding: 16px 18px 18px;
+  border: 1px solid var(--line-strong); border-radius: 14px;
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  box-shadow: 0 16px 40px -20px rgba(15, 23, 42, .5);
+  text-align: center;
+}
+.stage-empty[hidden] { display: none; }
+.stage-empty-title { margin: 0 0 6px; font-size: 14px; font-weight: 650; color: var(--ink); }
+.stage-empty-text { margin: 0 0 12px; font-size: 11px; line-height: 1.65; color: var(--muted); }
+.stage-empty button {
+  padding: 6px 14px; font-size: 11px; font-family: inherit;
+  border: 1px solid var(--accent-line); border-radius: 8px;
+  background: var(--surface-2); color: var(--accent); cursor: pointer;
+}
+.stage-empty button:hover { background: var(--surface-3); }
+.stage-empty button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.stage-empty button[hidden] { display: none; }

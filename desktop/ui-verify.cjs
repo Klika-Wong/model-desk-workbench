@@ -912,6 +912,115 @@ async function main() {
   }
   result.checks.push('collab-model-selection-persists');
 
+  // 归位走路：动作名必须真的解析成走路行，且「拖到别处 → 交回自动归位」时
+  // sprite 要切到 row 1/2、8 帧、不镜像，走完再回到状态帧。
+  // 旧实现只查 STATE_ACTION，'moveLeft'/'moveRight' 查不到就回落 idle（row 0），
+  // 看起来是待机帧在平移滑行。这里用真实 DOM 事件走一遍，不直接调内部函数。
+  const walkFrame = await js(`(async () => {
+    const A = window.__avatars;
+    const id = 'm-local';
+    document.documentElement.dataset.reduceMotion = '0';
+    document.querySelector('#nav-stage').click();
+    await new Promise(r => setTimeout(r, 300));
+    const actor = document.querySelector('.stage-actor[data-model-id="' + id + '"]');
+    const sprite = actor && actor.querySelector('.pet-sprite');
+    if (!sprite) return { error: 'no-sprite' };
+    const r0 = actor.getBoundingClientRect();
+    const fire = (type, x, y) => actor.dispatchEvent(new PointerEvent(type, {
+      bubbles: true, button: 0, pointerId: 1, clientX: x, clientY: y,
+    }));
+    fire('pointerdown', r0.left + 30, r0.top + 30);
+    fire('pointermove', Math.max(8, r0.left - 220), r0.top + 30);
+    fire('pointerup', Math.max(8, r0.left - 220), r0.top + 30);
+    await new Promise(r => setTimeout(r, 120));
+    actor.dispatchEvent(new MouseEvent('contextmenu', {
+      bubbles: true, clientX: r0.left + 20, clientY: r0.top + 20,
+    }));
+    const pin = document.querySelector('#stage-context-menu [data-action="pin"]');
+    if (!pin) return { error: 'no-pin' };
+    pin.click();
+    await new Promise(r => setTimeout(r, 70));
+    const row = sprite.style.getPropertyValue('--pet-row');
+    const frames = sprite.style.getPropertyValue('--pet-frames');
+    const flip = sprite.style.getPropertyValue('--pet-flip');
+    await new Promise(r => setTimeout(r, 1200));
+    return {
+      nameLeft: A.actionName(null, 'moveLeft', 'discuss'),
+      nameRight: A.actionName(null, 'moveRight', 'discuss'),
+      rowLeft: A.actionRow(null, 'moveLeft', 'discuss'),
+      framesLeft: A.actionFrames(null, 'moveLeft', 'discuss'),
+      idleName: A.actionName(null, 'waiting', 'discuss'),
+      row, frames, flip,
+      settled: sprite.style.getPropertyValue('--pet-row'),
+      manualCleared: !localStorage.getItem('collab-pos:' + id),
+    };
+  })()`);
+  if (walkFrame.error) throw new Error(`走路帧验证没跑起来：${walkFrame.error}`);
+  if (walkFrame.nameLeft !== 'moveLeft' || walkFrame.nameRight !== 'moveRight'
+    || walkFrame.rowLeft !== 2 || walkFrame.framesLeft !== 8 || walkFrame.idleName !== 'idle') {
+    throw new Error(`动作名没有解析成走路行：${JSON.stringify(walkFrame)}`);
+  }
+  if (walkFrame.row !== '1' && walkFrame.row !== '2') {
+    throw new Error(`归位时没有切到走路帧（row=${walkFrame.row}）：${JSON.stringify(walkFrame)}`);
+  }
+  if (walkFrame.frames !== '8' || walkFrame.flip !== '1') {
+    throw new Error(`走路帧数或朝向不对：${JSON.stringify(walkFrame)}`);
+  }
+  if (walkFrame.settled === '1' || walkFrame.settled === '2') {
+    throw new Error(`走完后没有回到状态帧：${JSON.stringify(walkFrame)}`);
+  }
+  if (!walkFrame.manualCleared) throw new Error('交回自动归位没有清掉手动位置');
+  result.checks.push('collab-walk-action-resolves', 'collab-walk-frames-on-return', 'collab-walk-settles-to-state');
+
+  // 空房间：取消全部参与模型后给出引导，按钮能跳到模型页，恢复勾选后收回。
+  const emptyState = await js(`(async () => {
+    const empty = document.querySelector('#stage-empty');
+    const btn = document.querySelector('#stage-empty-goto');
+    const snap = () => ({ shown: !empty.hidden,
+      actors: document.querySelectorAll('.stage-actor').length,
+      title: empty.querySelector('.stage-empty-title').textContent,
+      text: empty.querySelector('.stage-empty-text').textContent,
+      btnHidden: btn.hidden });
+    const withActorsHidden = empty.hidden;
+    // 情况一：有在线模型，只是全都没勾选 —— 不该再说「先启用连接」。
+    [...document.querySelectorAll('#stage-models input[type="checkbox"]')].forEach(b => {
+      if (b.checked) { b.checked = false; b.dispatchEvent(new Event('change', { bubbles: true })); }
+    });
+    await new Promise(r => setTimeout(r, 250));
+    const unchecked = snap();
+    // 情况二：一个在线模型都没有 —— 文案换成启用连接，按钮恢复可点。
+    window.__stubCalls.setModelsOverride([]);
+    await window.__stageUi.refresh();
+    await new Promise(r => setTimeout(r, 300));
+    const noOnline = snap();
+    btn.click();
+    await new Promise(r => setTimeout(r, 250));
+    const jumped = !document.getElementById('models-page').hidden;
+    document.querySelector('#nav-stage').click();
+    await new Promise(r => setTimeout(r, 200));
+    window.__stubCalls.resetModelsOverride();
+    await window.__stageUi.refresh();
+    await new Promise(r => setTimeout(r, 350));
+    return { withActorsHidden, unchecked, noOnline, jumped, restored: snap() };
+  })()`);
+  if (!emptyState.withActorsHidden || !emptyState.unchecked.shown || emptyState.unchecked.actors !== 0) {
+    throw new Error(`空状态显隐没跟真实角色数走：${JSON.stringify(emptyState)}`);
+  }
+  if (emptyState.unchecked.title !== '还没有人参与' || !emptyState.unchecked.text.includes('勾')
+    || !emptyState.unchecked.btnHidden) {
+    throw new Error(`有在线模型时空状态仍叫人去启用连接：${JSON.stringify(emptyState.unchecked)}`);
+  }
+  if (emptyState.noOnline.title !== '房间里还没有人' || !emptyState.noOnline.text.includes('刷新模型')
+    || emptyState.noOnline.btnHidden || !emptyState.noOnline.shown) {
+    throw new Error(`没有在线模型时空状态文案/按钮不对：${JSON.stringify(emptyState.noOnline)}`);
+  }
+  if (!emptyState.jumped) throw new Error('空状态的按钮没有跳到模型与额度');
+  if (emptyState.restored.shown || emptyState.restored.actors < 1) {
+    throw new Error(`恢复模型后空状态没收回：${JSON.stringify(emptyState.restored)}`);
+  }
+  result.checks.push('stage-empty-state-follows-actors', 'stage-empty-state-distinguishes-offline',
+    'stage-empty-state-guides-next-step', 'stage-empty-state-restores');
+
   // 导航高亮唯一性：切页后不能有两个按钮同时亮（粘连）
   const navSticky = await js(`(async () => {
     const out = [];

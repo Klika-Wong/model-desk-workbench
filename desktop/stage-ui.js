@@ -111,7 +111,11 @@
   function visualState(actor) { return actor.visualState || actor.el.dataset.state || 'waiting'; }
   function applyActorVisual(actor, facing) {
     if (!AVATARS) return;
-    AVATARS.updateState(actor.avatar, currentPet(actor.model), visualState(actor), 'discuss', facing);
+    const v = visualState(actor);
+    // moveLeft / moveRight 是 spritesheet 里两张独立的朝向帧，不能再套 --pet-flip 镜像，
+    // 否则连线朝向会把走路方向翻反。走路期间统一不镜像，方向由行本身决定。
+    const f = (v === 'moveLeft' || v === 'moveRight') ? 'right' : facing;
+    AVATARS.updateState(actor.avatar, currentPet(actor.model), v, 'discuss', f);
   }
   function setVisual(actor, state, ms) {
     if (actor.visualTimer) clearTimeout(actor.visualTimer);
@@ -521,14 +525,21 @@
       const prevX = a.pos.x;
       const dist = Math.hypot(prevX - x, a.pos.y - y);
       const moved = dist > 0.02;
-      // 走路时长跟距离挂钩：近距离 0.34s，远距离 0.86s，避免"瞬移"或"滑冰"。
-      a.el.style.setProperty('--walk', Math.round(340 + Math.min(0.72, dist) * 700) + 'ms');
+      // 走路时长跟距离挂钩：近距离 0.34s，远距离 0.86s，避免「瞬移」或「滑冰」。
+      const walkMs = Math.round(340 + Math.min(0.72, dist) * 700);
+      a.el.style.setProperty('--walk', walkMs + 'ms');
       a.pos = { x, y };
       setActorPos(a.el, x, y);
       a.zone = zoneOf(a.el.dataset.state);
-      if (moved && discussing) {
-        const walkMs = Number((a.el.style.getPropertyValue('--walk') || '').replace('ms', '')) || 450;
-        setVisual(a, x < prevX ? 'moveLeft' : 'moveRight', walkMs);
+      // 首次进场只落位：此时 is-placed 还没加、没有过渡，播走路帧会变成原地空踩。
+      const firstSeat = !a.hasSeat;
+      a.hasSeat = true;
+      // 归位不该只在讨论进行时才「走」：平时从工位换到摸鱼角同样要走过去。
+      // 但别打断正在进行的招手 / 戳一下 / 拖拽；走路动作本身允许连续刷新方向。
+      const walking = a.visualState === 'moveLeft' || a.visualState === 'moveRight';
+      if (moved && !firstSeat && !motionReduced() && !page.hidden && (!a.visualState || walking)) {
+        // +40ms 让 CSS 过渡先落地，再切回状态帧，避免「还没走到就定住」。
+        setVisual(a, x < prevX ? 'moveLeft' : 'moveRight', walkMs + 40);
       }
     }
     // 分区跟着真实占用走：没人在生成时标签就叫「休息中」。
@@ -1020,6 +1031,29 @@
     pickedHint.textContent = picked.length ? `在线参与 ${picked.length} 个` : '还没有在线模型参与';
     renderTurns(); renderStatusList(); applyPetMode();
     applyEcosystem(true);
+    updateEmptyState();
+  }
+
+  // 空房间要分清两件事：有在线模型只是没勾选，还是一个都没连上。
+  // 混成一句「先启用连接」会在旁边明明写着「在线 3 个」时自相矛盾。
+  function updateEmptyState() {
+    const box = $('stage-empty');
+    if (!box) return;
+    box.hidden = actors.size > 0;
+    if (box.hidden) return;  // 有人时卡片是隐藏的，不必再改文案
+    const online = models.filter(isOnline).length;
+    const title = box.querySelector('.stage-empty-title');
+    const text = box.querySelector('.stage-empty-text');
+    const btn = $('stage-empty-goto');
+    if (online > 0) {
+      if (title) title.textContent = '还没有人参与';
+      if (text) text.textContent = '在上方的「参与的模型」里勾上要加入的模型，它们会自己坐进工位。';
+      if (btn) btn.hidden = true;
+    } else {
+      if (title) title.textContent = '房间里还没有人';
+      if (text) text.textContent = '先在「模型与额度」里启用连接，回来点「刷新模型」，上线的模型会自己坐进工位。';
+      if (btn) btn.hidden = false;
+    }
   }
 
   function applyPetMode() {
@@ -1313,6 +1347,10 @@
       : `打开桌宠失败：${(reply && reply.error) || '未接入'}`;
   });
   if ($('stage-refresh')) $('stage-refresh').addEventListener('click', loadModels);
+  $('stage-empty-goto')?.addEventListener('click', () => {
+    hide();
+    $('nav-panel')?.click();
+  });
   if (petToggle) petToggle.addEventListener('change', applyPetMode);
   // 「降低动效」切换后立刻停掉或恢复待机节拍，不用重开页面。
   for (const box of document.querySelectorAll('[data-motion-toggle]')) {
@@ -1393,6 +1431,7 @@
     // 首屏走 loadModels 的分支也必须启动待机节拍，否则角色永远站得笔直。
     scheduleIdleBeat();
     applyDaypart();
+    updateEmptyState();
   }
   function hide() {
     page.hidden = true;
@@ -1400,6 +1439,11 @@
     closeContextMenu();
     stopFollow();
     if (idleBeatTimer) { clearTimeout(idleBeatTimer); idleBeatTimer = null; }
+    // 隐藏窗口不推进 CSS 过渡，走路帧的恢复定时器也可能被节流；切走前先把动作收回，
+    // 下次显示时角色是状态帧而不是半路定住的走路姿势。
+    for (const a of actors.values()) {
+      if (a.visualState === 'moveLeft' || a.visualState === 'moveRight') clearVisual(a);
+    }
     if (!dialoguePinned) resetDialogue();
   }
 

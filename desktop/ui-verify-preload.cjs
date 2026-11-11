@@ -11,6 +11,9 @@ let logCalls = 0;
 let activityOn = false;
 let selectedProject = 'E:\\fixture-workspace';
 let panelFixture = false;
+// 默认仍返回固定的 4 个模型；只有显式调用 setModelsOverride 才改，
+// 用来验证「一个在线模型都没有」时空状态的文案与按钮。
+let modelsOverride = null;
 let holdNextPanel = false;
 let heldPanelReply = null;
 let holdState = false;
@@ -112,7 +115,7 @@ contextBridge.exposeInMainWorld('workbench', {
   petOpen: async () => { calls.push({api:'petOpen'}); return {ok:true,data:{harness:'stub',locked:false,alwaysOnTop:true}}; },
   petState: async () => ({ok:true,data:{locked:false,alwaysOnTop:true}}),
   petControl: async (action, value) => { calls.push({api:'petControl',action,value}); return {ok:true,data:{locked:action==='lock'?Boolean(value):false,alwaysOnTop:action==='top'?Boolean(value):true}}; },
-  dispatchModels: async () => ({ ok: true, data: { baseUrl: 'http://127.0.0.1:18765', defaultModel: 'm-local', models: [{ id: 'm-local', name: '本地示例模型', provider: 'local', local: true, enabled: true, ready: true }, { id: 'm-cloud', name: '云端示例模型', provider: 'cloud', local: false, enabled: true, ready: true }, { id: 'm-deepseek', name: 'DeepSeek-V3', provider: 'deepseek', local: false, enabled: true, ready: true }, { id: 'm-offline', name: '离线示例模型', provider: 'local', local: true, enabled: true, ready: false }] } }),
+  dispatchModels: async () => ({ ok: true, data: { baseUrl: 'http://127.0.0.1:18765', defaultModel: 'm-local', models: modelsOverride || [{ id: 'm-local', name: '本地示例模型', provider: 'local', local: true, enabled: true, ready: true }, { id: 'm-cloud', name: '云端示例模型', provider: 'cloud', local: false, enabled: true, ready: true }, { id: 'm-deepseek', name: 'DeepSeek-V3', provider: 'deepseek', local: false, enabled: true, ready: true }, { id: 'm-offline', name: '离线示例模型', provider: 'local', local: true, enabled: true, ready: false }] } }),
   copyAiGuide: async () => { calls.push({api:'copyAiGuide'}); return {ok:true,data:{copied:true}}; },
   modelSettingsLoad: async (base,id) => {
     if(holdSettingsLoad)await new Promise(resolve=>settingsLoadReplies.push(resolve));
@@ -166,6 +169,8 @@ contextBridge.exposeInMainWorld('__stubCalls', { all: () => calls.slice(), setSe
   setProject: value => { selectedProject = value; },
   enablePanelFixture: () => { panelFixture = true; },
   disablePanelFixture: () => { panelFixture = false; },
+  setModelsOverride: (list) => { modelsOverride = list; },
+  resetModelsOverride: () => { modelsOverride = null; },
   holdNextPanel: () => { holdNextPanel = true; },
   hasHeldPanel: () => Boolean(heldPanelReply),
   releasePanel: () => { if (heldPanelReply) heldPanelReply(); },

@@ -46,8 +46,9 @@
 动画保留、体积从约 13 MB 降到 1.5 MB。品牌标识取自 lobehub/lobe-icons（MIT）。
 大肥鱼 GIF 为 CC BY-NC-SA 4.0。
 
-**重要**：MIT 不覆盖角色 IP。拟人少女原型为《原神》芙宁娜同人形象，仅可用于本机非商业原型；
-公开发布或商用前必须替换。详见 `desktop/assets/characters/NOTICE.md`、
+**重要**：MIT 不覆盖角色 IP。拟人少女原型为《原神》芙宁娜同人形象，仅可用于本机非商业原型。
+本项目已确定为本机个人二创、不分发不商用（见 README「定位与品质目标」），因此与本用途一致；
+改变用途时须先替换并重新核对授权。详见 `desktop/assets/characters/NOTICE.md`、
 `desktop/assets/brands/NOTICE.md`、`desktop/assets/pets/NOTICE.md`，以及根目录 `THIRD_PARTY.md`。
 
 ## 验证

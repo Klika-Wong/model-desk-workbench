@@ -1,5 +1,31 @@
 # 本次发布验证
 
+## 2026-11-11 走路帧真生效、空房间分状态、项目定位写清
+
+| 检查 | 命令 | 结果 |
+| --- | --- | --- |
+| 单元测试 | `npm test` | 219/219（新增 5 项，含两种目录布局兼容） |
+| 界面真机 | `npm run verify:ui` | 71 项，console 错误 0（新增 7 项） |
+| 桌宠真机 | `npm run verify:pet` | 20 项，errors 0 |
+| 主进程真机 | `npm run verify:main` | 13 项 |
+| 桌面冒烟 | `npm run smoke` | 通过 |
+| vendor 素材离线校验 | `node scripts/vendor-assets.cjs --check` | 37 文件 / 2 来源 |
+| 源码清单 | `node scripts/build-source-manifest.cjs` | 536 文件 |
+| E 盘运行实例 | `npm test` / `npm run verify:ui` | 218 通过 + 1 明确跳过 / 71 项 |
+
+新增的真机断言不是只看变量存在：
+
+- `collab-walk-*` 用真实 `PointerEvent` 把角色拖到别处，再从右键菜单「取消固定位置」
+  交回自动归位，采样 spritesheet 的 `--pet-row` / `--pet-frames` / `--pet-flip`：
+  归位瞬间必须是 row 1/2、8 帧、不镜像，走完回到状态帧，手动位置被清掉。
+- `stage-empty-*` 覆盖两种空状态：有在线模型未勾选（文案引导勾选、按钮隐藏），
+  以及一个在线模型都没有（引导启用连接、按钮可点且真的跳到模型页），再恢复勾选确认卡片收回。
+- 两种空状态都截了真图核对卡片位置与文字；`stage-page.png` / `stage-pet.png`
+  由 `verify:ui` 在有角色时生成，不受影响。
+
+**边界**：走路帧在真实归位时的触发已由上面的 DOM 事件路径覆盖，但没有逐帧录屏；
+透明桌宠窗口在部分显卡上偶发闪烁仍缺可靠复现，未改动。
+
 ## 2026-11-11 设施可点、时段光照、头顶状态条
 
 | 检查 | 命令 | 结果 | 边界 |
