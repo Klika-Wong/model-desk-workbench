@@ -4,7 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const {
-  pickModels, createBranch, applyStatus, summarize, isSettled, MAX_BRANCHES,
+  pickModels, createBranch, applyStatus, summarize, isSettled, MAX_BRANCHES, WAITING,
   WAIT_TIMEOUT_MS, markWaitTimeout, groupCancelMessage,
 } = require('./chat-multi.js');
 
@@ -154,4 +154,32 @@ test('停止一组任务：确认数与未确认数照实报，没有任务时�
   const none = groupCancelMessage({ total: 0 });
   assert.match(none, /还没有派发出去的任务/);
   assert.ok(!/已停止全部|成功取消/.test(all + some + none), '不能把发出请求说成任务已停止');
+});
+
+test('排队状态映射成分支 queued，不再一律画成生成中', () => {
+  for (const state of WAITING) {
+    const branch = applyStatus(createBranch(models[0], 0), { state });
+    assert.equal(branch.status, 'queued', `${state} 应显示为排队中`);
+    assert.equal(isSettled(branch), false);
+  }
+  const running = applyStatus(createBranch(models[0], 0), { state: 'running' });
+  assert.equal(running.status, 'running', '真正开跑仍显示生成中');
+  assert.equal(WAITING.size, 3);
+});
+
+test('排队位次每次跟随最新快照，终态与超时都要清掉', () => {
+  const branch = createBranch(models[0], 0);
+  assert.equal(branch.queue, null, '初始不带任何位次');
+  const queue = { position: 2, ahead: 1, order: 'created_at' };
+  applyStatus(branch, { state: 'queued', queue });
+  assert.deepEqual(branch.queue, queue);
+  applyStatus(branch, { state: 'running', queue: null });
+  assert.equal(branch.queue, null, '过期位次不能留着');
+  applyStatus(branch, { state: 'queued', queue });
+  applyStatus(branch, { state: 'completed', answer: 'ok' });
+  assert.equal(branch.queue, null, '完成后不能还写排队');
+  const timedOut = createBranch(models[1], 1);
+  applyStatus(timedOut, { state: 'queued', queue });
+  markWaitTimeout(timedOut);
+  assert.equal(timedOut.queue, null, '超时后不能还写排队');
 });

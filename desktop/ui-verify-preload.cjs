@@ -5,6 +5,8 @@ let sendOk = false;
 let statusCalls = 0;
 let statusFailures = 0;
 let terminalStatus = 'completed';
+// 排队快照：只在显式开启时让第一次状态查询返回「在排队」，供真机断言核对文案。
+let queueFixture = null;
 let chatClearFails = false;
 let holdPerformance = false, performanceReplies = [];
 let logCalls = 0;
@@ -140,7 +142,8 @@ contextBridge.exposeInMainWorld('workbench', {
     if (!sendOk) return { ok: false, error: '验证模式：没有任务' };
     statusCalls += 1;
     if (statusCalls === 1) {
-      return { ok: true, data: { task: { id: 'task-1', status: 'running', usage: null }, answer: '正在输出第一段', queue: null, exitCode: null } };
+      const state = queueFixture ? 'queued' : 'running';
+      return { ok: true, data: { task: { id: 'task-1', status: state, usage: null }, answer: '正在输出第一段', queue: queueFixture, exitCode: null } };
     }
     return { ok: true, data: { task: { id: 'task-1', status: terminalStatus, model_name: '本地示例模型', usage: { total_tokens: 42 } }, answer: '正在输出第一段，最终回答', queue: null, exitCode: null } };
   },
@@ -163,6 +166,7 @@ contextBridge.exposeInMainWorld('__stubCalls', { all: () => calls.slice(), setSe
   setActivity: (value) => { activityOn = value === true; },
   failStatus: count => { statusFailures=count; },
   terminalStatus: value => { terminalStatus=value; },
+  setQueueFixture: value => { queueFixture = value && Number.isFinite(value.ahead) ? value : null; },
   failChatClear: value => { chatClearFails=value; },
   holdPerformance: () => {holdPerformance=true;},
   releasePerformance: () => {holdPerformance=false;const replies=performanceReplies;performanceReplies=[];replies.forEach(resolve=>resolve());},

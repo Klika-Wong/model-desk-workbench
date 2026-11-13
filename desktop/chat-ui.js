@@ -427,7 +427,8 @@
       const noOutput = !partialNow && runningFor > NO_OUTPUT_HINT_MS
         ? ` · 已运行 ${Math.round(runningFor / 1000)} 秒仍无正文（状态未明，可继续等待或取消）`
         : '';
-      say(`任务 ${taskId} · ${statusText(state)}${queue && queue.ahead > 0 ? ` · 排队第 ${queue.position} 位` : ''}${noOutput}`);
+      const queueText = window.DispatchState.queueLabel(queue);
+      say(`任务 ${taskId} · ${statusText(state)}${queueText ? ` · ${queueText}` : ''}${noOutput}`);
       if (!['completed', 'failed', 'cancelled', 'accepted', 'blocked'].includes(state)) {
         // 还在跑：把日志里已经产出的正文先显示出来，末尾带光标；
         // 这只是"目前拿到的部分"，不等于最终回答。
@@ -605,7 +606,9 @@
   }
 
   function paintBranch(branch, ui) {
-    ui.state.textContent = BRANCH_LABEL[branch.status] || branch.status;
+    // 上游单线程排队，卡片要如实说「排队中」，不能把等待画成三个并行在生成。
+    const badge = window.DispatchState.queueLabel(branch.queue, true);
+    ui.state.textContent = (BRANCH_LABEL[branch.status] || branch.status) + (badge ? ` · ${badge}` : '');
     if (branch.status === 'failed' && branch.error) ui.body.textContent = branch.error;
     else if (branch.answer) ui.body.textContent = branch.answer;
     ui.card.classList.toggle('is-done', branch.status === 'done');
@@ -685,6 +688,7 @@
               answer: status.data.answer,
               exitCode: status.data.exitCode,
               tokens: task && task.usage ? task.usage.total_tokens : null,
+              queue: status.data.queue,
             });
             paintBranch(branch, ui);
             if (multi.isSettled(branch)) finish();
@@ -841,6 +845,7 @@
       let stalledTimer = null;
       let waitTimer = null;
       let hasSpoken = false;
+      let wasWaiting = false;
       const finish = () => {
         // 讨论的 finish 原来没登记，切页/切项目时要等下一次 interval 才停；
         // 现在和 watchBranch 一样由 abortMulti 统一中止。
@@ -875,7 +880,18 @@
           const status = await window.workbench.dispatchStatus(branch.taskId);
           if (!status || !status.ok) return;
           const task = status.data.task;
-          multi.applyStatus(branch, { state: task ? (task.status || task.phase) : 'running', answer: status.data.answer, exitCode: status.data.exitCode, tokens: task && task.usage ? task.usage.total_tokens : null });
+          const raw = task ? String(task.status || task.phase || '') : 'running';
+          multi.applyStatus(branch, { state: raw, answer: status.data.answer, exitCode: status.data.exitCode, tokens: task && task.usage ? task.usage.total_tokens : null, queue: status.data.queue });
+          // 讨论是串行发言，当前这位在队列里等时就别说「思考中…」。
+          // 只改状态文字，不动传给形象组件的状态值，避免引入未定义的动作帧。
+          if (multi.WAITING.has(raw)) {
+            wasWaiting = true;
+            const badge = window.DispatchState.queueLabel(status.data.queue, true);
+            if (onState) onState('thinking', badge ? `排队中 · ${badge}` : '排队中');
+          } else if (wasWaiting && !hasSpoken && !multi.isSettled(branch)) {
+            wasWaiting = false;
+            if (onState) onState('thinking');
+          }
           if (multi.isSettled(branch)) finish();
         } catch {}
       }, 2000);
@@ -931,7 +947,7 @@
         say(`讨论中：${model.name} 正在发言…`);
         setAgentState(model.id, 'thinking');
         const prompt = window.__chatMulti.buildDiscussionPrompt({ question: text, spoken });
-        const result = await runDiscussionTurn(model, prompt, (state) => setAgentState(model.id, state), gen);
+        const result = await runDiscussionTurn(model, prompt, (state, labelOverride) => setAgentState(model.id, state, undefined, true, labelOverride), gen);
         if (result) {
           spoken.push({ modelName: model.name, text: result.answer });
           setAgentState(model.id, 'done', result.answer);

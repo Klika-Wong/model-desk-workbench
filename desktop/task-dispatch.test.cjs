@@ -114,16 +114,58 @@ test('识别执行器非零退出码，不把失败当成功', () => {
   assert.equal(exitCodeFailure('结果是 *exit code: 1* 吗'), null, '正文里引用退出码不算失败');
 });
 
-test('排队位次按任务 id 排序计算，已开跑的不算排队', () => {
+test('排队位次按创建时间算，不被同一秒的随机 id 后缀带偏', () => {
+  const { queuePosition } = require('./task-dispatch.cjs');
+  // 三个任务在同一秒创建，id 字典序是 z < a < m，与真实入队顺序相反。
+  const tasks = [
+    { id: '20261027-222022-zzz', status: 'queued', created_at: '2026-10-27T22:20:22.900Z' },
+    { id: '20261027-222022-aaa', status: 'queued', created_at: '2026-10-27T22:20:22.100Z' },
+    { id: '20261027-222022-mmm', status: 'queued', created_at: '2026-10-27T22:20:22.500Z' },
+  ];
+  assert.deepEqual(queuePosition(tasks, '20261027-222022-aaa'), { position: 1, ahead: 0, order: 'created_at' });
+  assert.deepEqual(queuePosition(tasks, '20261027-222022-mmm'), { position: 2, ahead: 1, order: 'created_at' });
+  assert.deepEqual(queuePosition(tasks, '20261027-222022-zzz'), { position: 3, ahead: 2, order: 'created_at' });
+});
+
+test('创建时间相同时按面板列表原顺序，不按 id 字典序', () => {
+  const { queuePosition } = require('./task-dispatch.cjs');
+  const at = '2026-10-27T22:20:22.000Z';
+  const tasks = [
+    { id: 'b', status: 'queued', created_at: at },
+    { id: 'a', status: 'queued', created_at: at },
+  ];
+  assert.deepEqual(queuePosition(tasks, 'b'), { position: 1, ahead: 0, order: 'created_at' });
+  assert.deepEqual(queuePosition(tasks, 'a'), { position: 2, ahead: 1, order: 'created_at' });
+});
+
+test('没有可解析创建时间时按列表原顺序，并标记为推断', () => {
   const { queuePosition } = require('./task-dispatch.cjs');
   const tasks = [
-    { id: '20261027-222022-0658e0', status: 'running' },
-    { id: '20261027-222022-1a4493', status: 'queued' },
-    { id: '20261027-222022-2b5504', status: 'queued' },
+    { id: 'z', status: 'queued' },
+    { id: 'a', status: 'dispatching' },
+    { id: 'm', status: 'pending' },
   ];
-  assert.deepEqual(queuePosition(tasks, '20261027-222022-1a4493'), { position: 1, ahead: 0 });
-  assert.deepEqual(queuePosition(tasks, '20261027-222022-2b5504'), { position: 2, ahead: 1 });
-  assert.equal(queuePosition(tasks, '20261027-222022-0658e0'), null, '已在执行就不报位次');
+  assert.deepEqual(queuePosition(tasks, 'z'), { position: 1, ahead: 0, order: 'list' });
+  assert.deepEqual(queuePosition(tasks, 'm'), { position: 3, ahead: 2, order: 'list' });
+  // 只要有一个排队任务缺时间，就不冒充精确位次。
+  const mixed = [
+    { id: 'z', status: 'queued', created_at: '2026-10-27T22:20:22.900Z' },
+    { id: 'a', status: 'queued' },
+  ];
+  assert.equal(queuePosition(mixed, 'a').order, 'list');
+  assert.equal(queuePosition(mixed, 'z').order, 'list');
+  assert.equal(queuePosition([{ id: 'x', status: 'queued', created_at: 'not-a-date' }], 'x').order, 'list');
+});
+
+test('已开跑、不存在或非数组时不报排队位次', () => {
+  const { queuePosition } = require('./task-dispatch.cjs');
+  const tasks = [
+    { id: 'run', status: 'running', created_at: '2026-10-27T22:20:22.000Z' },
+    { id: 'wait', status: 'queued', created_at: '2026-10-27T22:20:23.000Z' },
+  ];
+  assert.equal(queuePosition(tasks, 'run'), null, '已在执行就不报位次');
+  assert.deepEqual(queuePosition(tasks, 'wait'), { position: 1, ahead: 0, order: 'created_at' });
   assert.equal(queuePosition(tasks, 'not-exist'), null);
   assert.equal(queuePosition(null, 'x'), null);
+  assert.equal(queuePosition([], 'x'), null);
 });

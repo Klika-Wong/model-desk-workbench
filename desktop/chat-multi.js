@@ -35,26 +35,37 @@ function createBranch(model, index) {
     answer: '',
     tokens: null,
     error: '',
+    queue: null,
   };
 }
 
 const TERMINAL = new Set(['completed', 'failed', 'cancelled', 'accepted']);
+// 上游执行器单线程，这几个状态是「在排队」而不是「在生成」。
+// 分支卡片本来就有「排队中」标签，只是 applyStatus 把所有非终态都压成了 running。
+const WAITING = new Set(['queued', 'pending', 'dispatching']);
 
 // 把面板状态映射成分支状态；退出码非零一律算失败，不冒充完成。
-function applyStatus(branch, { state, answer, exitCode, tokens, error } = {}) {
+function applyStatus(branch, { state, answer, exitCode, tokens, error, queue } = {}) {
   const raw = String(state || '');
   if (answer != null) branch.answer = String(answer);
   if (tokens != null) branch.tokens = tokens;
+  // 每次都用本次快照覆盖：留着上一轮的位次会把已完成分支说成还在排队。
+  branch.queue = queue && Number.isFinite(queue.ahead) && queue.ahead > 0 ? queue : null;
   if (exitCode != null && exitCode !== 0) {
     branch.status = 'failed';
     branch.error = `执行器异常退出（exit code ${exitCode}），结果无效`;
+    branch.queue = null;
     return branch;
   }
-  if (raw === 'completed' || raw === 'accepted') branch.status = 'done';
-  else if (raw === 'failed' || raw === 'cancelled' || raw === 'blocked') {
+  if (raw === 'completed' || raw === 'accepted') {
+    branch.status = 'done';
+    branch.queue = null;
+  } else if (raw === 'failed' || raw === 'cancelled' || raw === 'blocked') {
     branch.status = 'failed';
+    branch.queue = null;
     if (!branch.error) branch.error = error || (raw === 'cancelled' ? '已取消' : '执行失败');
-  } else if (raw) branch.status = 'running';
+  } else if (WAITING.has(raw)) branch.status = 'queued';
+  else if (raw) branch.status = 'running';
   return branch;
 }
 
@@ -73,6 +84,7 @@ function markWaitTimeout(branch, waitMs = WAIT_TIMEOUT_MS) {
   const minutes = Math.round(waitMs / 60000);
   branch.status = 'failed';
   branch.error = `等待超过 ${minutes} 分钟仍未拿到终态；任务可能还在执行，请到「运行与连接」页查看。`;
+  branch.queue = null;
   return branch;
 }
 
@@ -103,7 +115,7 @@ function summarize(branches) {
 }
 
 const api = {
-  MAX_BRANCHES, TERMINAL, WAIT_TIMEOUT_MS,
+  MAX_BRANCHES, TERMINAL, WAITING, WAIT_TIMEOUT_MS,
   pickModels, createBranch, applyStatus, isSettled, summarize,
   markWaitTimeout, groupCancelMessage, buildDiscussionPrompt,
 };

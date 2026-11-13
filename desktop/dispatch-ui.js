@@ -185,8 +185,8 @@
       const task = reply.data.task;
       if (!task) { say(`任务 ${currentTaskId} 还没出现在项目视图里…`); return; }
       const outcome = window.DispatchState.describeTask(task, reply.data.exitCode);
-      const queue = reply.data.queue;
-      const where = queue && queue.ahead > 0 ? ` · 排队第 ${queue.position} 位（前面还有 ${queue.ahead} 个）` : '';
+      const queueText = window.DispatchState.queueLabel(reply.data.queue);
+      const where = queueText ? ` · ${queueText}` : '';
       say(`任务 ${currentTaskId} · ${outcome.label}${where}`, outcome.tone === 'error');
       if (outcome.terminal) {
         stopPolling();

@@ -53,7 +53,8 @@ test('停止之后不再继续派发：两处轮询与两组循环都复查 gene
   assert.match(slice('async function sendMulti', '讨论场景：多个 Agent'), /if \(gen !== multiGeneration\) return;/);
   assert.match(slice('async function sendDiscussion', '// 导航'), /if \(gen !== multiGeneration\) break;/);
   assert.match(ui, /watchBranch\(branch, uis\[index\], prompt, gen\)/);
-  assert.match(ui, /runDiscussionTurn\(model, prompt, \(state\) => setAgentState\(model\.id, state\), gen\)/);
+  assert.match(ui, /runDiscussionTurn\(model, prompt, .*labelOverride.*, gen\)/,
+    '讨论轮询仍要传 generation（onState 现在多带一个排队文字参数）');
 });
 
 test('组运行时显示停止入口，逐个取消已派发任务', () => {

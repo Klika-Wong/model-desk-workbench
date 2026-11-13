@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { describeTask } = require('./dispatch-state.js');
+const { describeTask, queueLabel } = require('./dispatch-state.js');
 
 test('非终态状态保持非终态', () => {
   for (const status of ['queued', 'pending', 'dispatching', 'running', 'in_progress', 'executing']) {
@@ -110,4 +110,20 @@ test('可在浏览器全局访问', () => {
   const code = require('node:fs').readFileSync(require.resolve('./dispatch-state.js'), 'utf8');
   assert.match(code, /window\.DispatchState|global\.DispatchState/);
   assert.doesNotMatch(code, /document\.|fetch\(|require\(/);
+});
+
+test('排队文案：只有按创建时间排出来的才说精确位次', () => {
+  assert.equal(queueLabel({ position: 2, ahead: 1, order: 'created_at' }), '排队第 2 位（前面还有 1 个）');
+  assert.equal(queueLabel({ position: 2, ahead: 1, order: 'created_at' }, true), '第 2 位');
+  assert.equal(queueLabel({ position: 2, ahead: 1, order: 'list' }), '按任务列表顺序，前面还有 1 个');
+  assert.equal(queueLabel({ position: 2, ahead: 1, order: 'list' }, true), '前面 1 个');
+});
+
+test('排队文案：没有顺序依据或队首时不编数字', () => {
+  assert.equal(queueLabel(null), '');
+  assert.equal(queueLabel(undefined), '');
+  assert.equal(queueLabel({ position: 1, ahead: 0, order: 'created_at' }), '', '队首不显示位次');
+  assert.equal(queueLabel({ position: 2, ahead: 1 }), '按任务列表顺序，前面还有 1 个', '旧格式按推断处理');
+  assert.equal(queueLabel({ position: 2, ahead: NaN }, true), '');
+  assert.equal(queueLabel({ ahead: 2.7, order: 'created_at' }, true), '第 3 位', '非整数先取整，不拼小数');
 });

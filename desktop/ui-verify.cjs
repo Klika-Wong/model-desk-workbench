@@ -155,6 +155,8 @@ async function main() {
     document.querySelector('#chat-input').value = '多视角测试问题';
     document.querySelector('#chat-input').dispatchEvent(new Event('input'));
     const multiSendEnabled = !document.querySelector('#chat-send').disabled;
+    // 让第一次状态查询返回「排队第 2 位」的真实快照，核对卡片是否如实说排队。
+    window.__stubCalls.setQueueFixture({ position: 2, ahead: 1, order: 'created_at' });
     document.querySelector('#chat-send').click();
     // 一组多模型在跑时要有停止入口；原来只在单聊 pendingTask 时显示。
     await new Promise(r => setTimeout(r, 250));
@@ -162,11 +164,14 @@ async function main() {
     const groupCancelLabel = document.querySelector('#chat-cancel').textContent;
     await new Promise(r => setTimeout(r, 3150));
     const multiBranches = document.querySelectorAll('.chat-branch').length;
+    const multiQueueLabels = [...document.querySelectorAll('.chat-branch-head span')].map(s => s.textContent);
+    const multiQueueHonest = multiQueueLabels.some(t => t.includes('排队中') && t.includes('第 2 位'));
     const adoptable = [...document.querySelectorAll('.chat-branch-foot button')].filter((b) => !b.disabled);
     if (adoptable.length) adoptable[0].click();
     await new Promise(r => setTimeout(r, 500));
     const lastSave = window.__stubCalls.all().filter(c => c.api === 'chatSave').pop();
     const multiAdopted = Boolean(lastSave && JSON.stringify(lastSave.input).includes('来自'));
+    window.__stubCalls.setQueueFixture(null);
     // 讨论模式：两个模型串行发言，每位能看到前面发言
     // 等上一轮多视角的并行分支完全结束，否则 multiGroupRunning 门控会拦住讨论（产品行为正确）。
     await new Promise(r => setTimeout(r, 2500));
@@ -249,7 +254,7 @@ async function main() {
       dialogOpen: Boolean(dialog && dialog.open),
       dialogTitle: (document.querySelector('#chat-source-title') || {}).textContent,
       dialogBody: (document.querySelector('#chat-source-body') || {}).textContent,
-      multiVisible, multiSendEnabled, multiBranches, multiAdopted,
+      multiVisible, multiSendEnabled, multiBranches, multiAdopted, multiQueueLabels, multiQueueHonest,
       groupCancelVisible, groupCancelLabel, cancelVisibleWhileRunning, groupCancelCalls, statusAfterCancel, cancelHiddenAfter,
       discussionSendEnabled, discussionWho: discussionWho.length, discussionStageVisible, discussionAgents, discussionDoneAgents, adoptCount, adoptedDiscussion, petSwitched,
       petSendEnabled, petStageVisible, petAgents, petDoneAgents, petStateText,
@@ -264,6 +269,9 @@ async function main() {
   if (!chat.multiVisible) throw new Error('打开多视角后没有显示模型多选');
   if (!chat.multiSendEnabled) throw new Error('选了两个月模型后仍不能发送');
   if (chat.multiBranches !== 2) throw new Error(`分支数量不对：${chat.multiBranches}`);
+  if (!chat.multiQueueHonest) {
+    throw new Error(`排队中的分支没有如实显示排队位次：${JSON.stringify(chat.multiQueueLabels)}`);
+  }
   if (!chat.multiAdopted) throw new Error('采纳视角后没有写入历史');
   if (!chat.groupCancelVisible || chat.groupCancelLabel !== '停止这一组任务') {
     throw new Error(`多模型组运行时没有停止入口：visible=${chat.groupCancelVisible} label=${chat.groupCancelLabel}`);
@@ -312,6 +320,7 @@ async function main() {
   result.checks.push('chat-history-restored-and-saved');
   result.checks.push('webai-risk-gate-default-off');
   result.checks.push('chat-multi-perspective-branches');
+  result.checks.push('chat-multi-queue-shown-honestly');
   result.checks.push('chat-group-cancel-visible');
   result.checks.push('chat-group-cancel-dispatches');
   result.checks.push('chat-discussion-serial-turns');

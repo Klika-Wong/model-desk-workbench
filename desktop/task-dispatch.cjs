@@ -182,19 +182,42 @@ async function fetchTaskLog({ baseUrl = 'http://127.0.0.1:18765', taskId, token 
 }
 
 // 上游执行器是单线程（ThreadPoolExecutor(max_workers=1)），所以只能排队。
-// 这里如实算出「我正在排第几位」，不给用户假象。
+// 位次必须按真实入队顺序算，不能按 task id 字典序：面板 id 是「秒级时间戳 + 随机后缀」，
+// 多视角一次派发的 2~3 个任务几乎总在同一秒，字典序等于随机排号。
+const WAITING_STATUSES = ['queued', 'dispatching', 'pending'];
+// 排队任务通常没有 started_at，创建时间是唯一可靠的先后依据。
+const QUEUE_TIME_FIELDS = ['created_at', 'queued_at', 'submitted_at', 'enqueued_at', 'updated_at', 'started_at'];
+
+function queueTimeOf(task) {
+  for (const field of QUEUE_TIME_FIELDS) {
+    const value = task && task[field];
+    if (typeof value !== 'string' && typeof value !== 'number') continue;
+    const ms = Date.parse(value);
+    if (Number.isFinite(ms)) return ms;
+  }
+  return null;
+}
+
 function queuePosition(tasks, taskId) {
   if (!Array.isArray(tasks)) return null;
   const mine = tasks.find((t) => t && t.id === taskId);
   if (!mine) return null;
   const status = String(mine.status || mine.phase || '');
-  if (!['queued', 'dispatching', 'pending'].includes(status)) return null;
+  if (!WAITING_STATUSES.includes(status)) return null;
   const waiting = tasks
-    .filter((t) => t && ['queued', 'dispatching', 'pending'].includes(String(t.status || t.phase || '')))
-    .map((t) => String(t.id))
-    .sort();
-  const index = waiting.indexOf(String(taskId));
-  return index === -1 ? null : { position: index + 1, ahead: index };
+    .map((task, index) => ({ task, index }))
+    .filter(({ task }) => task && WAITING_STATUSES.includes(String(task.status || task.phase || '')));
+  // 只有全部排队任务都有可解析的创建时间，才敢报精确位次；
+  // 缺一个就退回面板返回的列表原顺序，并让调用方标明这是推断。
+  const timed = waiting.map(({ task, index }) => ({ index, at: queueTimeOf(task) }));
+  const exact = timed.length > 0 && timed.every((row) => row.at !== null);
+  const ordered = exact
+    ? timed.slice().sort((a, b) => a.at - b.at || a.index - b.index)
+    : waiting.map(({ index }) => ({ index, at: null }));
+  const order = exact ? 'created_at' : 'list';
+  const position = ordered.findIndex((row) => String(tasks[row.index].id) === String(taskId));
+  if (position === -1) return null;
+  return { position: position + 1, ahead: position, order };
 }
 
 // 面板会把执行器的 `*exit code: 1*` 照样记成 completed。

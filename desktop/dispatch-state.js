@@ -30,6 +30,19 @@
     return { terminal, tone, label };
   }
 
+  // 排队位次只有在按创建时间排出来时才是精确值；按面板列表顺序推出的只能说「前面还有几个」。
+  // 没有 order 的旧数据一律按推断处理，避免把旧格式的位次说成实测。
+  // compact 用于多视角卡片的小标签，full 用于状态栏。
+  function queueLabel(queue, compact = false) {
+    if (!queue || !Number.isFinite(queue.ahead) || queue.ahead <= 0) return '';
+    const ahead = Math.trunc(queue.ahead);
+    const position = Number.isFinite(queue.position) ? Math.trunc(queue.position) : ahead + 1;
+    if (queue.order === 'created_at') {
+      return compact ? `第 ${position} 位` : `排队第 ${position} 位（前面还有 ${ahead} 个）`;
+    }
+    return compact ? `前面 ${ahead} 个` : `按任务列表顺序，前面还有 ${ahead} 个`;
+  }
+
   function describeTask(task, exitCode) {
     const status = normalizeStatus(task && task.status);
     const review = reviewOf(task);
@@ -76,7 +89,7 @@
     return result(false, 'neutral', '状态未知');
   }
 
-  const api = { describeTask, TERMINAL, ACTIVE };
+  const api = { describeTask, queueLabel, TERMINAL, ACTIVE };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   global.DispatchState = api;
 })(typeof window !== 'undefined' ? window : globalThis);
