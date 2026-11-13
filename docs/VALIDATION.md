@@ -1,5 +1,35 @@
 # 本次发布验证
 
+## 2026-11-13 多模型组的超时收敛与停止入口
+
+| 检查 | 命令 | 结果 |
+| --- | --- | --- |
+| 单元测试 | `npm test` | 254/254（新增 10 项：`chat-multi` 4、`chat-group-cancel` 6） |
+| 界面真机 | `npm run verify:ui` | 73 项，console 错误 0（新增 `chat-group-cancel-visible`、`chat-group-cancel-dispatches`） |
+| 桌宠真机 | `npm run verify:pet` | 21 项，errors 0（回归） |
+| 主进程真机 | `npm run verify:main` | 15 项（回归） |
+| 桌面冒烟 | `npm run smoke` | 65 项通过 |
+| vendor 素材离线校验 | `node scripts/vendor-assets.cjs --check` | 37 文件 / 2 来源 |
+| 发布源码扫描 | `python scripts/check_public_source.py` | `{"files":540,"findings":[]}`，退出码 0 |
+
+E 盘运行实例同步 5 个文件后复跑：单测 249 通过 + 5 明确跳过（缺根目录文档的既有 skip）、
+界面 / 桌宠 / 主进程三层真机验证全部通过。
+
+新增真机断言走的是真实点击路径：等两个分支真的 `dispatchSend` 之后，检查
+「停止这一组任务」可见，点击后统计 `dispatchCancel` 调用数，并断言状态栏有如实反馈、
+按钮已复位；不是只看 DOM 里有没有这个按钮。`chat-multi.test.cjs` 的超时测试真的调用
+`markWaitTimeout`，断言 `isSettled()` 变 true、已有正文不被抹掉、文案不编造失败原因。
+
+**边界，不能当成已验收**：
+
+- 3 分钟等待上限没有真机计时跑过（需要一个永不返回终态的面板并等满 3 分钟）；
+  覆盖它的是纯函数单测与 `chat-group-cancel.test.cjs` 的源码接线断言。
+- `ui-verify-preload.cjs` 的 `dispatchSend` 桩让两个分支复用同一个 `task-1`，
+  `multiTaskIds` 去重后只有一个 id，因此真机只验证了「至少发出一次取消请求」，
+  没有验证「每个分支各发一次」；多 id 的逐个遍历只有源码断言覆盖。
+- 取消请求的结果由面板决定，界面区分确认与未确认；这里没有验证面板是否真的终止了执行器。
+- 下游执行器仍是 `max_workers=1` 单线程排队，本轮没有改变并发能力。
+
 ## 2026-11-11 多显示器窗口几何、主窗按工作区收缩
 
 | 检查 | 命令 | 结果 |

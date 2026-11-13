@@ -156,7 +156,11 @@ async function main() {
     document.querySelector('#chat-input').dispatchEvent(new Event('input'));
     const multiSendEnabled = !document.querySelector('#chat-send').disabled;
     document.querySelector('#chat-send').click();
-    await new Promise(r => setTimeout(r, 3400));
+    // 一组多模型在跑时要有停止入口；原来只在单聊 pendingTask 时显示。
+    await new Promise(r => setTimeout(r, 250));
+    const groupCancelVisible = !document.querySelector('#chat-cancel').hidden;
+    const groupCancelLabel = document.querySelector('#chat-cancel').textContent;
+    await new Promise(r => setTimeout(r, 3150));
     const multiBranches = document.querySelectorAll('.chat-branch').length;
     const adoptable = [...document.querySelectorAll('.chat-branch-foot button')].filter((b) => !b.disabled);
     if (adoptable.length) adoptable[0].click();
@@ -166,6 +170,24 @@ async function main() {
     // 讨论模式：两个模型串行发言，每位能看到前面发言
     // 等上一轮多视角的并行分支完全结束，否则 multiGroupRunning 门控会拦住讨论（产品行为正确）。
     await new Promise(r => setTimeout(r, 2500));
+    // 停止一组任务：要等任务真的派发出去再点，否则只测到「还没有派发」的空路径。
+    const cancelCallsBefore = window.__stubCalls.all().filter(c => c.api === 'dispatchCancel').length;
+    const groupSendBefore = window.__stubCalls.all().filter(c => c.api === 'dispatchSend').length;
+    document.querySelector('#chat-consent').checked = true;
+    document.querySelector('#chat-consent').dispatchEvent(new Event('change'));
+    document.querySelector('#chat-input').value = '停止测试问题';
+    document.querySelector('#chat-input').dispatchEvent(new Event('input'));
+    document.querySelector('#chat-send').click();
+    for (let i = 0; i < 40; i += 1) {
+      await new Promise(r => setTimeout(r, 100));
+      if (window.__stubCalls.all().filter(c => c.api === 'dispatchSend').length >= groupSendBefore + 2) break;
+    }
+    const cancelVisibleWhileRunning = !document.querySelector('#chat-cancel').hidden;
+    document.querySelector('#chat-cancel').click();
+    await new Promise(r => setTimeout(r, 500));
+    const groupCancelCalls = window.__stubCalls.all().filter(c => c.api === 'dispatchCancel').length - cancelCallsBefore;
+    const statusAfterCancel = document.querySelector('#chat-status').textContent;
+    const cancelHiddenAfter = document.querySelector('#chat-cancel').hidden;
     document.querySelector('#chat-multi').checked = false;
     document.querySelector('#chat-multi').dispatchEvent(new Event('change'));
     document.querySelector('#chat-discussion').checked = true;
@@ -227,7 +249,9 @@ async function main() {
       dialogOpen: Boolean(dialog && dialog.open),
       dialogTitle: (document.querySelector('#chat-source-title') || {}).textContent,
       dialogBody: (document.querySelector('#chat-source-body') || {}).textContent,
-      multiVisible, multiSendEnabled, multiBranches, multiAdopted, discussionSendEnabled, discussionWho: discussionWho.length, discussionStageVisible, discussionAgents, discussionDoneAgents, adoptCount, adoptedDiscussion, petSwitched,
+      multiVisible, multiSendEnabled, multiBranches, multiAdopted,
+      groupCancelVisible, groupCancelLabel, cancelVisibleWhileRunning, groupCancelCalls, statusAfterCancel, cancelHiddenAfter,
+      discussionSendEnabled, discussionWho: discussionWho.length, discussionStageVisible, discussionAgents, discussionDoneAgents, adoptCount, adoptedDiscussion, petSwitched,
       petSendEnabled, petStageVisible, petAgents, petDoneAgents, petStateText,
       liveText, cursorOn, logCalls, finalText: finalText ? finalText.textContent : '', finalStreaming };
   })()`);
@@ -241,6 +265,13 @@ async function main() {
   if (!chat.multiSendEnabled) throw new Error('选了两个月模型后仍不能发送');
   if (chat.multiBranches !== 2) throw new Error(`分支数量不对：${chat.multiBranches}`);
   if (!chat.multiAdopted) throw new Error('采纳视角后没有写入历史');
+  if (!chat.groupCancelVisible || chat.groupCancelLabel !== '停止这一组任务') {
+    throw new Error(`多模型组运行时没有停止入口：visible=${chat.groupCancelVisible} label=${chat.groupCancelLabel}`);
+  }
+  if (!chat.cancelVisibleWhileRunning) throw new Error('任务派发出去后停止按钮反而消失了');
+  if (chat.groupCancelCalls < 1) throw new Error('点了停止却没有发出任何取消请求');
+  if (!/停止/.test(chat.statusAfterCancel)) throw new Error(`停止后没有如实反馈：${chat.statusAfterCancel}`);
+  if (!chat.cancelHiddenAfter) throw new Error('停止后按钮没有复位');
   if (!chat.discussionSendEnabled) throw new Error('讨论模式选两个模型后仍不能发送');
   if (chat.discussionWho < 2) throw new Error(`讨论发言气泡不足：${chat.discussionWho}`);
   if (!chat.discussionStageVisible) throw new Error('讨论场景没有显示');
@@ -281,6 +312,8 @@ async function main() {
   result.checks.push('chat-history-restored-and-saved');
   result.checks.push('webai-risk-gate-default-off');
   result.checks.push('chat-multi-perspective-branches');
+  result.checks.push('chat-group-cancel-visible');
+  result.checks.push('chat-group-cancel-dispatches');
   result.checks.push('chat-discussion-serial-turns');
   result.checks.push('chat-pet-single-companion');
   result.checks.push('chat-injection-source-dialog');

@@ -30,6 +30,10 @@
   let multiGroupRunning = false;
   let multiGeneration = 0;
   const multiFinishers = new Set();
+  // 本轮已经派发出去的 task id（Set 去重：验证桩会让多个分支复用了同一个 id）。
+  // 停止按钮靠它逐个请求取消，不靠界面上的卡片数量猜。
+  const multiTaskIds = new Set();
+  let multiCancelling = false;
   // 中止所有未完成的多视角分支：清定时器、resolve 挂起的 Promise、复位运行标记。
   // 切页/切项目时调用；否则分支轮询会泄漏，multiGroupRunning 卡 true 会让发送按钮永久禁用。
   function abortMulti() {
@@ -37,6 +41,9 @@
     for (const finish of [...multiFinishers]) finish();
     multiFinishers.clear();
     multiGroupRunning = false;
+    multiTaskIds.clear();
+    multiCancelling = false;
+    refresh();
   }
   // 桌宠陪聊（单模型）：activePet 记录当前陪聊的模型，驱动场景里那个单独节点的状态。
   let activePet = null;       // { modelId, modelName }
@@ -173,8 +180,12 @@
     // 清空是"自救"入口：记录损坏导致 historyReady=false 时也必须能点，
     // 否则坏文件永远删不掉，用户只能手删磁盘。
     $('chat-clear').disabled = Boolean(clearing || sending || pendingTask || !projectPath);
-    $('chat-cancel').hidden = !pendingTask;
-    $('chat-cancel').disabled = cancelling;
+    // 一组多模型在跑时也要有停止入口；原来只在单聊 pendingTask 时显示，
+    // 于是多个任务卡住时用户既不能取消、也不能重新发送。
+    const cancelBtn = $('chat-cancel');
+    cancelBtn.hidden = !pendingTask && !multiGroupRunning;
+    cancelBtn.textContent = multiGroupRunning ? '停止这一组任务' : '停止当前任务';
+    cancelBtn.disabled = cancelling || multiCancelling;
     if (useMemory) {
       useMemory.disabled = !spaceId();
       if (!spaceId()) memoryHint.textContent = '（还没有加载记忆空间）';
@@ -616,30 +627,42 @@
     say(`已采纳「${branch.modelName}」的回答；其他视角不写进历史。`);
   }
 
-  async function watchBranch(branch, ui, prompt) {
+  async function watchBranch(branch, ui, prompt, gen = multiGeneration) {
     const multi = window.__chatMulti;
+    if (gen !== multiGeneration) return;
     try {
       const reply = await window.workbench.dispatchSend({ prompt, modelId: branch.modelId, kind: 'chat', project: projectPath });
+      // 等 IPC 回包期间可能已经点了停止／切了项目，别再把这一支派出去。
+      if (gen !== multiGeneration) return;
       if (!reply || !reply.ok) {
         multi.applyStatus(branch, { state: 'failed', error: (reply && reply.error) || '派发失败' });
         paintBranch(branch, ui);
         return;
       }
       branch.taskId = reply.data.id;
+      multiTaskIds.add(branch.taskId);
       multi.applyStatus(branch, { state: reply.data.status || 'queued' });
       paintBranch(branch, ui);
-      const gen = multiGeneration;
       await new Promise((resolve) => {
         let logTimer = null;
         let statusTimer = null;
+        let waitTimer = null;
         const finish = () => {
           multiFinishers.delete(finish);
           if (logTimer) clearInterval(logTimer);
           if (statusTimer) clearInterval(statusTimer);
-          logTimer = null; statusTimer = null;
+          if (waitTimer) clearTimeout(waitTimer);
+          logTimer = null; statusTimer = null; waitTimer = null;
           resolve();
         };
         multiFinishers.add(finish);
+        // 面板掉线、任务一直 running 或状态接口持续报错时，不能让这一支永远挂住：
+        // 到点如实标成「没等到终态」，让整组的 Promise.all 收敛。
+        waitTimer = setTimeout(() => {
+          multi.markWaitTimeout(branch, multi.WAIT_TIMEOUT_MS);
+          paintBranch(branch, ui);
+          finish();
+        }, multi.WAIT_TIMEOUT_MS);
         logTimer = setInterval(async () => {
           if (gen !== multiGeneration) { finish(); return; }
           if (!branch.taskId || document.hidden) return;
@@ -683,6 +706,7 @@
     if (chosen.length < 2) { say('多视角至少需要两个可用模型：先读模型，再勾两个。', true); return; }
 
     const gen = multiGeneration;
+    multiTaskIds.clear();
     multiGroupRunning = true;
     refresh();
     const history = useHistory && useHistory.checked
@@ -707,13 +731,16 @@
 
     try {
       const { prompt } = await composePrompt(text, history);
-      await Promise.all(branches.map((branch, index) => watchBranch(branch, uis[index], prompt)));
+      // 停止/切页可能落在 composePrompt 的 await 窗口里，此时不能再派发。
+      if (gen !== multiGeneration) return;
+      await Promise.all(branches.map((branch, index) => watchBranch(branch, uis[index], prompt, gen)));
       const summary = multi.summarize(branches);
       if (gen === multiGeneration) say(`全部结束：成功 ${summary.done} 个 / 失败 ${summary.failed} 个。选一条「用这条继续」写进历史。`);
     } catch (error) {
       say(`多视角发送失败：${error.message}`, true);
     } finally {
       multiGroupRunning = false;
+      multiTaskIds.clear();
       refresh();
     }
   }
@@ -782,7 +809,7 @@
     if (!node) return;
     node.dataset.state = state;
     const stateEl = node.querySelector('.agent-state');
-    const label = { waiting: '等待中', thinking: '思考中…', speaking: '发言中', stalled: '等待中：日志暂无正文', done: '已发言' };
+    const label = { waiting: '等待中', thinking: '思考中…', speaking: '发言中', stalled: '等待中：日志暂无正文', failed: '未拿到结果', done: '已发言' };
     if (stateEl) stateEl.textContent = labelOverride || label[state] || state;
     const avatar = node.querySelector('.agent-avatar');
     if (avatar && AVATARS) {
@@ -797,26 +824,39 @@
 
   // ---------- 讨论模式 ----------
   // 多个模型串行发言，每位能看到前面所有发言；返回该位模型的非空回答，否则 null。
-  async function runDiscussionTurn(model, prompt, onState) {
+  async function runDiscussionTurn(model, prompt, onState, gen = multiGeneration) {
     const multi = window.__chatMulti;
+    if (gen !== multiGeneration) return null;
     const branch = multi.createBranch(model, 0);
     const reply = await window.workbench.dispatchSend({ prompt, modelId: model.id, kind: 'chat', project: projectPath });
+    if (gen !== multiGeneration) return null;
     if (!reply || !reply.ok) { if (onState) onState('done'); return null; }
     branch.taskId = reply.data.id;
+    multiTaskIds.add(branch.taskId);
     multi.applyStatus(branch, { state: reply.data.status || 'queued' });
     if (onState) onState('thinking');
-    const gen = multiGeneration;
     await new Promise((resolve) => {
       let logTimer = null;
       let statusTimer = null;
       let stalledTimer = null;
+      let waitTimer = null;
       let hasSpoken = false;
       const finish = () => {
+        // 讨论的 finish 原来没登记，切页/切项目时要等下一次 interval 才停；
+        // 现在和 watchBranch 一样由 abortMulti 统一中止。
+        multiFinishers.delete(finish);
         if (logTimer) clearInterval(logTimer);
         if (statusTimer) clearInterval(statusTimer);
         if (stalledTimer) clearTimeout(stalledTimer);
+        if (waitTimer) clearTimeout(waitTimer);
         resolve();
       };
+      multiFinishers.add(finish);
+      waitTimer = setTimeout(() => {
+        multi.markWaitTimeout(branch, multi.WAIT_TIMEOUT_MS);
+        if (onState) onState('failed');
+        finish();
+      }, multi.WAIT_TIMEOUT_MS);
       // A07：等了很久日志还没有正文，如实说「等待中：日志暂无正文」，不假装在思考。
       stalledTimer = setTimeout(() => {
         if (gen === multiGeneration && !hasSpoken && onState) onState('stalled');
@@ -873,6 +913,7 @@
     if (chosen.length < 2) { say('讨论至少需要两个可用模型：先读模型，再勾两个。', true); return; }
 
     const gen = multiGeneration;
+    multiTaskIds.clear();
     multiGroupRunning = true;
     refresh();
     messages.push({ role: 'user', text });
@@ -885,10 +926,12 @@
     say(`讨论开始：${chosen.length} 位模型依次发言，每位能看到前面的发言。`);
     try {
       for (const model of chosen) {
+        // 停止之后不能继续让下一位发言，否则「停止」只是停了界面，任务照样排队。
+        if (gen !== multiGeneration) break;
         say(`讨论中：${model.name} 正在发言…`);
         setAgentState(model.id, 'thinking');
         const prompt = window.__chatMulti.buildDiscussionPrompt({ question: text, spoken });
-        const result = await runDiscussionTurn(model, prompt, (state) => setAgentState(model.id, state));
+        const result = await runDiscussionTurn(model, prompt, (state) => setAgentState(model.id, state), gen);
         if (result) {
           spoken.push({ modelName: model.name, text: result.answer });
           setAgentState(model.id, 'done', result.answer);
@@ -904,6 +947,7 @@
       say(`讨论失败：${error.message}`, true);
     } finally {
       multiGroupRunning = false;
+      multiTaskIds.clear();
       refresh();
     }
   }
@@ -978,7 +1022,30 @@
     if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) { event.preventDefault(); send(); }
   });
   sendButton.addEventListener('click', send);
+  // 停止一组多模型任务：逐个对已派发的 id 请求取消，再停掉本地轮询。
+  // 「请求已发出」不等于「任务已停止」，确认与未确认分开报，不冒充成功。
+  async function cancelGroup() {
+    if (multiCancelling) return;
+    const ids = [...multiTaskIds];
+    const gen = multiGeneration;
+    let ok = 0;
+    let failed = 0;
+    multiCancelling = true;
+    refresh();
+    for (const id of ids) {
+      try {
+        const reply = await window.workbench.dispatchCancel(id);
+        if (reply && reply.ok) ok += 1; else failed += 1;
+      } catch { failed += 1; }
+      if (gen !== multiGeneration) return; // 切页/切项目已接管
+    }
+    abortMulti();
+    say(window.__chatMulti.groupCancelMessage({ ok, failed, total: ids.length }), failed > 0);
+    refresh();
+  }
+
   $('chat-cancel').addEventListener('click', async () => {
+    if (multiGroupRunning) { await cancelGroup(); return; }
     if (!pendingTask || cancelling) return;
     const id = pendingTask, revision = conversationRevision;
     cancelling = true; refresh();

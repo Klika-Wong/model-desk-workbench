@@ -62,6 +62,29 @@ function isSettled(branch) {
   return Boolean(branch) && (branch.status === 'done' || branch.status === 'failed');
 }
 
+// 本地等待上限，不是模型的执行时限，也不会去取消服务端任务。
+// 协作视图的 runTurn 用的是同一个 3 分钟；这里保持一致，不另立一个数字。
+// 没有它，面板掉线或任务卡在 running 时，轮询永远不收敛，整页发送会被永久禁用。
+const WAIT_TIMEOUT_MS = 180000;
+
+// 超时只说明「没等到终态」，不能冒充任务失败原因，也不能抹掉已经拿到的正文。
+function markWaitTimeout(branch, waitMs = WAIT_TIMEOUT_MS) {
+  if (!branch || isSettled(branch)) return branch;
+  const minutes = Math.round(waitMs / 60000);
+  branch.status = 'failed';
+  branch.error = `等待超过 ${minutes} 分钟仍未拿到终态；任务可能还在执行，请到「运行与连接」页查看。`;
+  return branch;
+}
+
+// 停止一组任务后的状态文案：确认多少、有几个没确认，都照实说。
+function groupCancelMessage({ ok = 0, failed = 0, total = 0 } = {}) {
+  if (!total) return '已停止这一组的本地等待；还没有派发出去的任务。';
+  const tail = '本地等待已停止，任务状态请到「运行与连接」页查看。';
+  return failed
+    ? `已对 ${total} 个任务发出停止请求：${ok} 个确认、${failed} 个未确认。${tail}`
+    : `已对 ${total} 个任务发出停止请求并全部确认。${tail}`;
+}
+
 // 汇总：给界面和"能否采纳"用，不猜结论。
 function summarize(branches) {
   const list = Array.isArray(branches) ? branches : [];
@@ -79,7 +102,11 @@ function summarize(branches) {
   };
 }
 
-const api = { MAX_BRANCHES, TERMINAL, pickModels, createBranch, applyStatus, isSettled, summarize, buildDiscussionPrompt };
+const api = {
+  MAX_BRANCHES, TERMINAL, WAIT_TIMEOUT_MS,
+  pickModels, createBranch, applyStatus, isSettled, summarize,
+  markWaitTimeout, groupCancelMessage, buildDiscussionPrompt,
+};
 
 // 讨论模式：多个模型串行发言，每个能看到前面所有人的发言。
 // 返回下一个发言者的 prompt（问题 + 此前发言 + 让其直接给观点）。

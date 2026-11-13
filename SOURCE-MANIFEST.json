@@ -1,7 +1,7 @@
 {
   "project": "Model Desk Workbench",
   "version": "0.1.0-preview",
-  "date": "2026-11-11",
+  "date": "2026-11-13",
   "scope": "Source-only snapshot; excludes runtime data and this manifest itself.",
   "hashing": "sha256 over LF-normalized bytes; files containing NUL bytes are hashed verbatim",
   "files": [
@@ -1072,8 +1072,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "5e5403ccc29865c2be8fca4b893da6804d1ffdfa5b30064127a9259cea35615f",
-      "bytes": 54131
+      "sha256": "3ff61239f0e0bcb5a9f79fab970eb24529fba1d74f969908e93d1b268bbc6b81",
+      "bytes": 57103
     },
     {
       "path": "LICENSE",
@@ -1836,19 +1836,24 @@
       "bytes": 8200
     },
     {
+      "path": "desktop/chat-group-cancel.test.cjs",
+      "sha256": "da37904691c5ff24d2285f71484fff2dbc23a849ce8252c6662c04ab425e8cb5",
+      "bytes": 4469
+    },
+    {
       "path": "desktop/chat-ipc.test.cjs",
       "sha256": "558711714e0daba33517d7dc78a796d494f777904a92e567b7137b0d131493be",
       "bytes": 2594
     },
     {
       "path": "desktop/chat-multi.js",
-      "sha256": "7ad8ecaca55c211e5693423c10a51ce7447f70a186faf3c1f6d838a99f897132",
-      "bytes": 4211
+      "sha256": "eca0fe656ccea29d2f033721f989d7d0992717b81d78e223393280f0482360aa",
+      "bytes": 5627
     },
     {
       "path": "desktop/chat-multi.test.cjs",
-      "sha256": "b7ad49958031f4be9b6d2a2dcc10e4e40f99a3777b742c3dde1b25966011e9b2",
-      "bytes": 4887
+      "sha256": "a3fcbf68a5277ebca14a93e710fd533fc88c706b00699a7a3fd54d275ef5c21a",
+      "bytes": 7389
     },
     {
       "path": "desktop/chat-prompt.js",
@@ -1872,8 +1877,8 @@
     },
     {
       "path": "desktop/chat-ui.js",
-      "sha256": "dd592429141ae2ef20d9406678e6595b6158967735dbc5b0c72fc7f34cb8707d",
-      "bytes": 47894
+      "sha256": "fc8356e87ca26202bde7396171dfa309836c8360608250e1c02946e45c331bd5",
+      "bytes": 51231
     },
     {
       "path": "desktop/command-palette.js",
@@ -2372,8 +2377,8 @@
     },
     {
       "path": "desktop/ui-verify.cjs",
-      "sha256": "32899c3b5b28ab2b8d29d01e804fbee55f48f36e63500983986e3fcc4b454e1c",
-      "bytes": 98361
+      "sha256": "ef7904ce0a10a9c373d16089bf47a9ec012fede1a6cc21bf44d1a980a88b2c6d",
+      "bytes": 100866
     },
     {
       "path": "desktop/vendor-assets.test.cjs",
@@ -2522,8 +2527,8 @@
     },
     {
       "path": "docs/MODELS_OVERVIEW.md",
-      "sha256": "2f4487d763e12f5182ef742732eb564a494aac586ba606de6fafffeaabba998a",
-      "bytes": 2354
+      "sha256": "8e1f1fba2a523548cc9c85b931703bc5b2985f3b2f1f44dceec77872d8c3d586",
+      "bytes": 2784
     },
     {
       "path": "docs/MODEL_CONNECTIONS.md",
@@ -2597,8 +2602,8 @@
     },
     {
       "path": "docs/UI_FUNCTION_AUDIT.md",
-      "sha256": "2957af4f9626bd798c3741f9ded05add7713bb15e80550a9d94d849e2884121f",
-      "bytes": 7997
+      "sha256": "dd0ccc508ed63c7d8ca386460377ff72ea1bc09210eb8f26f8b7f4e655f5f712",
+      "bytes": 8351
     },
     {
       "path": "docs/USAGE.md",
@@ -2607,8 +2612,8 @@
     },
     {
       "path": "docs/VALIDATION.md",
-      "sha256": "1da4901da92b4909b9494494ae8be4b6416a516c95631a1ec4b0b7ab9cf43691",
-      "bytes": 20187
+      "sha256": "8b97b2a7ca8d0ff54d342b9a6a4c78698e4c044640f6d80abcba3b1ffb053ce8",
+      "bytes": 22319
     },
     {
       "path": "docs/WORKBUDDY_EXECUTOR.md",

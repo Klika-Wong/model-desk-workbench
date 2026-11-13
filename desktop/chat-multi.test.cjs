@@ -3,7 +3,10 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { pickModels, createBranch, applyStatus, summarize, MAX_BRANCHES } = require('./chat-multi.js');
+const {
+  pickModels, createBranch, applyStatus, summarize, isSettled, MAX_BRANCHES,
+  WAIT_TIMEOUT_MS, markWaitTimeout, groupCancelMessage,
+} = require('./chat-multi.js');
 
 const models = [
   { id: 'a', name: '模型 A', local: false },
@@ -104,4 +107,51 @@ test('讨论 prompt：空问题抛错', () => {
   const { buildDiscussionPrompt } = require('./chat-multi.js');
   assert.throws(() => buildDiscussionPrompt({ question: '  ', spoken: [] }), /明确的问题/);
   assert.throws(() => buildDiscussionPrompt({ question: '', spoken: null }), /明确的问题/);
+});
+
+test('等待超时：未到终态的分支收敛为失败，且不抹掉已拿到的正文', () => {
+  const branch = createBranch(models[0], 0);
+  applyStatus(branch, { state: 'running', answer: '已经输出了一半' });
+  const out = markWaitTimeout(branch);
+  assert.equal(out.status, 'failed');
+  assert.equal(out.answer, '已经输出了一半');
+  assert.match(out.error, /等待超过 3 分钟仍未拿到终态/);
+  assert.match(out.error, /任务可能还在执行/);
+  assert.ok(!/执行失败|模型报错|超时失败/.test(out.error), '不能编造任务失败原因');
+  assert.equal(isSettled(out), true, '超时后必须让 Promise.all 收敛');
+});
+
+test('等待超时：已经结束的分支不被改写，空输入不抛错', () => {
+  const done = createBranch(models[0], 0);
+  applyStatus(done, { state: 'completed', answer: '完整回答' });
+  markWaitTimeout(done);
+  assert.equal(done.status, 'done');
+  assert.equal(done.error, '');
+  const failed = createBranch(models[1], 1);
+  applyStatus(failed, { state: 'failed', error: '原来的失败原因' });
+  markWaitTimeout(failed);
+  assert.equal(failed.error, '原来的失败原因');
+  assert.equal(markWaitTimeout(null), null);
+});
+
+test('等待上限与协作视图的兜底一致，是本地等待而非模型时限', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  assert.equal(WAIT_TIMEOUT_MS, 180000);
+  const stage = fs.readFileSync(path.join(__dirname, 'stage-ui.js'), 'utf8');
+  assert.match(stage, /setTimeout\(\(\) => \{ onState\('failed'\); finish\(null\); \}, 180000\)/,
+    '协作视图的 3 分钟兜底应与聊天页共用同一个量级');
+  assert.equal(markWaitTimeout(createBranch(models[0], 0), 60000).error.includes('1 分钟'), true);
+});
+
+test('停止一组任务：确认数与未确认数照实报，没有任务时说明没派发', () => {
+  const all = groupCancelMessage({ ok: 2, failed: 0, total: 2 });
+  assert.match(all, /2 个任务发出停止请求/);
+  assert.match(all, /全部确认/);
+  const some = groupCancelMessage({ ok: 1, failed: 1, total: 2 });
+  assert.match(some, /1 个确认、1 个未确认/);
+  assert.match(some, /本地等待已停止/);
+  const none = groupCancelMessage({ total: 0 });
+  assert.match(none, /还没有派发出去的任务/);
+  assert.ok(!/已停止全部|成功取消/.test(all + some + none), '不能把发出请求说成任务已停止');
 });
