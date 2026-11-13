@@ -13,6 +13,14 @@
 | 发布源码扫描 | `python scripts/check_public_source.py` | `{"files":542,"findings":[]}`，退出码 0 |
 | 运行实例同步预检 | `node scripts/sync-to-runtime.cjs --dry-run` | 4 个文件 |
 
+E 盘运行实例同步 4 个文件后复跑：单测 267 通过 + 5 明确跳过（运行实例是 `desktop/` 平铺副本，
+缺仓库根目录文档，属既有 skip），桌宠 24 项、界面 74 项（console 错误 0）、主进程 15 项、
+冒烟 65 项四层真机全部通过。
+
+**一次未复现的偶发**：收尾重建清单后紧接着跑 `npm test` 出现过一次 `# fail 1`，那次输出
+没有保留失败项详情；随后连跑三次均 272/272，单独复现没成功。原因未定位，**不把它算作通过，
+也不冒充已修复**。可能与清单 / git 暂存区刚被改动时的读时序有关，但没有证据，不下结论。
+
 三条新真机断言都不是只看源码：`pet-hitbox-no-redundant-ipc` 在真实桌宠窗口里连改 12 帧
 sprite 内联样式，读 `window.__petHitboxStats()`，要求 `measured` 增长、`sent` 完全不变、
 `skipped` 增长；`pet-drag-end-restores-ignore` 从渲染层真发 `drag-start` / `drag-end`，

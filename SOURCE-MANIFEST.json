@@ -1072,8 +1072,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "7e37cad33deab03867aebcc78d55a72f5744714eff897ee247ccf5880fbb145c",
-      "bytes": 63713
+      "sha256": "8a7135820f369e2cdb316c8b29e1fa759986d31fee39816f94f9d5f7d7b410c0",
+      "bytes": 63909
     },
     {
       "path": "LICENSE",
@@ -2622,8 +2622,8 @@
     },
     {
       "path": "docs/VALIDATION.md",
-      "sha256": "d99f1aeb4daddf406055d10b6d569071d40df23f8ec3b8782349b09c5de33990",
-      "bytes": 27637
+      "sha256": "d122fe89ad5573aa171d9b94355c67b41708acef02cc2a4fd1aad18fc9fa2aa1",
+      "bytes": 28304
     },
     {
       "path": "docs/WORKBUDDY_EXECUTOR.md",
