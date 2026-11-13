@@ -337,6 +337,15 @@
   // 把「真正能点的地方」告诉主进程（角色 / 工具栏 / 气泡 / 面板的合并包围盒）。
   // 主进程按光标位置动态开关注透：落在外面就让点击穿透到桌面和其他窗口。
   let hitboxTimer = null;
+  let lastHitbox = null;
+  // 只读统计：measured 是重算次数，sent 是真正发出的 IPC 次数，skipped 是被差分挡掉的。
+  // 真机验证靠它证明「动作帧切换没有把包围盒 IPC 刷起来」，而不是靠肉眼说窗口不闪。
+  const hitboxStats = { measured: 0, sent: 0, skipped: 0 };
+  window.__petHitboxStats = () => Object.assign({}, hitboxStats);
+  function sameBox(a, b) {
+    return !!a && Math.abs(a.x - b.x) <= 1 && Math.abs(a.y - b.y) <= 1
+      && Math.abs(a.w - b.w) <= 1 && Math.abs(a.h - b.h) <= 1;
+  }
   function reportHitbox() {
     const boxes = ['#pet-actor', '#pet-toolbar', '#pet-bubble', '#pet-emotes', '#pet-chatbox', '#pet-menu', '#pet-outfits']
       .map((sel) => document.querySelector(sel))
@@ -347,7 +356,18 @@
     const y = Math.min(...boxes.map((b) => b.top));
     const w = Math.max(...boxes.map((b) => b.right)) - x;
     const h = Math.max(...boxes.map((b) => b.bottom)) - y;
-    window.workbench.petControl('hitbox', { x, y, w, h }).catch(() => {});
+    hitboxStats.measured += 1;
+    // MutationObserver 监听 style，而 applyRow 每帧都会写 sprite 的 CSS 变量。
+    // 那些改动只换雪碧图行/帧数，包围盒一像素都没变；不去重就是每 60ms 一次
+    // 跨进程 IPC + 一次强制布局，白抢动画的帧预算。
+    const box = { x, y, w, h };
+    if (sameBox(lastHitbox, box)) { hitboxStats.skipped += 1; return; }
+    lastHitbox = box;
+    hitboxStats.sent += 1;
+    window.workbench.petControl('hitbox', box).catch(() => {
+      // 窗口还没建好或 IPC 失败时允许下次重试，不要永久记住一个没送达的包围盒。
+      lastHitbox = null;
+    });
   }
   function queueHitbox() {
     if (hitboxTimer) return;

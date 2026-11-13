@@ -26,10 +26,20 @@ let lastProbe = null;
 // 进出用两套边界做滞回。每次 setIgnoreMouseEvents 都会改 Windows 窗口扩展样式、
 // 让 DWM 重组合成表面；光标在角色包围盒边缘抖几个像素就来回切，观感就是「偶尔闪一下」。
 const HIT_HYSTERESIS = 8;
+// 命中链路的可观测计数：只记真实发生的窗口样式切换与包围盒更新。
+// 透明窗每切一次 setIgnoreMouseEvents 都会让 DWM 重组合成表面；用这个数字说明
+// 「抖动有没有真的少切窗口」，比肉眼判断「好像不闪了」可信。
+const diag = { ignoreSwitches: 0, hitboxUpdates: 0, hitboxNoops: 0, hitboxReevaluated: 0, ignoreReasons: [] };
+const HITBOX_EPSILON = 1; // DIP：亚像素布局抖动不算边界变化
 
-function applyIgnore(next) {
+// reason 记的是「哪条链路触发了这次窗口样式切换」。用历史而不是最后一个来源，
+// 因为 200ms 兜底轮询随时可能把 lastProbe 覆盖掉，真机断言要能查发生过的事实。
+function applyIgnore(next, reason) {
   if (!petWindow || petWindow.isDestroyed() || next === ignoring) return;
   ignoring = next;
+  diag.ignoreSwitches += 1;
+  diag.ignoreReasons.push(reason || 'unknown');
+  if (diag.ignoreReasons.length > 20) diag.ignoreReasons.shift();
   try { petWindow.setIgnoreMouseEvents(next, { forward: true }); } catch {}
 }
 
@@ -50,7 +60,26 @@ function updateIgnoreFromScreen(p, source) {
   const pad = ignoring ? HIT_HYSTERESIS : -HIT_HYSTERESIS;
   const inside = hitTest(lx, ly, pad);
   lastProbe = { lx, ly, inside, at: Date.now(), source: source || 'poll' };
-  applyIgnore(!inside);
+  applyIgnore(!inside, source || 'poll');
+}
+
+function sameHitbox(a, b) {
+  return !!a && !!b
+    && Math.abs(a.x - b.x) <= HITBOX_EPSILON
+    && Math.abs(a.y - b.y) <= HITBOX_EPSILON
+    && Math.abs(a.w - b.w) <= HITBOX_EPSILON
+    && Math.abs(a.h - b.h) <= HITBOX_EPSILON;
+}
+
+// 包围盒真的变了（气泡弹出、面板展开、菜单移位）时，用上一次的窗口内坐标立刻重判。
+// 否则最长 200ms 内仍按旧边界判定：新出现的面板会被穿透到下层窗口，点不到。
+function refreshIgnoreAfterHitboxChange() {
+  if (!hitbox || dragOffset || !lastProbe) return;
+  const pad = ignoring ? HIT_HYSTERESIS : -HIT_HYSTERESIS;
+  const inside = hitTest(lastProbe.lx, lastProbe.ly, pad);
+  diag.hitboxReevaluated += 1;
+  lastProbe = Object.assign({}, lastProbe, { inside, source: 'hitbox' });
+  applyIgnore(!inside, 'hitbox');
 }
 
 function syncIgnoreFromCursor() {
@@ -265,11 +294,20 @@ function registerPetWindow(userDataPath) {
       const y = Number.isFinite(r.y) ? Math.max(-pad, Math.min(HEIGHT * 2, r.y)) - pad : -pad;
       const w = (Number.isFinite(r.w) ? Math.max(1, Math.min(WIDTH * 2, r.w)) : WIDTH) + pad * 2;
       const h = (Number.isFinite(r.h) ? Math.max(1, Math.min(HEIGHT * 2, r.h)) : HEIGHT) + pad * 2;
-      hitbox = { x, y, w, h };
-      return { ok: true };
+      const next = { x, y, w, h };
+      // 渲染层已经做过一次差分，主进程再挡一层：重复的包围盒既不覆盖内部状态，
+      // 也不触发一次多余的命中重判（那才是窗口样式切换的来源）。
+      if (sameHitbox(hitbox, next)) {
+        diag.hitboxNoops += 1;
+        return { ok: true, data: { unchanged: true } };
+      }
+      hitbox = next;
+      diag.hitboxUpdates += 1;
+      refreshIgnoreAfterHitboxChange();
+      return { ok: true, data: { unchanged: false } };
     }
     if (action === 'ignore') {
-      applyIgnore(Boolean(value));
+      applyIgnore(Boolean(value), 'explicit');
       return { ok: true, data: { ignore: ignoring } };
     }
     if (action === 'hover') {
@@ -287,7 +325,7 @@ function registerPetWindow(userDataPath) {
       const cx = Number.isFinite(v.x) ? v.x : WIDTH / 2;
       const cy = Number.isFinite(v.y) ? v.y : HEIGHT / 2;
       dragOffset = { x: Math.max(0, Math.min(WIDTH, cx)), y: Math.max(0, Math.min(HEIGHT, cy)) };
-      applyIgnore(false); // 拖动期间必须能被点
+      applyIgnore(false, 'drag-start'); // 拖动期间必须能被点
       return { ok: true };
     }
     if (action === 'drag-move') {
@@ -319,6 +357,13 @@ function registerPetWindow(userDataPath) {
       state.x = x; state.y = y;
       if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
       save();
+      // drag-start 把整窗强制设成可点，拖动期间所有命中判定都跳过。原来松手只清
+      // dragOffset，要等下一次 hover 或 200ms 兜底轮询才重判；这段时间整个
+      // 250×300 矩形都拦着下层窗口的点击。用最终光标位置当帧还原，不用等轮询。
+      const p = (Number.isFinite(v.sx) && Number.isFinite(v.sy))
+        ? { x: v.sx, y: v.sy }
+        : (typeof screen?.getCursorScreenPoint === 'function' ? screen.getCursorScreenPoint() : null);
+      if (p) updateIgnoreFromScreen(p, 'drag-end');
       return { ok: true, data: { x, y } };
     }
     if (action === 'move') {
@@ -358,7 +403,7 @@ function registerPetWindow(userDataPath) {
     },
     close: () => { if (petWindow && !petWindow.isDestroyed()) petWindow.close(); },
     // 只读快照，供诊断与测试确认内部状态
-    snapshot: () => ({ hitbox: hitbox ? Object.assign({}, hitbox) : null, ignoring, dragOffset: dragOffset ? Object.assign({}, dragOffset) : null, lastProbe, displays: currentDisplays().length }),
+    snapshot: () => ({ hitbox: hitbox ? Object.assign({}, hitbox) : null, ignoring, dragOffset: dragOffset ? Object.assign({}, dragOffset) : null, lastProbe, displays: currentDisplays().length, diag: Object.assign({}, diag) }),
     // 供验证脚本显式触发一次拓扑变化后的救援，不必真的拔显示器
     rescueIfOffscreen,
   };

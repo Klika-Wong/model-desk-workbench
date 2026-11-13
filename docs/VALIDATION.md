@@ -1,5 +1,42 @@
 # 本次发布验证
 
+## 2026-11-13 桌宠命中链路的去重与松手复位
+
+| 检查 | 命令 | 结果 |
+| --- | --- | --- |
+| 单元测试 | `npm test` | 272/272（新增 `pet-hitbox.test.cjs` 6 项） |
+| 界面真机 | `npm run verify:ui` | 74 项，console 错误 0（回归，本轮未改主界面） |
+| 桌宠真机 | `npm run verify:pet` | 24 项（新增 3 项），连跑两轮均 24/24 |
+| 主进程真机 | `npm run verify:main` | 15 项（回归） |
+| 桌面冒烟 | `npm run smoke` | 65 项通过 |
+| vendor 素材离线校验 | `node scripts/vendor-assets.cjs --check` | 37 文件 / 2 来源 |
+| 发布源码扫描 | `python scripts/check_public_source.py` | `{"files":542,"findings":[]}`，退出码 0 |
+| 运行实例同步预检 | `node scripts/sync-to-runtime.cjs --dry-run` | 4 个文件 |
+
+三条新真机断言都不是只看源码：`pet-hitbox-no-redundant-ipc` 在真实桌宠窗口里连改 12 帧
+sprite 内联样式，读 `window.__petHitboxStats()`，要求 `measured` 增长、`sent` 完全不变、
+`skipped` 增长；`pet-drag-end-restores-ignore` 从渲染层真发 `drag-start` / `drag-end`，
+再读主进程 `ctl.snapshot().diag.ignoreReasons`，要求切换历史里出现 `drag-end`；
+`pet-hit-diagnostics-readable` 确认计数可读。单测用假 `electron` 跑真实 handler，覆盖
+重复包围盒、边界变化重判、两种松手路径与滞回内零切换。
+
+**这一轮验证自己也被修了一次**：`verify:pet` 的 userData 是持久化的，上一轮末尾的
+`lock:true` 会留到下一轮，把 `drag-start` 短路掉。第一次连跑时第二轮就失败了，诊断输出
+`ignoreReasons:["poll"]` 直接把原因指出来。现在每轮先删 `pet-window.json`、断言里显式解锁，
+连跑两轮均通过。这不是产品代码缺陷，是验证脚本的状态污染，不拿它冒充功能修复。
+
+**边界，不能当成已验收**：
+
+- `ignoreSwitches` / `sent` / `skipped` 是进程内计数，**不是屏幕像素或 DWM 合成帧的证据**。
+  本轮只能说「可解释的重复样式切换与无效 IPC 被挡掉了」，不能说闪烁已根治；透明窗在部分
+  显卡上的偶发闪烁仍缺稳定复现，右键「不透明窗口」仍是缓解手段。
+- 真机用的是渲染层直接发 IPC 与合成事件，**没有真实鼠标拖动**，也**没有在混合 DPI、
+  多显示器热插拔下实测**。松手复位是同步状态断言，不是手感验收。
+- 可点状态下窗口整个 250×300 矩形仍会拦截鼠标，包围盒去重不改变这一点；200ms 兜底轮询
+  保留，转发 `mousemove` 中断时仍可能有一次轮询周期的延迟。
+- `pet-hitbox-no-redundant-ipc` 断言 `sent` 完全不变，前提是这段时间 DOM 几何确实没变；
+  若真有面板展开，会如实发一次新包围盒，不会为了通过断言把变化吞掉。
+
 ## 2026-11-13 排队位次与多模型组的诚实呈现
 
 | 检查 | 命令 | 结果 |

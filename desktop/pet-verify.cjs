@@ -5,6 +5,7 @@
    由 pet-verify-run.cjs 以 Electron 入口脚本启动，不参与 ui-verify 的桩环境。 */
 const { app, BrowserWindow } = require('electron');
 const path = require('node:path');
+const fs = require('node:fs');
 
 const result = { ok: false, checks: [], errors: [] };
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -25,6 +26,9 @@ app.whenReady().then(async () => {
   try {
     // 独立 userData，避免验证过程改写用户真实的桌宠位置与形象。
     app.setPath('userData', path.join(app.getPath('appData'), 'ModelDesk-Pet-Verify'));
+    // 上一轮验证会把 lock:true 与窗口位置写进这个目录；下一轮启动时 state.locked
+    // 直接短路 drag-start，拖动断言会莫名其妙失败。每轮从干净配置开始。
+    try { fs.unlinkSync(path.join(app.getPath('userData'), 'pet-window.json')); } catch {}
     trace('registerPetWindow');
     const ctl = require('./pet-window.cjs').registerPetWindow(app.getPath('userData'));
 
@@ -206,6 +210,55 @@ app.whenReady().then(async () => {
     trace('menu done, snapshot');
     const snap = ctl.snapshot();
     check('pet-hitbox-reported', Boolean(snap.hitbox && snap.hitbox.w > 0 && snap.hitbox.h > 0), snap);
+    check('pet-hit-diagnostics-readable',
+      Number.isFinite(snap.diag && snap.diag.ignoreSwitches)
+      && Number.isFinite(snap.diag && snap.diag.hitboxNoops)
+      && Array.isArray(snap.diag && snap.diag.ignoreReasons), snap.diag);
+
+    // 动作帧只改 CSS 变量，包围盒一像素都没变。以前 MutationObserver 监听 style，
+    // applyRow 每帧写变量 → 每 60ms 一次跨进程上报 + 一次强制布局，白抢动画的帧预算。
+    // 这里真跑 12 帧，读渲染层统计，证明「量到了、但没往主进程发」。
+    trace('probe hitbox dedupe');
+    const hitStats = await petWin.webContents.executeJavaScript(`(async () => {
+      const wait = (ms) => new Promise(r => setTimeout(r, ms));
+      await wait(180);   // 让前面菜单 / 形象面板变更挂起的 60ms 定时器先收敛
+      const before = window.__petHitboxStats();
+      const sprite = document.querySelector('.pet-sprite');
+      for (let i = 0; i < 12; i++) {
+        if (sprite) sprite.style.setProperty('--pet-row', String(i % 9));
+        await new Promise(r => requestAnimationFrame(r));
+      }
+      await wait(180);
+      return { before, after: window.__petHitboxStats(),
+        hasApi: typeof window.__petHitboxStats === 'function' };
+    })()`);
+    check('pet-hitbox-no-redundant-ipc',
+      hitStats.hasApi === true
+      && hitStats.after.measured > hitStats.before.measured
+      && hitStats.after.sent === hitStats.before.sent
+      && hitStats.after.skipped > hitStats.before.skipped, hitStats);
+
+    // 松手当帧还原穿透：drag-start 会把整窗强制设成可点，drag-end 传的是
+    // 窗口左上角附近的最终光标（远在角色包围盒外），应当立刻切回穿透。
+    // 用 ignoreReasons 历史判断，避免 200ms 兜底轮询刚好覆盖 lastProbe.source。
+    trace('probe drag-end ignore reset');
+    const [wx, wy] = petWin.getPosition();
+    const switchesBefore = ctl.snapshot().diag.ignoreSwitches;
+    const dragReply = await petWin.webContents.executeJavaScript(`(async () => {
+      const unlocked = await window.workbench.petControl('lock', false);
+      const a = await window.workbench.petControl('drag-start', { x: 2, y: 2 });
+      const b = await window.workbench.petControl('drag-end', { sx: ${wx + 2}, sy: ${wy + 2} });
+      return { unlocked: !!unlocked && unlocked.ok === true,
+        a: !!a && a.ok === true, b: !!b && b.ok === true };
+    })()`);
+    const afterDrag = ctl.snapshot();
+    check('pet-drag-end-restores-ignore',
+      dragReply.unlocked === true && dragReply.a === true && dragReply.b === true
+      && afterDrag.dragOffset === null
+      && afterDrag.diag.ignoreSwitches > switchesBefore
+      && afterDrag.diag.ignoreReasons.includes('drag-start')
+      && afterDrag.diag.ignoreReasons.includes('drag-end'),
+      { dragReply, diag: afterDrag.diag, ignoring: afterDrag.ignoring });
 
     trace('snapshot done, petControl lock');
     const lock = await petWin.webContents.executeJavaScript(`window.workbench.petControl('lock', true)`);

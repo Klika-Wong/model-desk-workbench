@@ -1072,8 +1072,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "dc131f99568206fa07101976ef9bbd17882d18557c1eb9025b08da2e50b80f67",
-      "bytes": 60464
+      "sha256": "7e37cad33deab03867aebcc78d55a72f5744714eff897ee247ccf5880fbb145c",
+      "bytes": 63713
     },
     {
       "path": "LICENSE",
@@ -2226,6 +2226,11 @@
       "bytes": 9287
     },
     {
+      "path": "desktop/pet-hitbox.test.cjs",
+      "sha256": "46dec6743ad5c5d1a87a0c0b446dee5ef422252cc72754ea9da912c1d5ae20ff",
+      "bytes": 8884
+    },
+    {
       "path": "desktop/pet-motion.js",
       "sha256": "5f49b2c09dca22ab479932e01ac5ccaf4428c62f5a30b203a63e65529f48198a",
       "bytes": 3970
@@ -2242,8 +2247,8 @@
     },
     {
       "path": "desktop/pet-ui.js",
-      "sha256": "27a4cf08c5065372bc315d5c3690436ec05a185df189e3bcdd44c58d6d78180a",
-      "bytes": 26943
+      "sha256": "5da9c84d90769dce5d283f69c2a5ced3717d502d7e876fa6eda276289467b250",
+      "bytes": 28088
     },
     {
       "path": "desktop/pet-verify-run.cjs",
@@ -2252,13 +2257,13 @@
     },
     {
       "path": "desktop/pet-verify.cjs",
-      "sha256": "9d34da28c3658ea21bd2eeeb051e7cdd3eda3138c75ed9ad6e1f21b49b74e346",
-      "bytes": 12353
+      "sha256": "6c07f39f2e33ab127cf45625466b4c3c859c57c285473a5f8201b3126af0dcdb",
+      "bytes": 15583
     },
     {
       "path": "desktop/pet-window.cjs",
-      "sha256": "bd050ae1867c630d00b0a0a664bf45190e5ef51b820b88f1832f7f77af5e7c80",
-      "bytes": 17111
+      "sha256": "7fe235b6b9acdedca82bc8e6659e66946c4bdf521ef03847736797a3e54c697f",
+      "bytes": 19893
     },
     {
       "path": "desktop/pet-window.test.cjs",
@@ -2542,8 +2547,8 @@
     },
     {
       "path": "docs/PET_DESKTOP.md",
-      "sha256": "df5795a23a2912ba64b20dac831c2562213a276a9bc145bbb166aff2ea4d2a37",
-      "bytes": 9979
+      "sha256": "f5e65f9245726483e791d48e2c94c9dfa6c0d3364f996e1d188033116bf5de26",
+      "bytes": 12457
     },
     {
       "path": "docs/PET_INTERACTION_FIXES.md",
@@ -2577,8 +2582,8 @@
     },
     {
       "path": "docs/ROADMAP.md",
-      "sha256": "a558d4891bf99d78fd32fc421e6bfbb0a67f621d58515a76f80553258e539575",
-      "bytes": 2220
+      "sha256": "d6e2d66a914e7eb83b88ad3697af821d76aa99268b4c6430ce85d729d108bbc7",
+      "bytes": 2427
     },
     {
       "path": "docs/SHELL_GUARD.md",
@@ -2617,8 +2622,8 @@
     },
     {
       "path": "docs/VALIDATION.md",
-      "sha256": "9e45500665b67fbf59ceb065cf744c5830300883ad508b1a6a69f8c58d6ab5dc",
-      "bytes": 24780
+      "sha256": "d99f1aeb4daddf406055d10b6d569071d40df23f8ec3b8782349b09c5de33990",
+      "bytes": 27637
     },
     {
       "path": "docs/WORKBUDDY_EXECUTOR.md",
