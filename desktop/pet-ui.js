@@ -213,6 +213,15 @@
     chatTimers = [];
   }
 
+  // 失败 / 没选项目时统一恢复 UI：气泡和动作不能停在「想想… / 工作」上假装还在干。
+  function failChat(message, row) {
+    stopChatPolling();
+    sendBtn.disabled = false;
+    chatStatus.textContent = message;
+    showBubble(message.length > 90 ? message.slice(0, 90) + '…' : message, '❓');
+    setRow(row || 'idle', 1800);
+  }
+
   async function sendChat() {
     const prompt = input.value.trim();
     const modelId = modelSelect.value;
@@ -225,9 +234,9 @@
     try {
       const state = await window.workbench.getState();
       const project = state && state.project;
-      if (!project) { chatStatus.textContent = '先在主窗口选择项目。'; return; }
+      if (!project) { failChat('先在主窗口选个项目'); return; }
       const reply = await window.workbench.dispatchSend({ prompt, modelId, kind: 'chat', project });
-      if (!reply || !reply.ok) { chatStatus.textContent = `派发失败：${(reply && reply.error) || '未知原因'}`; return; }
+      if (!reply || !reply.ok) { failChat('派发失败：' + ((reply && reply.error) || '未知原因'), 'fail'); return; }
       const taskId = reply.data.id;
       let latest = '';
       chatStatus.textContent = '已派发，等待输出…';
@@ -260,9 +269,7 @@
         } catch {}
       }, 2000));
     } catch (error) {
-      chatStatus.textContent = `发送失败：${error.message}`;
-      stopChatPolling();
-      sendBtn.disabled = false;
+      failChat('发送失败：' + error.message, 'fail');
     } finally {
       // 轮询期间保持禁用；若前面提前返回（没有项目/派发失败）也要解开。
       if (!chatTimers.length) sendBtn.disabled = false;
@@ -454,6 +461,11 @@
   function toggleChat() {
     toggleBox(chatbox);
     const open = !chatbox.hidden;
+    if (!open) {
+      // 关聊天框同时停掉本地等待：别再后台空转，也别让旧结果回到已关的框里。
+      stopChatPolling();
+      sendBtn.disabled = false;
+    }
     // 只有要打字时才让窗口夺焦；平时保持「点了也不抢焦点」。菜单和聊天各自登记，
     // 关掉其中一个不会顺手把另一个弄失焦。
     requestFocus('chat', open).then(() => { if (open) input.focus(); });

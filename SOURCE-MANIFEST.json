@@ -1,7 +1,7 @@
 {
   "project": "Model Desk Workbench",
   "version": "0.1.0-preview",
-  "date": "2026-11-13",
+  "date": "2026-11-16",
   "scope": "Source-only snapshot; excludes runtime data and this manifest itself.",
   "hashing": "sha256 over LF-normalized bytes; files containing NUL bytes are hashed verbatim",
   "files": [
@@ -1072,8 +1072,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "8a7135820f369e2cdb316c8b29e1fa759986d31fee39816f94f9d5f7d7b410c0",
-      "bytes": 63909
+      "sha256": "c77e9744fcbc3db27d432b0fb41de03eb49975fae8bd51996bdae21f63914fc8",
+      "bytes": 65562
     },
     {
       "path": "LICENSE",
@@ -2247,8 +2247,8 @@
     },
     {
       "path": "desktop/pet-ui.js",
-      "sha256": "5da9c84d90769dce5d283f69c2a5ced3717d502d7e876fa6eda276289467b250",
-      "bytes": 28088
+      "sha256": "6a2512d9cf9586f39fcdf3348e6891a1cbb44f275d5ee38a65b02eae3860c470",
+      "bytes": 28563
     },
     {
       "path": "desktop/pet-verify-run.cjs",
@@ -2257,8 +2257,8 @@
     },
     {
       "path": "desktop/pet-verify.cjs",
-      "sha256": "6c07f39f2e33ab127cf45625466b4c3c859c57c285473a5f8201b3126af0dcdb",
-      "bytes": 15583
+      "sha256": "260fa43a30ef360aa79fb7ead91d4acca4947bf9dee0f24a1393b679efe0073e",
+      "bytes": 17604
     },
     {
       "path": "desktop/pet-window.cjs",

@@ -260,6 +260,47 @@ app.whenReady().then(async () => {
       && afterDrag.diag.ignoreReasons.includes('drag-end'),
       { dragReply, diag: afterDrag.diag, ignoring: afterDrag.ignoring });
 
+    // 聊天失败路径要恢复 UI：没选项目 / 派发失败 / getState 抛错时，气泡和动作
+    // 不能停在「想想… / 工作」上假装还在干。验证环境没注册 workbench:get-state，
+    // getState 会 reject 走 catch 分支；断言只看「气泡不再是想想、动作落到 fail
+    // 并最终回 idle、按钮解禁」，不依赖具体错误文案。
+    trace('probe chat failure restores UI');
+    const chatFail = await petWin.webContents.executeJavaScript(`(async () => {
+      const wait = (ms) => new Promise(r => setTimeout(r, ms));
+      const read = () => {
+        const s = document.querySelector('.pet-sprite');
+        const b = document.getElementById('pet-bubble');
+        return {
+          row: s ? s.style.getPropertyValue('--pet-row') : '',
+          bubble: b ? b.textContent : '',
+          bubbleHidden: b ? b.hidden : true,
+          status: (document.getElementById('pet-chat-status') || { textContent: '' }).textContent || '',
+          disabled: document.getElementById('pet-send') ? document.getElementById('pet-send').disabled : true,
+        };
+      };
+      document.getElementById('pet-chat').click();
+      await wait(80);
+      const sel = document.getElementById('pet-model');
+      const opt = document.createElement('option');
+      opt.value = 'test-model'; opt.textContent = 'test-model';
+      sel.append(opt); sel.value = 'test-model';
+      document.getElementById('pet-input').value = '你好';
+      document.getElementById('pet-send').click();
+      await wait(500);
+      const after = read();
+      await wait(1900);
+      const settled = read();
+      return { after, settled };
+    })()`);
+    check('pet-chat-failure-restores-ui',
+      /发送失败|先在主窗口/.test(chatFail.after.status)
+      && chatFail.after.bubble !== '想想…'
+      && chatFail.after.disabled === false
+      && chatFail.after.row === '5'
+      && chatFail.after.bubbleHidden === false
+      && chatFail.settled.row === '0',
+      chatFail);
+
     trace('snapshot done, petControl lock');
     const lock = await petWin.webContents.executeJavaScript(`window.workbench.petControl('lock', true)`);
     check('pet-control-channel', lock && lock.ok === true, lock);
