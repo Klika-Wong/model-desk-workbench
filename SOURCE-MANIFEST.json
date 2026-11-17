@@ -1,7 +1,7 @@
 {
   "project": "Model Desk Workbench",
   "version": "0.1.0-preview",
-  "date": "2026-11-16",
+  "date": "2026-11-17",
   "scope": "Source-only snapshot; excludes runtime data and this manifest itself.",
   "hashing": "sha256 over LF-normalized bytes; files containing NUL bytes are hashed verbatim",
   "files": [
@@ -1072,8 +1072,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "c77e9744fcbc3db27d432b0fb41de03eb49975fae8bd51996bdae21f63914fc8",
-      "bytes": 65562
+      "sha256": "7cb3dcb1709e8e96f3f7776778bddb86d1493a922d92361675bfab4d7ed6737b",
+      "bytes": 65758
     },
     {
       "path": "LICENSE",
