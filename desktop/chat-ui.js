@@ -716,27 +716,33 @@
     const history = useHistory && useHistory.checked
       ? window.__chatPrompt.buildHistory(messages, window.__chatPrompt.DEFAULT_HISTORY_CHARS)
       : { text: '', included: 0, omitted: 0 };
-    messages.push({ role: 'user', text });
-    persist();
-    input.value = '';
-    bubble('user', text);
-
-    const branches = chosen.map(multi.createBranch);
-    const wrap = document.createElement('div');
-    wrap.className = 'chat-branches';
-    const uis = branches.map((branch) => {
-      const ui = branchCard(branch);
-      wrap.append(ui.card);
-      return ui;
-    });
-    log.append(wrap);
-    log.scrollTop = log.scrollHeight;
-    say(`${branches.length} 个视角已排队：本机队列串行，会依次执行。`);
 
     try {
       const { prompt } = await composePrompt(text, history);
-      // 停止/切页可能落在 composePrompt 的 await 窗口里，此时不能再派发。
+      // 停止/切页可能落在 composePrompt 的 await 窗口里，此时不能再派发，
+      // 也不能写历史/清输入——否则会留下一条没派发的孤立用户消息。
       if (gen !== multiGeneration) return;
+
+      // 和单聊 send() 一致：记忆打包等准备成功之后才写历史、清输入、建分支卡。
+      // composePrompt 抛错时输入与历史原样保留，用户能改完直接重试；不会再出现
+      // 「问题进了历史、输入框空了、却一个分支都没派发」。
+      messages.push({ role: 'user', text });
+      persist();
+      input.value = '';
+      bubble('user', text);
+
+      const branches = chosen.map(multi.createBranch);
+      const wrap = document.createElement('div');
+      wrap.className = 'chat-branches';
+      const uis = branches.map((branch) => {
+        const ui = branchCard(branch);
+        wrap.append(ui.card);
+        return ui;
+      });
+      log.append(wrap);
+      log.scrollTop = log.scrollHeight;
+      say(`${branches.length} 个视角已排队：本机队列串行，会依次执行。`);
+
       await Promise.all(branches.map((branch, index) => watchBranch(branch, uis[index], prompt, gen)));
       const summary = multi.summarize(branches);
       if (gen === multiGeneration) say(`全部结束：成功 ${summary.done} 个 / 失败 ${summary.failed} 个。选一条「用这条继续」写进历史。`);

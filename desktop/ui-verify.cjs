@@ -328,6 +328,55 @@ async function main() {
   result.checks.push('chat-injection-source-dialog');
   result.checks.push('chat-streaming-partial-then-final');
 
+  // 多视角 compose 失败：记忆打包失败时 composePrompt 会抛错。断言输入与历史都没被写，
+  // 也没有留下空分支卡；否则用户会看到一条「发出去了却没人回答」的孤立消息。
+  // 用独立的一段重置回多视角状态，结束后恢复，避免污染后面的协作视图测试。
+  const composeFail = await js(`(async () => {
+    const multiToggle = document.querySelector('#chat-multi');
+    const petToggle = document.querySelector('#chat-pet');
+    const useMemory = document.querySelector('#chat-use-memory');
+    const multiSel = document.querySelector('#chat-multi-models');
+    const input = document.querySelector('#chat-input');
+    const consent = document.querySelector('#chat-consent');
+    petToggle.checked = false; petToggle.dispatchEvent(new Event('change'));
+    multiToggle.checked = true; multiToggle.dispatchEvent(new Event('change'));
+    await new Promise(r => setTimeout(r, 120));
+    [...multiSel.options].forEach((o, i) => { o.selected = i < 2; });
+    multiSel.dispatchEvent(new Event('change'));
+    useMemory.checked = true; useMemory.dispatchEvent(new Event('change'));
+    await new Promise(r => setTimeout(r, 120));
+    consent.checked = true; consent.dispatchEvent(new Event('change'));
+    const beforeText = (document.querySelector('#chat-status') || {}).textContent || '';
+    const savesBefore = window.__stubCalls.all().filter(c => c.api === 'chatSave').length;
+    const branchesBefore = document.querySelectorAll('.chat-branch').length;
+    const draft = '失败路径不该写进历史';
+    input.value = draft; input.dispatchEvent(new Event('input'));
+    window.__stubCalls.setMemoryPacketFail(true);
+    document.querySelector('#chat-send').click();
+    await new Promise(r => setTimeout(r, 500));
+    const out = {
+      draftKept: input.value === draft,
+      status: document.querySelector('#chat-status').textContent,
+      savesAfter: window.__stubCalls.all().filter(c => c.api === 'chatSave').length,
+      savesBefore,
+      branchesAfter: document.querySelectorAll('.chat-branch').length,
+      branchesBefore,
+      sendReenabled: !document.querySelector('#chat-send').disabled,
+      beforeText,
+    };
+    window.__stubCalls.setMemoryPacketFail(false);
+    useMemory.checked = false; useMemory.dispatchEvent(new Event('change'));
+    multiToggle.checked = false; multiToggle.dispatchEvent(new Event('change'));
+    input.value = ''; input.dispatchEvent(new Event('input'));
+    return out;
+  })()`);
+  if (!composeFail.draftKept) throw new Error('compose 失败后草稿被清空了');
+  if (!/失败|记忆打包/.test(composeFail.status)) throw new Error(`compose 失败没有如实提示：${composeFail.status}`);
+  if (composeFail.savesAfter !== composeFail.savesBefore) throw new Error('compose 失败却把消息写进了历史');
+  if (composeFail.branchesAfter !== composeFail.branchesBefore) throw new Error('compose 失败却建了空分支卡');
+  if (!composeFail.sendReenabled) throw new Error('compose 失败后发送按钮没有恢复');
+  result.checks.push('chat-multi-compose-failure-keeps-draft');
+
   // 协作视图：在线模型、生态分区、右键菜单、交流对话流
   const stage = await js(`(async () => {
    try {

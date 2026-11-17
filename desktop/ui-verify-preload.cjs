@@ -8,6 +8,8 @@ let terminalStatus = 'completed';
 // 排队快照：只在显式开启时让第一次状态查询返回「在排队」，供真机断言核对文案。
 let queueFixture = null;
 let chatClearFails = false;
+// 让记忆打包失败，用来验证 composePrompt 抛错时多视角不写历史、不清输入。
+let memoryPacketFail = false;
 let holdPerformance = false, performanceReplies = [];
 let logCalls = 0;
 let activityOn = false;
@@ -86,8 +88,11 @@ contextBridge.exposeInMainWorld('workbench', {
   memoryExport: async () => ({ ok: true, data: { text: '{}' } }),
   memoryPrepare: async () => ({ ok: true, data: { packet: {} } }),
   memoryApplyProposal: async () => ({ ok: true, data: snapshot }),
-  memoryPacket: async () => ({ ok: true, data: { text: '【记忆】示例', matched: 1, usedChars: 40, budgetChars: 2000,
-    items: [{ id: 'e-1', title: '示例记忆标题', version: 3, source: '手写录入', excerpt: '这是记忆原文正文……' }] } }),
+  memoryPacket: async () => {
+    if (memoryPacketFail) return { ok: false, error: '验证桩：记忆打包失败' };
+    return { ok: true, data: { text: '【记忆】示例', matched: 1, usedChars: 40, budgetChars: 2000,
+      items: [{ id: 'e-1', title: '示例记忆标题', version: 3, source: '手写录入', excerpt: '这是记忆原文正文……' }] } };
+  },
   memoryGrantSend: async () => ({ ok: true, data: { token: 'stub' } }),
   memoryCopyPacket: async () => ({ ok: true, data: {} }),
   architectureRead: async () => ({ ok: true, data: { nodes: [], edges: [], revision: 1, history: [] } }),
@@ -168,6 +173,7 @@ contextBridge.exposeInMainWorld('__stubCalls', { all: () => calls.slice(), setSe
   terminalStatus: value => { terminalStatus=value; },
   setQueueFixture: value => { queueFixture = value && Number.isFinite(value.ahead) ? value : null; },
   failChatClear: value => { chatClearFails=value; },
+  setMemoryPacketFail: value => { memoryPacketFail = value === true; },
   holdPerformance: () => {holdPerformance=true;},
   releasePerformance: () => {holdPerformance=false;const replies=performanceReplies;performanceReplies=[];replies.forEach(resolve=>resolve());},
   setProject: value => { selectedProject = value; },
