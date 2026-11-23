@@ -32,6 +32,15 @@
 stderr 的探针日志显示已跑到 `lock done, close pet`，重跑 25/25、`errors: []`；
 这与历史记录里的「E 盘串行偶发退出 1、输出截断」一致，本轮没有定位到根因。
 
+**真实链路复核（同一日 19:49，不是桩）**：面板服务在 `127.0.0.1:18765` 运行中，
+`/api/state` 返回 4 个模型与 4 个执行端。用项目自己的 `task-dispatch.cjs` 真实派发一次
+`只回复一个英文单词：PONG`（model `workbuddy-deepseek-flash`，项目指向一个临时空目录，
+不碰用户项目），任务 `20261123-194902-a664ff` 在 11.7 秒内 `completed`，日志正文为 `PONG`，
+`exitCode` 判定为空。随后用 `listTasks` + `fetchTaskLog` 取同一任务，按恢复逻辑的判断复算：
+`terminal: true, failed: false, answer: "PONG", wouldAppend: true`——即恢复函数真会把它补进历史。
+存储层也在真实模块上做了往返：写入带 `pendingTaskId` 的文件读回一致，补回答后再存 ID 变为 `null`。
+临时探针目录已删除。
+
 ## 2026-11-13 桌宠命中链路的去重与松手复位
 
 | 检查 | 命令 | 结果 |
