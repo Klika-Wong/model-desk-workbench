@@ -41,7 +41,7 @@ contextBridge.exposeInMainWorld('workbench', Object.freeze({
   copyAiGuide: () => ipcRenderer.invoke('ai:copy-guide'),
   modelSettingsLoad: (baseUrl, id) => ipcRenderer.invoke('models:settings-load', baseUrl, id),
   chatLoad: (project) => ipcRenderer.invoke('chat:load', project),
-  chatSave: (messages, project) => ipcRenderer.invoke('chat:save', messages, project),
+  chatSave: (messages, project, pendingTaskId) => ipcRenderer.invoke('chat:save', messages, project, pendingTaskId),
   chatClear: (project) => ipcRenderer.invoke('chat:clear', project),
   dispatchModels: () => ipcRenderer.invoke('dispatch:models'),
   modelSettingsSave: (baseUrl, operation) => ipcRenderer.invoke('models:settings-save', baseUrl, operation),

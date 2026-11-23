@@ -1,5 +1,37 @@
 # 更新记录
 
+## 重开后能找回上次的任务，但绝不重新派发（2026-11-23）
+
+交付门槛里「重启后恢复原任务跟踪，不自动重发」原来没闭环：`chat-store` 只存
+`{version, savedAt, messages}`，`normalize()` 把任务 ID 丢掉；重开应用后 `pendingTask`
+永远是 `null`，界面上只剩一段没有结尾的对话，用户不知道那个任务后来怎么样了。
+
+- `chat-store.cjs`：对话文件里多存一个 `pendingTaskId`。只收字符串、限长 120、
+  只允许 `[\w.:-]`，坏值一律当没有；旧版本文件没这个字段也照常读，不算损坏。
+  原子写（临时文件 + rename）与「非数组拒绝落盘」都保持原样。
+- `chat-ui.js`：`persist()` 把当前未终态任务 ID 一起存；`switchConversation()` 读到
+  `pendingTaskId` 后调用 `resumeTrackedTask()`。恢复只做**一次** `dispatchStatus` 查询：
+  终态且有回答就补进历史（标注原任务 ID）并清掉跟踪；非终态如实说明当前状态、
+  指向「运行与连接」页；查不到或查询失败都据实说明。**全程没有 `dispatchSend`，
+  也不挂常驻轮询**——不假装原窗口还在流式输出。
+- `main.cjs` / `preload.cjs`：`chat:save` 多收一个 `pendingTaskId` 并透传给存储层。
+- 顺带修掉一处重复用字：状态文案原来是「已${状态}」，遇到「已完成 / 已验收」会变成
+  「已已完成 / 已已验收」，现在改成「当前状态：…」。
+
+**验证**：`npm test` 284/284（新增 `chat-store.test.cjs` 3 项、`chat-resume-task.test.cjs`
+5 项接线断言）；`verify:ui` 76 项、console 错误 0，新增 `chat-resume-tracked-task-readonly`：
+在真实窗口里让 `chatLoad` 带回一个存下来的任务 ID，断言只查询一次、`dispatchSend`
+调用数为 0、终态回答补进历史且存盘里的 ID 被清掉、非终态不补回答。桌宠 25、主进程 15、
+冒烟 65、vendor 37 文件、清单 550 文件、`findings: []`。
+
+**反向验证**：临时在恢复路径里插一次 `dispatchSend`，断言精确失败在「恢复跟踪时重新派发了任务」；
+恢复修复版后连跑三次 76/76。这条断言守的是行为，不是碰巧过。
+
+**边界**：只持久化**单个**任务 ID。多视角一组任务（`multiTaskIds`）仍只在内存里，
+重开找不回整组；恢复只补「最终回答」，不恢复流式过程；真机断言用的是验证桩返回的
+任务与回答，没有跨真实重启读一个真实面板任务。另有一次 `verify:ui` 因情绪标
+`capturePage` 抓帧拿到 0 像素而失败，重跑三次均通过，属既有的抓帧偶发，本轮没有改动该检查。
+
 ## Herdr agent 运行时只读观测（2026-11-23）
 
 中台新增一块**只读**的 Herdr 状态面板，显示本机 herdr-core 里正在运行的 agent 状态。

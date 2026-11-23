@@ -93,6 +93,43 @@ test('清空后文件消失，再读是空对话', () => {
   assert.deepEqual(store.load(file).messages, []);
 });
 
+test('未终态任务 ID 随对话一起存盘，重开能读回', () => {
+  const file = tempFile();
+  const id = '20261027-214133-97c67a';
+  store.save(file, [{ role: 'user', text: '派发过一句' }], id);
+  const loaded = store.load(file);
+  assert.equal(loaded.pendingTaskId, id);
+  assert.deepEqual(loaded.messages, [{ role: 'user', text: '派发过一句' }]);
+});
+
+test('没有任务 ID 或任务已结束时不写该字段，旧文件兼容', () => {
+  const file = tempFile();
+  store.save(file, [{ role: 'user', text: '没有任务' }]);
+  assert.equal(store.load(file).pendingTaskId, null);
+  store.save(file, [{ role: 'user', text: '清掉了' }], null);
+  assert.equal(store.load(file).pendingTaskId, null);
+  // 老版本文件只有 messages，读起来也不能报损坏。
+  const legacy = tempFile();
+  fs.mkdirSync(path.dirname(legacy), { recursive: true });
+  fs.writeFileSync(legacy, JSON.stringify({ version: 1, messages: [{ role: 'user', text: '旧记录' }] }), 'utf8');
+  const old = store.load(legacy);
+  assert.equal(old.corrupted, false);
+  assert.equal(old.pendingTaskId, null);
+  assert.equal(old.messages[0].text, '旧记录');
+});
+
+test('畸形任务 ID 一律拒绝，不写进文件也不被读回', () => {
+  const file = tempFile();
+  for (const bad of [42, {}, [], 'a b', 'x\nimport', 'a'.repeat(store.MAX_TASK_ID + 1), '   ']) {
+    assert.equal(store.normalizeTaskId(bad), null, `应拒绝：${JSON.stringify(bad)}`);
+  }
+  store.save(file, [{ role: 'user', text: '正常' }], 'x\nimport');
+  assert.equal(store.load(file).pendingTaskId, null);
+  // 文件被手改成坏值，读取时也当没有。
+  fs.writeFileSync(file, JSON.stringify({ version: 1, messages: [], pendingTaskId: 'bad value' }), 'utf8');
+  assert.equal(store.load(file).pendingTaskId, null);
+});
+
 test('非数组写入被拒绝，且不破坏已有记录', () => {
   const file = tempFile();
   store.save(file, [{ role: 'user', text: '不能丢' }]);

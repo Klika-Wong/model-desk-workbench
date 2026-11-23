@@ -1372,12 +1372,12 @@ ipcMain.handle('chat:load', (event, project) => {
     return chatStore.load(chatFile(project));
   });
 });
-ipcMain.handle('chat:save', (event, messages, project) => {
+ipcMain.handle('chat:save', (event, messages, project, pendingTaskId) => {
   assertTrustedSender(event);
   return asyncReply(async () => {
     // 非数组一旦落盘就是"用空对话覆盖历史"，必须挡在写入之前。
     if (!Array.isArray(messages)) throw new Error('对话记录格式不正确，未保存（原有记录保持不变）。');
-    return chatStore.save(chatFile(project), messages);
+    return chatStore.save(chatFile(project), messages, pendingTaskId);
   });
 });
 ipcMain.handle('chat:clear', (event, project) => {

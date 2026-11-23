@@ -1,5 +1,31 @@
 # 本次发布验证
 
+## 2026-11-23 重启后恢复任务跟踪（只查不重发）
+
+| 检查 | 命令 | 结果 |
+| --- | --- | --- |
+| 单元测试 | `npm test` | 284/284（新增 `chat-store.test.cjs` 3 项、`chat-resume-task.test.cjs` 5 项） |
+| 界面真机 | `npm run verify:ui` | 76 项，console 错误 0（新增 `chat-resume-tracked-task-readonly`） |
+| 桌宠真机 | `npm run verify:pet` | 25 项 |
+| 主进程真机 | `npm run verify:main` | 15 项 |
+| 桌面冒烟 | `npm run smoke` | 65 项通过 |
+| vendor 素材离线校验 | `node scripts/vendor-assets.cjs --check` | 37 文件 / 2 来源 |
+| 发布源码扫描 | `python scripts/check_public_source.py` | `{"files":550,"findings":[]}`，退出码 0 |
+| 运行实例同步预检 | `node scripts/sync-to-runtime.cjs --dry-run` | 6 个文件 |
+
+新增真机断言 `chat-resume-tracked-task-readonly` 不是只看源码：它在真实窗口里通过
+`#choose` 走完整的项目切换链路，让 `chatLoad` 带回一个磁盘快照里的任务 ID，然后核对
+`__stubCalls` 里 `dispatchStatus` 恰好 1 次、`dispatchSend` 增量 0、终态回答进了历史、
+存盘时 `pendingTaskId` 已清空；再切一次到非终态任务，核对只提示「运行中」、不加回答。
+
+**反向验证**：临时在恢复路径里插入一次 `dispatchSend`，`verify:ui` 精确失败在
+「恢复跟踪时重新派发了任务」（exit 1）；恢复修复版后连跑三次 76/76、console 错误 0。
+这一步是为了证明断言守的是行为，而不是因为顺序碰巧成立。
+
+**一次未复现的抓帧偶发**：首次跑 `verify:ui` 时情绪标像素采样连续 4 次都是 0/441
+（`dpr=1.50`），随后连跑三次均通过。该检查用 `capturePage` 抓帧，历史上有同类偶发；
+本轮没有改动它，也没有放宽阈值。
+
 ## 2026-11-13 桌宠命中链路的去重与松手复位
 
 | 检查 | 命令 | 结果 |

@@ -17,6 +17,16 @@ function projectFile(directory, project) {
 
 const MAX_MESSAGES = 60;
 const MAX_CHARS = 200000;
+// 重开后要能找回原任务，只存一个任务 ID，不存任何别的系统状态。
+// 面板生成的 ID 形如 20261027-214133-97c67a；只收可见安全字符，防止坏值进文件。
+const MAX_TASK_ID = 120;
+function normalizeTaskId(value) {
+  if (typeof value !== 'string') return null;
+  const id = value.trim();
+  if (!id || id.length > MAX_TASK_ID) return null;
+  if (!/^[\w.:-]+$/.test(id)) return null;
+  return id;
+}
 
 function normalize(message) {
   if (!message || typeof message !== 'object') return null;
@@ -50,18 +60,22 @@ function load(file) {
     const data = JSON.parse(raw);
     const source = Array.isArray(data) ? data : data && data.messages;
     const { messages, dropped } = trim(source);
-    return { messages, dropped, corrupted: false };
+    // 旧文件没有这个字段，按 null 处理；坏值也不当成有效任务 ID。
+    const pendingTaskId = normalizeTaskId(data && data.pendingTaskId);
+    return { messages, dropped, corrupted: false, pendingTaskId };
   } catch (error) {
     // 文件不存在是正常的；解析失败要明确标出来，不能静默当成空对话。
     return { messages: [], dropped: 0, corrupted: error && error.code !== 'ENOENT' };
   }
 }
 
-function save(file, messages) {
+function save(file, messages, pendingTaskId) {
   // 非数组绝不能落盘：trim() 会把它变成空数组，等于用空对话覆盖历史。
   if (!Array.isArray(messages)) throw new Error('对话记录必须是数组，未写入。');
   const { messages: kept, dropped } = trim(messages);
   const payload = { version: 1, savedAt: new Date().toISOString(), messages: kept };
+  const taskId = normalizeTaskId(pendingTaskId);
+  if (taskId) payload.pendingTaskId = taskId;
   fs.mkdirSync(path.dirname(file), { recursive: true });
   const temp = `${file}.tmp`;
   fs.writeFileSync(temp, JSON.stringify(payload), 'utf8');
@@ -74,4 +88,4 @@ function clear(file) {
   return true;
 }
 
-module.exports = { projectFile, trim, load, save, clear, MAX_MESSAGES, MAX_CHARS };
+module.exports = { projectFile, trim, load, save, clear, normalizeTaskId, MAX_MESSAGES, MAX_CHARS, MAX_TASK_ID };

@@ -10,6 +10,9 @@ let queueFixture = null;
 let chatClearFails = false;
 // 让记忆打包失败，用来验证 composePrompt 抛错时多视角不写历史、不清输入。
 let memoryPacketFail = false;
+// 模拟「重开后从磁盘读回一个未终态任务」，用来验证只查询、不重发。
+let trackedTaskId = null;
+let trackedTerminal = false;
 let holdPerformance = false, performanceReplies = [];
 let logCalls = 0;
 let activityOn = false;
@@ -113,8 +116,8 @@ contextBridge.exposeInMainWorld('workbench', {
   panelEmbedHide: async () => { calls.push({api:'panelEmbedHide'}); return {ok:true}; },
   panelEmbedBounds: async () => ({ ok: true }),
   panelTheme: async () => ({ ok: true }),
-  chatLoad: async (project) => ({ ok: true, data: { messages: project?.includes('different-fixture') ? [] : [{ role: 'user', text: '上次的第一句' }], dropped: 0, corrupted: false } }),
-  chatSave: async (messages, project) => { calls.push({ api: 'chatSave', input: messages, project }); return { ok: true, data: { saved: (messages || []).length } }; },
+  chatLoad: async (project) => ({ ok: true, data: { messages: project?.includes('different-fixture') ? [] : [{ role: 'user', text: '上次的第一句' }], dropped: 0, corrupted: false, pendingTaskId: trackedTaskId } }),
+  chatSave: async (messages, project, pendingTaskId) => { calls.push({ api: 'chatSave', input: messages, project, pendingTaskId }); return { ok: true, data: { saved: (messages || []).length } }; },
   chatClear: async (project) => { calls.push({ api: 'chatClear', project }); return { ok: !chatClearFails, data: { cleared: !chatClearFails } }; },
   renderInfo: async () => ({ gpuCompositing: 'enabled', gpuRasterization: 'enabled', webgl: 'enabled', scaleFactor: 1, displaySize: [1280, 800], platform: 'win32' }),
   // 桩环境没有 Electron 主进程，petOpen 不会真的建窗口。harness 标记供断言区分，
@@ -142,7 +145,13 @@ contextBridge.exposeInMainWorld('workbench', {
     statusCalls = 0;
     return { ok: true, data: { id: 'task-1', status: 'queued' } };
   },
-  dispatchStatus: async () => {
+  dispatchStatus: async (taskId) => {
+    calls.push({ api: 'dispatchStatus', taskId });
+    // 恢复跟踪场景：这个 ID 来自磁盘快照，只查询，不该触发任何派发。
+    if (trackedTaskId && taskId === trackedTaskId) {
+      return { ok: true, data: { task: { id: taskId, status: trackedTerminal ? 'completed' : 'running', usage: null },
+        answer: trackedTerminal ? '上次任务的最终回答' : '', queue: null, exitCode: null } };
+    }
     if (statusFailures > 0) { statusFailures--; return {ok:false,error:'temporary fixture disconnect'}; }
     if (!sendOk) return { ok: false, error: '验证模式：没有任务' };
     statusCalls += 1;
@@ -174,6 +183,7 @@ contextBridge.exposeInMainWorld('__stubCalls', { all: () => calls.slice(), setSe
   setQueueFixture: value => { queueFixture = value && Number.isFinite(value.ahead) ? value : null; },
   failChatClear: value => { chatClearFails=value; },
   setMemoryPacketFail: value => { memoryPacketFail = value === true; },
+  setTrackedTask: (id, terminal) => { trackedTaskId = id || null; trackedTerminal = terminal === true; },
   holdPerformance: () => {holdPerformance=true;},
   releasePerformance: () => {holdPerformance=false;const replies=performanceReplies;performanceReplies=[];replies.forEach(resolve=>resolve());},
   setProject: value => { selectedProject = value; },

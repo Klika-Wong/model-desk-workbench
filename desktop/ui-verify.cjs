@@ -377,6 +377,64 @@ async function main() {
   if (!composeFail.sendReenabled) throw new Error('compose 失败后发送按钮没有恢复');
   result.checks.push('chat-multi-compose-failure-keeps-draft');
 
+  // 重开/重进项目后恢复任务跟踪：磁盘快照里带一个未终态任务 ID 时，界面只查询一次状态，
+  // 绝不重新派发；终态且有回答就补进历史并清掉跟踪，非终态只如实提示、不补假回答。
+  const resume = await js(`(async () => {
+    const statusText = () => (document.querySelector('#chat-status') || {}).textContent || '';
+    const callsOf = (api) => window.__stubCalls.all().filter(c => c.api === api);
+    const assistantCount = () => document.querySelectorAll('#chat-log .chat-msg.assistant').length;
+    const lastAssistant = () => (document.querySelector('#chat-log .chat-msg.assistant .chat-text') || {}).textContent || '';
+    const switchTo = async (project) => {
+      // 走真实的项目选择链路：choose 按钮 → showState 派发变更事件 → 对话页重新载入。
+      window.__stubCalls.setProject(project);
+      document.querySelector('#choose').click();
+      await new Promise(r => setTimeout(r, 700));
+    };
+
+    // 1) 终态且有回答：应补进历史、清掉跟踪、不重发
+    window.__stubCalls.setTrackedTask('20261123-101010-abc123', true);
+    const sends0 = callsOf('dispatchSend').length;
+    const status0 = callsOf('dispatchStatus').length;
+    await switchTo('E:/ui-tracked-A');
+    const terminal = {
+      sendsDelta: callsOf('dispatchSend').length - sends0,
+      statusDelta: callsOf('dispatchStatus').length - status0,
+      queriedId: (callsOf('dispatchStatus').slice(-1)[0] || {}).taskId,
+      assistant: assistantCount(),
+      text: lastAssistant(),
+      status: statusText(),
+      savedTaskId: (callsOf('chatSave').slice(-1)[0] || {}).pendingTaskId,
+    };
+
+    // 2) 非终态：只提示，不补历史、不重发
+    window.__stubCalls.setTrackedTask('20261123-111111-def456', false);
+    const sends1 = callsOf('dispatchSend').length;
+    const status1 = callsOf('dispatchStatus').length;
+    await switchTo('E:/ui-tracked-B');
+    const running = {
+      sendsDelta: callsOf('dispatchSend').length - sends1,
+      statusDelta: callsOf('dispatchStatus').length - status1,
+      assistant: assistantCount(),
+      status: statusText(),
+    };
+
+    window.__stubCalls.setTrackedTask(null);
+    await switchTo(${JSON.stringify(PROJECT)});
+    return { terminal, running };
+  })()`);
+  if (resume.terminal.sendsDelta !== 0) throw new Error('恢复跟踪时重新派发了任务');
+  if (resume.terminal.statusDelta !== 1) throw new Error(`恢复跟踪应只查询一次状态，实际 ${resume.terminal.statusDelta} 次`);
+  if (resume.terminal.queriedId !== '20261123-101010-abc123') throw new Error(`查询的不是存下来的任务 ID：${resume.terminal.queriedId}`);
+  if (resume.terminal.assistant !== 1) throw new Error(`终态回答没有补进历史（assistant 条数 ${resume.terminal.assistant}）`);
+  if (resume.terminal.text !== '上次任务的最终回答') throw new Error(`补进历史的不是原任务回答：${resume.terminal.text}`);
+  if (resume.terminal.savedTaskId) throw new Error('任务已终态，跟踪 ID 却还留在存盘里');
+  if (!/找回任务/.test(resume.terminal.status)) throw new Error(`终态恢复没有如实说明来源：${resume.terminal.status}`);
+  if (resume.running.sendsDelta !== 0) throw new Error('非终态恢复时重新派发了任务');
+  if (resume.running.statusDelta !== 1) throw new Error(`非终态也应只查询一次，实际 ${resume.running.statusDelta} 次`);
+  if (resume.running.assistant !== 0) throw new Error('非终态却往历史里补了回答');
+  if (!/运行中/.test(resume.running.status)) throw new Error(`非终态没有如实提示状态：${resume.running.status}`);
+  result.checks.push('chat-resume-tracked-task-readonly');
+
   // 协作视图：在线模型、生态分区、右键菜单、交流对话流
   const stage = await js(`(async () => {
    try {

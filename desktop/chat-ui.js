@@ -86,7 +86,9 @@
     const project = projectPath;
     const revision = conversationRevision;
     const snapshot = messages.map(message => ({ ...message }));
-    Promise.resolve().then(() => window.workbench.chatSave(snapshot, project)).then(reply => {
+    // 只把未终态的任务 ID 一起存盘，重开后能找回原任务；没有就把字段清掉。
+    // 这是纯跟踪信息，不存执行器输出、预算或任何别的系统状态。
+    Promise.resolve().then(() => window.workbench.chatSave(snapshot, project, pendingTask)).then(reply => {
       if (!reply?.ok) throw new Error('save failed');
     }).catch(() => {
       if (revision === conversationRevision) say('本机对话保存失败；当前窗口仍保留内容，请先复制备份。', true);
@@ -142,11 +144,48 @@
       messages.push(...(reply.data.messages || []));
       historyReady = true;
       renderAll(); renderEmpty();
-      say(hadTask ? '已切换项目；原任务继续执行，可在原项目的运行页查看。' : `已载入当前项目的 ${messages.length} 条对话。`);
+      const trackedId = reply.data.pendingTaskId;
+      if (trackedId) resumeTrackedTask(trackedId, revision);
+      else say(hadTask ? '已切换项目；原任务继续执行，可在原项目的运行页查看。' : `已载入当前项目的 ${messages.length} 条对话。`);
     } catch {
       if (revision === conversationRevision) say('该项目对话读取失败或记录损坏，已暂停发送以免覆盖原记录；请重新进入对话页重试。', true);
     } finally { if (revision === conversationRevision) refresh(); }
   }
+  // 重开 / 重进项目后找回上次没结束的任务。只查一次、只读，绝不重新派发：
+  // 面板有终态就把成功回答补进历史并清掉跟踪；没终态或查不到就如实提示去运行页看。
+  // 不挂常驻轮询——那是另一层功能，这里只把「任务跟踪」闭环，不假装原窗口还在流式输出。
+  async function resumeTrackedTask(taskId, revision) {
+    say(`已载入当前项目的 ${messages.length} 条对话；正在查上次的任务 ${taskId}…`);
+    try {
+      const reply = await window.workbench.dispatchStatus(taskId);
+      if (revision !== conversationRevision) return;
+      if (!reply || !reply.ok) throw new Error((reply && reply.error) || '查询失败');
+      const task = reply.data && reply.data.task;
+      if (!task) {
+        say(`上次的任务 ${taskId} 不在项目视图里；可到「运行与连接」页查看，不会重新派发。`, true);
+        return;
+      }
+      const state = String(task.status || task.phase || '').toLowerCase();
+      const terminal = ['completed', 'failed', 'cancelled', 'accepted', 'blocked'].includes(state);
+      if (!terminal) {
+        say(`上次的任务 ${taskId} 当前${statusText(state)}；原窗口不重复跟踪，可到「运行与连接」页查看。`);
+        return;
+      }
+      const failed = reply.data.exitCode || !['completed', 'accepted'].includes(state);
+      const answer = String(reply.data.answer || '').trim();
+      if (!failed && answer) {
+        messages.push({ role: 'assistant', text: answer, meta: `原任务 ${taskId} 的结果` });
+        persist();
+        renderAll(); renderEmpty();
+        say(`已找回任务 ${taskId} 的回答并补进历史。`);
+      } else {
+        say(`上次的任务 ${taskId} 当前状态：${statusText(state)}；没有可补进历史的回答，可到「运行与连接」页查看。`);
+      }
+    } catch (error) {
+      if (revision === conversationRevision) say(`查询上次任务 ${taskId} 失败：${error.message}；不会重新派发。`, true);
+    }
+  }
+
   const spaceId = () => {
     try { return window.__memoryUi?.currentSpaceId?.() || null; } catch { return null; }
   };
