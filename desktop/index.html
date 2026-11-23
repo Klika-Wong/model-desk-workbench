@@ -147,6 +147,16 @@
 <div id="tasks-page" hidden>
   <header class="page-header"><div><p class="eyebrow">运行与连接</p><h1>项目动态</h1><p class="intro">按当前项目查看真实任务状态；点击任务查看记录详情。</p></div><div class="header-actions"><button id="open-mini" type="button">悬浮任务窗</button></div></header>
   <section class="card project-summary"><div class="row"><div><p class="eyebrow">当前项目</p><h2 id="project" class="path">尚未选择项目</h2><p id="project-path" class="hint"></p></div><button id="choose" type="button">选择项目</button></div></section>
+  <details class="card"><summary class="card-summary">接入外部 Agent <span class="card-summary-note">MCP 配置</span></summary>
+    <form id="agent-connection-form">
+      <label>Agent 标识<input name="host" placeholder="例如 research-agent" required maxlength="64" pattern="[A-Za-z0-9][A-Za-z0-9_.\-]{0,63}"></label>
+      <label class="consent"><input type="checkbox" name="bound"> 允许本次专用对话派发与验收</label>
+      <label>专用会话标识<input name="session" disabled maxlength="80" placeholder="每个独立对话使用不同标识" pattern="[A-Za-z0-9][A-Za-z0-9_.\-]{0,79}"></label>
+      <p class="hint">默认只读。开启派发后，请只在该对话内使用配置；写入全局设置会让其他对话共用这份授权。</p>
+      <button type="submit">复制当前项目的接入配置</button>
+      <p id="agent-connection-status" class="hint" role="status"></p>
+    </form>
+  </details>
   <section class="card task-feed-card"><div class="row"><div><h2>任务动态</h2><p class="hint">来自本机工作台的真实任务记录。这里展示状态快照，详细过程请打开任务详情。</p></div><label class="all-projects-toggle"><input id="all-projects" type="checkbox"> 显示全部项目</label><button id="conn-refresh" type="button">刷新</button></div><div id="real-tasks" class="real-tasks"><p class="hint">正在读取…</p></div></section>
   <details class="card herdr-card" id="herdr-details"><summary class="card-summary">Herdr Agent 运行时 <span class="card-summary-note">只读观测 · 不会派发任务</span></summary><div class="row"><div><p class="hint">显示本机 herdr-core 中正在运行的 agent 状态。这里只读不写，任务派发仍走上方执行端。</p></div><button id="herdr-refresh" type="button">刷新状态</button></div><p id="herdr-status" class="hint" aria-live="polite">尚未读取。</p><div id="herdr-agents" class="herdr-agents"></div></details>
   <details class="card dispatch-card" id="dispatch-details"><summary class="card-summary">派发真实任务 <span class="card-summary-note">会调用工作台模型 · 本地模型无云端费用</span></summary><div class="row"><div><p class="hint">未选择项目时不会派发，也不能替别的项目发。</p></div><button id="dispatch-models" type="button">读取可用模型</button></div><label>模型<select id="dispatch-model"><option value="">尚未读取模型，请点右上角「读取可用模型」</option></select></label><label>任务内容<textarea id="dispatch-prompt" rows="3" maxlength="4000" placeholder="例如：为当前项目写三条下一步待办"></textarea></label><label class="consent"><input id="dispatch-consent" type="checkbox" disabled> 我确认这次会真的调用模型</label><div class="dispatch-actions"><button id="dispatch-preview" type="button" disabled>预览请求（不发送）</button><button id="dispatch-send" type="button" class="primary" disabled>派发</button><button id="dispatch-cancel" type="button" hidden>取消任务</button></div><div id="dispatch-preview-body" class="dispatch-preview" hidden></div><p id="dispatch-status" class="hint" aria-live="polite"></p><div id="dispatch-result" class="dispatch-result" hidden></div></details>
@@ -190,7 +200,7 @@
 <script src="assets/rooms/office.js"></script>
 <script src="room.js"></script>
 <script src="facility-panel.js"></script>
-<script src="workspace-ui.js"></script><script src="stage-ui.js"></script><script src="herdr-ui.js"></script>
+<script src="workspace-ui.js"></script><script src="stage-ui.js"></script><script src="herdr-ui.js"></script><script src="agent-connection-ui.js"></script>
 </body></html>
 
 

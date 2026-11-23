@@ -56,4 +56,5 @@ contextBridge.exposeInMainWorld('workbench', Object.freeze({
   petState: () => ipcRenderer.invoke('pet:state'),
   petControl: (action, value) => ipcRenderer.invoke('pet:control', action, value),
   herdrStatus: () => ipcRenderer.invoke('herdr:status'),
+  copyAgentConnection: (host, session) => ipcRenderer.invoke('agent:copy-connection', host, session),
 }));

@@ -16,6 +16,7 @@
   var refreshBtn = document.querySelector('#herdr-refresh');
   var timer = null;
   var lastSignature = '';
+  var loading = false;
 
   function text(tag, className, value) {
     var node = document.createElement(tag);
@@ -39,6 +40,7 @@
       statusEl.textContent = (data.message || 'herdr 未就绪') + '（只读观测，未派发任何任务）';
       statusEl.dataset.health = 'error';
       agentsEl.replaceChildren();
+      lastSignature = '';
       return;
     }
     var counts = data.counts || {};
@@ -55,7 +57,7 @@
     var nodes = rows.map(function (row) {
       var item = document.createElement('div');
       item.className = 'herdr-agent';
-      item.dataset.state = row.needs_you ? 'blocked' : (row.agent_state || row.live_state || 'unknown');
+      item.dataset.state = row.live_state === 'finished' ? 'finished' : (row.agent_state || row.live_state || 'unknown');
       item.appendChild(text('span', 'herdr-agent-address', row.address));
       item.appendChild(text('span', 'herdr-agent-name', row.agent || row.title || '终端'));
       item.appendChild(text('span', 'herdr-agent-state', stateLabel(row)));
@@ -67,12 +69,15 @@
   }
 
   async function load() {
-    if (document.hidden) return;
+    if (document.hidden || loading) return;
+    loading = true;
     try {
-      render(await window.workbench.herdrStatus());
+      var reply = await window.workbench.herdrStatus();
+      render(reply.ok ? reply.data : {ready: false, message: reply.error});
     } catch (error) {
-      statusEl.textContent = 'herdr 状态读取失败（只读观测，未派发任何任务）';
-      statusEl.dataset.health = 'error';
+      render({ready: false, message: 'herdr 状态读取失败'});
+    } finally {
+      loading = false;
     }
   }
 

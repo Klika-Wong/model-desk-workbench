@@ -99,7 +99,7 @@ function writeSmokeProgress(stage, data = {}) {
   if (smokeMode && resultFile) fs.writeFileSync(resultFile, JSON.stringify({ ok: false, stage, ...data }));
 }
 
-function readJson(url, method = 'GET', body, { authorize = true } = {}) {
+function readJson(url, method = 'GET', body, { authorize = true, timeout = 2000 } = {}) {
   return new Promise((resolve, reject) => {
     const target = new URL(url);
     if (target.hostname !== '127.0.0.1' || target.protocol !== 'http:') {
@@ -113,7 +113,7 @@ function readJson(url, method = 'GET', body, { authorize = true } = {}) {
         ...(authorize ? { authorization: `Bearer ${backendToken}` } : {}),
         ...(payload ? { 'content-type': 'application/json', 'content-length': payload.length } : {}),
       },
-      timeout: 2000,
+      timeout,
     }, (response) => {
       const chunks = [];
       response.on('data', (chunk) => chunks.push(chunk));
@@ -969,14 +969,29 @@ ipcMain.handle('panel:status', async (event, baseUrl) => {
     if(result.state==='connected'&&result.overview&&workspaceStore){try{require('./model-cache.cjs').save(workspaceStore.root,result.overview);}catch{/* Live state remains usable if optional cache cannot be saved. */}}
     // 确实连不上才尝试拉起一次（冷却 60 秒），让"体验版"单独也能用。
     if(result.state!=='connected') ensurePanelService({minGapMs:60000}).catch(()=>{});
+    if(result.state!=='connected') result.message = panelStartupMessage;
     return result;
+  });
+});
+ipcMain.handle('agent:copy-connection', (event, host, session) => {
+  assertTrustedSender(event);
+  return asyncReply(async () => {
+    const project = selectedProject;
+    if (!project) throw new Error('请先选择项目。');
+    const root = workbenchRootNow();
+    const baseUrl = await requirePanelBase();
+    if (selectedProject !== project) throw new Error('项目已切换，请重新复制。');
+    const config = require('./agent-connection.cjs').connectionConfig({root, project, baseUrl, host, session});
+    if (!fs.existsSync(config.mcpServers['model-desk'].args[0])) throw new Error('此安装缺少 MCP 接入程序。');
+    writeClipboard(JSON.stringify(config, null, 2));
+    return {project};
   });
 });
 ipcMain.handle('herdr:status', (event) => {
   assertTrustedSender(event);
   return asyncReply(async () => {
     const baseUrl = await requirePanelBase();
-    return readJson(baseUrl + '/api/herdr/status');
+    return readJson(baseUrl + '/api/herdr/status', 'GET', undefined, {authorize: false, timeout: 12000});
   });
 });
 ipcMain.handle('models:cache',event=>{assertTrustedSender(event);return memoryReply(()=>require('./model-cache.cjs').read(workspaceStore.root));});
@@ -1108,17 +1123,27 @@ const panelStarter = panelService.createPanelStarter({
     if (!root) return null;
     return fs.readFileSync(path.join(root, '.local-worker', 'panel-runtime.json'), 'utf8');
   },
-  spawnProcess: (root, port) => spawn(
-    path.join(root, '.local-worker', 'venv', 'Scripts', 'python.exe'),
-    [path.join(root, '.local-worker', 'start_panel.py'), '--port', String(port)],
-    { cwd: root, windowsHide: true, stdio: 'ignore', env: { ...process.env } }
-  ),
+  spawnProcess: (root, port) => {
+    const launcher = path.join(root, '打开模型工作台.ps1');
+    if (!fs.existsSync(launcher)) throw new Error('缺少工作台启动入口。');
+    const candidates = [process.env.MODEL_DESK_PWSH,
+      ...String(process.env.PATH || '').split(path.delimiter).map(dir => path.join(dir, 'pwsh.exe')),
+      path.join(app.getPath('home'), '.cache', 'codex-runtimes', 'codex-primary-runtime', 'dependencies', 'native', 'powershell', 'pwsh.exe')];
+    const powershell = candidates.find(file => file && fs.existsSync(file));
+    if (!powershell) throw new Error('未找到 PowerShell 7，请检查安装。');
+    return spawn(powershell, ['-NoProfile', '-File', launcher, '-NoBrowser', '-Port', String(port)],
+      { cwd: root, windowsHide: true, stdio: 'ignore', env: { ...process.env } });
+  },
 });
 
+let panelStartupMessage = '正在连接后台服务…';
 async function ensurePanelService(options) {
   // 验证模式不拉起外部 Python 服务：那是别人的进程，不该作为自动测试的副作用。
   if (smokeMode || mainVerifyMode || !PANEL_AUTOSTART) return { started: false, reason: 'disabled' };
-  return panelStarter.ensure(options);
+  const result = await panelStarter.ensure(options);
+  if (result.reason !== 'cooldown') panelStartupMessage = result.started || result.reason === 'already-running'
+    ? '后台服务已连接' : ({'workbench-not-found':'未找到协作服务安装目录。', 'port-busy':'端口已被占用，未重复启动。', 'launcher-failed':'启动入口未成功，请检查脚本信任和管理员权限。', 'spawn-failed':'无法运行启动入口，请检查 PowerShell 安装。', timeout:'后台启动未就绪，请检查服务日志后重试。'}[result.reason] || '后台服务未连接。');
+  return result;
 }
 
 ipcMain.handle('dispatch:models', (event) => {

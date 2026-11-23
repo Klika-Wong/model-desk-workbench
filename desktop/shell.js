@@ -143,7 +143,7 @@
       renderRealTasks(d.taskList);
       if (!allProjects && !d.project) { const box=document.getElementById('real-tasks'); if(box) box.textContent='尚未绑定项目：请先选择项目文件夹；不显示其他项目任务。'; }
     } else if (d.state === 'unreachable') {
-      setConnStatus(`未连接：未发现运行中的工作台。真实连接需先运行「启动模型面板.ps1」（默认 8765；若已自定义端口请在上方填写）。`);
+      setConnStatus(`未连接：${d.message || '软件正在连接后台服务，请稍后刷新。'} 使用桌面统一入口启动，无需另外打开终端窗口。`);
       idleChips();
       renderRealTasks([]);
     } else {

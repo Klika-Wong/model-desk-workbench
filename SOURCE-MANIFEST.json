@@ -1101,6 +1101,16 @@
       "bytes": 9127
     },
     {
+      "path": "desktop/agent-connection-ui.js",
+      "sha256": "8eb69113033492224c7bede5c37bdd31b65cfd187b9b7a82d2fe00bb319fb701",
+      "bytes": 1045
+    },
+    {
+      "path": "desktop/agent-connection.cjs",
+      "sha256": "a06c31619f17bd573aae1446adfaad7863c5ff830bca3e7d2e2a012a18d8e5be",
+      "bytes": 1530
+    },
+    {
       "path": "desktop/ai-guide-ui.js",
       "sha256": "26e565696146b3dbc8dfbb03887f1f8caa35beec77b2e797ea5ea72032452b4f",
       "bytes": 1243
@@ -1997,8 +2007,8 @@
     },
     {
       "path": "desktop/herdr-ui.js",
-      "sha256": "80d5c9d4cfdd241a958d76460a17c4bb329cfdbb983df9b9e8987bf91c9ca539",
-      "bytes": 3551
+      "sha256": "652989df7f6a020b53f177258d038a860c91bcba7bcbe806d510d9db3404d7a6",
+      "bytes": 3694
     },
     {
       "path": "desktop/herdr.css",
@@ -2007,8 +2017,8 @@
     },
     {
       "path": "desktop/index.html",
-      "sha256": "78d26a7966a2672643e2866728567878ffbf313a6659d742ad3c3fd034759efe",
-      "bytes": 41343
+      "sha256": "69635c91b9baa1b691ec3bedc3dd6b30a78d6ef92453fa4f38222a15475e9cbb",
+      "bytes": 42329
     },
     {
       "path": "desktop/main-verify-run.cjs",
@@ -2022,8 +2032,8 @@
     },
     {
       "path": "desktop/main.cjs",
-      "sha256": "59ed44d0a021cb06766160c70177ae9a80cb86da1868ff45aab5dd91f763bbf3",
-      "bytes": 85881
+      "sha256": "cf99d7e0319fd14232aef08027f779fef76224a6c02f9da5d33bbe67c9d0f575",
+      "bytes": 87933
     },
     {
       "path": "desktop/memory-bootstrap.cjs",
@@ -2222,8 +2232,8 @@
     },
     {
       "path": "desktop/panel-service.cjs",
-      "sha256": "a01a18fa0a6d360b1cc50ae5ce72479783df45fb9c0fa55361f40da1759fa232",
-      "bytes": 4461
+      "sha256": "da5e7bae101d36cf12e79036222401c176b998cf904cd12134781c5274d44779",
+      "bytes": 4827
     },
     {
       "path": "desktop/panel-service.test.cjs",
@@ -2307,8 +2317,8 @@
     },
     {
       "path": "desktop/preload.cjs",
-      "sha256": "7864170df3717d4962fd9de6778c213e6e509dceb14714b6d02aa04f53ac7854",
-      "bytes": 4200
+      "sha256": "bcf31dea3bfe8079e23b9d3ad8500fee14047e5c3d12d9a98be44612ddeaedfe",
+      "bytes": 4302
     },
     {
       "path": "desktop/renderer.js",
@@ -2332,8 +2342,8 @@
     },
     {
       "path": "desktop/shell.js",
-      "sha256": "b1564bd7982fd1284d67e01292742b4a5feb79861698e1e8761dd07a4e1f5564",
-      "bytes": 14960
+      "sha256": "ec6b3bbefc2bccdd4f23c1acc76c01b29e1ca4c74760fe7a4b2b22134691c7a0",
+      "bytes": 14949
     },
     {
       "path": "desktop/smoke-runner.cjs",

@@ -84,11 +84,17 @@ function createPanelStarter({
         return { started: false, reason: 'spawn-failed', error: error.message };
       }
       child = spawned;
+      let spawnError = false;
+      if (spawned && typeof spawned.once === 'function') spawned.once('error', () => { spawnError = true; });
       const deadline = now() + timeoutMs;
       while (now() < deadline) {
         await sleep(pollMs);
         const probe = await Promise.resolve().then(() => discover()).catch(() => null);
         if (probe && probe.state === 'connected') return { started: true, baseUrl: probe.baseUrl, port, root };
+        if (spawnError || (spawned && typeof spawned.exitCode === 'number' && spawned.exitCode !== 0)) {
+          if (child === spawned) child = null;
+          return { started: false, reason: 'launcher-failed' };
+        }
       }
       // 超时要收回子进程，否则每次冷却后重试都会多堆一个。
       try { if (spawned && typeof spawned.kill === 'function') spawned.kill(); } catch {}
