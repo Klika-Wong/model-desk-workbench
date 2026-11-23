@@ -447,10 +447,25 @@ class Relay:
                 self.end_headers()
                 self.wfile.write(data)
 
+            def discard_body(self):
+                # 拒绝前先把请求体读掉：Windows 上带着未读的入站数据关闭连接会发 RST，
+                # 调用方拿到的是「连接重置」而不是这条错误说明。
+                try:
+                    length = int(self.headers.get('Content-Length', 0) or 0)
+                except (TypeError, ValueError):
+                    return
+                if 0 < length <= 8 * 1024 * 1024:
+                    try:
+                        self.rfile.read(length)
+                    except OSError:
+                        pass
+
             def do_POST(self):
                 if self.client_address[0] != '127.0.0.1' or not secrets.compare_digest(self.headers.get('Authorization', ''), 'Bearer ' + relay.token):
+                    self.discard_body()
                     return self.reject('本地模型网关认证失败', 403)
                 if self.path not in {'/v1/chat/completions', '/chat/completions'}:
+                    self.discard_body()
                     return self.reject('此网关仅允许对话补全', 404)
                 try:
                     length = int(self.headers.get('Content-Length', 0))

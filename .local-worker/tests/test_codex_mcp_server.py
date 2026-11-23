@@ -5,6 +5,7 @@ No real panel restart, no model or paid generation, no user setting changes.
 import hashlib
 import importlib
 import json
+import os
 from pathlib import Path
 import sys
 import tempfile
@@ -127,7 +128,19 @@ class ProxyTests(unittest.TestCase):
         desk._TOKEN["value"] = None
 
     def test_endpoint_is_fixed_loopback(self):
-        self.assertEqual(desk.API_BASE, "http://127.0.0.1:8765")
+        # 端口允许由 MODEL_DESK_PANEL_PORT 覆盖（宿主会注入），但主机名必须是回环。
+        # 断言模块自己解析出的端口，而不是硬编码 8765——否则在设置了该变量的机器上
+        # 测试会失败，而实际代码是正确的。
+        self.assertEqual(desk.API_HOST, "127.0.0.1")
+        self.assertEqual(desk.API_BASE, f"http://127.0.0.1:{desk.API_PORT}")
+
+    def test_panel_port_default_and_override_rules(self):
+        with mock.patch.dict(os.environ, {}, clear=True):
+            self.assertEqual(desk._configured_panel_port(), 8765)
+        for value, expected in (('18765', 18765), ('8765', 8765), ('0', 8765),
+                                ('70000', 8765), ('abc', 8765), ('', 8765)):
+            with mock.patch.dict(os.environ, {'MODEL_DESK_PANEL_PORT': value}):
+                self.assertEqual(desk._configured_panel_port(), expected, f'值 {value!r}')
 
     def test_redirects_are_never_followed(self):
         handler = desk._NoRedirect()
@@ -441,7 +454,7 @@ class ServerHandlerTests(unittest.TestCase):
             result = self.call(mcp_types.CallToolRequest, request)
         payload = result.root.structuredContent
         self.assertTrue(payload["ready"])
-        self.assertEqual(payload["url"], "http://127.0.0.1:8765")
+        self.assertEqual(payload["url"], f"http://127.0.0.1:{desk.API_PORT}")
 
 
 if __name__ == "__main__":

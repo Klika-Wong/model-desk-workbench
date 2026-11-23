@@ -72,8 +72,12 @@ def read(root, nodes, snapshot_hash, safe):
                 if not isinstance(ref, dict):
                     raise ValueError('evidence')
                 name = ref.get('path')
+                # Windows 上 ntpath.isabs('/entry.py') 是 False，只凭 isabs 会让
+                # 以 '/' 开头的路径被当成合法相对路径；它永远匹配不到索引键，
+                # 于是静默退化成 unknown，而不是按格式无效拒绝。这里显式挡掉。
                 if (not isinstance(name, str) or not name or len(name) > 1024 or '\\' in name
-                        or '\0' in name or ntpath.isabs(name) or ntpath.splitdrive(name)[0]
+                        or '\0' in name or name.startswith('/') or ntpath.isabs(name)
+                        or ntpath.splitdrive(name)[0]
                         or '..' in PurePosixPath(name).parts or ':' in name
                         or PurePosixPath(name).as_posix() != name):
                     raise ValueError('path')

@@ -1,5 +1,46 @@
 # 本次发布验证
 
+## 2026-11-23 上线前完整自检（含中台 Python 套件）
+
+自检覆盖两层：桌面端 Node 与真机验证，以及中台 `.local-worker` 的 Python 套件
+（此前未纳入常规自检）。**首次全量跑出 9 项失败**，逐个定位后修掉 6 个真实缺陷
++ 2 处测试自身问题。
+
+| 检查 | 命令 | 结果 |
+| --- | --- | --- |
+| 中台 Python 套件 | `python -m unittest discover -s tests` | 1402 通过 / 0 失败 / 13 跳过 |
+| 桌面单测 | `npm test` | 284/284（连跑两次） |
+| 界面真机 | `verify:ui` | 76 项，console 错误 0 |
+| 桌宠真机 | `verify:pet` | 25 项 |
+| 主进程真机 | `verify:main` | 15 项 |
+| 桌面冒烟 | `smoke` | 65 项 |
+| vendor 素材 | `vendor-assets --check` | 37 文件 / 2 来源 |
+| 发布源码扫描 | `check_public_source.py` | 550 文件 / `findings: []` |
+
+修掉的真实缺陷（都能指到行、可复现）：
+
+1. `model_registry.file_lock`：Windows 上别人持有锁文件时 `open('a+b')` 自己就抛共享冲突，
+   而重试只包住了 `msvcrt.locking`。并发预留/结算会直接失败而不是排队。
+   现在把 `open` 也纳入重试。并发结算测试修前 3/5 线程报 `PermissionError`，修后 3/3 轮通过。
+2. `project_storage._lock`：同一类缺陷，影响项目索引并发注册。
+3. `project_storage.connect`：两个线程同时首次打开同一个新库时，建表阶段偶发
+   `attempt to write a readonly database`。现在对 `locked/readonly` 做有界重试。
+   最小复现 6 轮 × 4 线程修前 5 次失败，修后 8 轮 × 4 线程 0 失败。
+4. `panel_server.do_POST`：先鉴权、后读请求体；拒绝时未读的请求体让 Windows 关闭连接发 RST，
+   客户端拿到「连接重置」而不是那条 403 说明。现在拒绝前先丢弃请求体。
+5. `budget_relay` 网关：同样的顺序问题，修法一致。
+6. `project_architecture`：`ntpath.isabs('/entry.py')` 在 Windows 上返回 `False`，
+   该路径被当成合法相对路径，永远匹配不到索引键，静默退化成 `unknown` 而非 `invalid`。
+   现在显式拒绝以 `/` 开头的引用。
+
+测试自身的问题：`test_codex_mcp_server` 硬编码 8765，而宿主会注入 `MODEL_DESK_PANEL_PORT=18765`，
+现已改为断言模块自己的解析结果并单独覆盖默认值/覆盖值/非法值；`test_presets` 与
+`test_record_protection` 依赖本机 `~/.dsh/local-bundles` 里的 DSH 原生预设，缺文件时明确跳过，
+并新增一条「缺文件必须报错」的断言。
+
+**边界**：13 项跳过中 2 项属上述原生预设缺失（本机未生成 DSH local-bundles），其余为既有的
+环境相关跳过。跳过不等于通过，原生预设在本机未验证。
+
 ## 2026-11-23 重启后恢复任务跟踪（只查不重发）
 
 | 检查 | 命令 | 结果 |

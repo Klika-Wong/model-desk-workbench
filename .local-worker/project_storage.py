@@ -124,14 +124,24 @@ def _lock(path):
     """Cross-process file lock; bounded and explicit, never a silent no-op."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    handle = path.open('a+b')
+    # Windows 上另一个线程/进程正持有这个文件时，open('a+b') 自己就会抛
+    # 共享冲突（PermissionError / WinError 13）。重试必须包住 open，否则并发
+    # 注册不是排队等待而是直接失败。
+    deadline = time.monotonic() + 15
+    handle = None
+    while handle is None:
+        try:
+            handle = path.open('a+b')
+        except OSError:
+            if time.monotonic() > deadline:
+                raise StorageError('项目索引正在被写入，请稍后重试')
+            time.sleep(.05)
     try:
         if handle.tell() == 0:
             handle.write(b'0')
             handle.flush()
         if os.name == 'nt':
             import msvcrt
-            deadline = time.monotonic() + 15
             while True:
                 try:
                     handle.seek(0)
@@ -546,17 +556,30 @@ def connect(path, create=True):
         ensure_schema(conn)
         return conn
     path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(str(path), timeout=15, isolation_level=None)
-    conn.row_factory = sqlite3.Row
-    try:
-        # busy_timeout is per-connection state, so it must be set on every open.
-        conn.execute('PRAGMA busy_timeout=15000')
-        ensure_wal(conn, path)
-        ensure_schema(conn)
-    except Exception:
-        conn.close()
-        raise
-    return conn
+    # 两个线程/进程同时首次打开同一个新库时，SQLite 在建表阶段会偶发
+    # "database is locked" 或 "attempt to write a readonly database"——那其实是
+    # 另一方正在创建文件与 WAL，属可重试的瞬时状态。不重试的话，并发启动的
+    # 一方会直接抛错，而不是等对方建好。
+    deadline = time.monotonic() + 15
+    while True:
+        conn = sqlite3.connect(str(path), timeout=15, isolation_level=None)
+        conn.row_factory = sqlite3.Row
+        try:
+            # busy_timeout is per-connection state, so it must be set on every open.
+            conn.execute('PRAGMA busy_timeout=15000')
+            ensure_wal(conn, path)
+            ensure_schema(conn)
+            return conn
+        except sqlite3.OperationalError as error:
+            conn.close()
+            message = str(error).lower()
+            transient = 'locked' in message or 'readonly' in message
+            if not transient or time.monotonic() > deadline:
+                raise
+            time.sleep(.05)
+        except Exception:
+            conn.close()
+            raise
 
 
 def ensure_project(project):

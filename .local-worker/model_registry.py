@@ -67,12 +67,24 @@ def read_task(run):
 
 @contextmanager
 def file_lock(path):
+    path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("a+b") as handle:
+    deadline = time.monotonic() + 10
+    # Windows 上别的线程正持有这个文件时，open("a+b") 自己就会抛共享冲突
+    # （PermissionError/WinError 13）。重试必须包住 open，否则并发请求不是排队等待，
+    # 而是直接失败——记账与预算预留会因此报错。
+    handle = None
+    while handle is None:
+        try:
+            handle = path.open("a+b")
+        except OSError:
+            if time.monotonic() > deadline:
+                raise RuntimeError("模型配置正在保存，请稍后重试")
+            time.sleep(.05)
+    try:
         if handle.tell() == 0:
             handle.write(b"0")
             handle.flush()
-        deadline = time.monotonic() + 10
         while True:
             try:
                 handle.seek(0)
@@ -87,6 +99,8 @@ def file_lock(path):
         finally:
             handle.seek(0)
             msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+    finally:
+        handle.close()
 
 
 def registry_lock():

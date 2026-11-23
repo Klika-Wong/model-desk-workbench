@@ -147,8 +147,9 @@ class PatchTests(unittest.TestCase):
         rows = dsh_worker.build_patch(model, 'chat', preset)
         self.assertNotIn('model-desk-record-protection', [r.get('id') for r in rows])
 
-    @unittest.skipUnless((dsh_worker.EXECUTABLE.parent / 'resources/app.asar').is_file(),
-                         'requires a configured DSH installation')
+    @unittest.skipUnless((dsh_worker.EXECUTABLE.parent / 'resources/app.asar').is_file()
+                         and presets.NATIVE.is_file(),
+                         'requires a configured DSH installation with a generated native preset')
     def test_preset_identity_and_revision_are_untouched(self):
         native = presets.load({'provider': 'local'}, dsh_worker.EXECUTABLE)
         standard = presets.load({'provider': 'deepseek'}, dsh_worker.EXECUTABLE)

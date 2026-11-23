@@ -3,6 +3,7 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import dsh_worker
@@ -11,6 +12,10 @@ import model_registry as registry
 
 
 class PresetTests(unittest.TestCase):
+    # 原生预设的内容来自本机 DSH 生成的 local-bundles；没有装 DSH 或没生成过的机器上
+    # 这个文件不存在，断言无从谈起。缺文件时明确跳过，不伪装成通过。
+    @unittest.skipUnless(presets.NATIVE.is_file(),
+                         f'本机未生成 DSH 原生预设（{presets.NATIVE}），跳过原生定义断言')
     def test_named_definitions_and_shared_restrictions(self):
         native = presets.load({'provider': 'local'}, dsh_worker.EXECUTABLE)
         standard = presets.load({'provider': 'deepseek'}, dsh_worker.EXECUTABLE)
@@ -47,6 +52,18 @@ class PresetTests(unittest.TestCase):
             self.assertEqual(presets.verify(run, preset, 'session')['preset'], 'native')
             with self.assertRaises(ValueError):
                 presets.verify(run, preset, 'other-session')
+
+
+class MissingNativePresetTests(unittest.TestCase):
+    """原生预设文件缺失时必须明确报错，而不是退回标准预设或静默成功。"""
+
+    def test_missing_native_file_fails_closed_with_reason(self):
+        with tempfile.TemporaryDirectory() as temp:
+            missing = Path(temp) / '不存在的原生预设.yml'
+            with mock.patch.object(presets, 'NATIVE', missing):
+                with self.assertRaises(ValueError) as caught:
+                    presets.load({'provider': 'local'}, dsh_worker.EXECUTABLE)
+            self.assertIn('原生模式定义缺失', str(caught.exception))
 
 
 if __name__ == '__main__':

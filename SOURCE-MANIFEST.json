@@ -127,8 +127,8 @@
     },
     {
       "path": ".local-worker/budget_relay.py",
-      "sha256": "74bdb966443f726215ad2973164f40801b09adebd75184590e8a31c149a6b1c5",
-      "bytes": 50437
+      "sha256": "1ce51911f5cf2785a4f62ae8546b73a727946524bc2dc89f904dd3000a6e1459",
+      "bytes": 51118
     },
     {
       "path": ".local-worker/chat_worker.py",
@@ -282,8 +282,8 @@
     },
     {
       "path": ".local-worker/model_registry.py",
-      "sha256": "f31534a6a825f3144bfef8126b3374b4bc26f9957fccd00ae2c3489a433efa62",
-      "bytes": 26805
+      "sha256": "8909efbc948c75abae0ded4eb598e348ce6f534437f52c820e432e867a7d1e33",
+      "bytes": 27377
     },
     {
       "path": ".local-worker/model_router.py",
@@ -337,8 +337,8 @@
     },
     {
       "path": ".local-worker/panel_server.py",
-      "sha256": "b5e0fc876169f7bebc0f9800c9425b19a9d4ac7b25e658be6a39d5bcbf701406",
-      "bytes": 151964
+      "sha256": "e7d77c464b4afb015e6aaea3299d0c451467a91b8cb1b5c1574aaf9ed62750ec",
+      "bytes": 152468
     },
     {
       "path": ".local-worker/panel_service.py",
@@ -362,8 +362,8 @@
     },
     {
       "path": ".local-worker/project_architecture.py",
-      "sha256": "2e3a91027055fd3db9441a40400179254791c18fda3124a7a4263d390154e882",
-      "bytes": 5309
+      "sha256": "1090e1ea301e3e246e5809f6bac03f5350e05d8e07cedd93645fb1d14fa4d9a6",
+      "bytes": 5655
     },
     {
       "path": ".local-worker/project_map.py",
@@ -377,8 +377,8 @@
     },
     {
       "path": ".local-worker/project_storage.py",
-      "sha256": "069f74bb1f4c6ebc98aba5cd0d1244c33b70aa45be9697575a64ba195bd69bb3",
-      "bytes": 38022
+      "sha256": "b1c10a14fb6e3f5a49eb00de67654b730a5c59e40b069ac1f0906a84e462b570",
+      "bytes": 39246
     },
     {
       "path": ".local-worker/project_views.py",
@@ -557,8 +557,8 @@
     },
     {
       "path": ".local-worker/tests/test_codex_mcp_server.py",
-      "sha256": "58ef4c5eb1740aa5366efe733e5da18e22d3245d7b12a42240bbf96d444c791f",
-      "bytes": 24774
+      "sha256": "4f905b5205e1b1223a7b28115448334113e215b8791590b582a5a0807563c37c",
+      "bytes": 25658
     },
     {
       "path": ".local-worker/tests/test_codex_usage.py",
@@ -792,8 +792,8 @@
     },
     {
       "path": ".local-worker/tests/test_presets.py",
-      "sha256": "bbc6565680600829fa8bfe8e1243156bafdbaf8a5cb6498df2aa9872ce631eb4",
-      "bytes": 2750
+      "sha256": "ff987114987461e9de280d3aded191523d598ad66ab5d19cacb0e309974516b7",
+      "bytes": 3773
     },
     {
       "path": ".local-worker/tests/test_project_architecture.py",
@@ -847,8 +847,8 @@
     },
     {
       "path": ".local-worker/tests/test_record_protection.py",
-      "sha256": "758898371d00f1d47e08ed50710a40293f3436eff01bae71efdefea1e11cb496",
-      "bytes": 16393
+      "sha256": "0589e07a1b29691cce0eeed601f7833e3dbacdb7324c96db89050207bae0e232",
+      "bytes": 16478
     },
     {
       "path": ".local-worker/tests/test_record_protection_runtime.cjs",
@@ -2662,8 +2662,8 @@
     },
     {
       "path": "docs/VALIDATION.md",
-      "sha256": "6ec9320150fda0046e210dc3a1e1bba65221a1126afbdc3576935bb23b690ffd",
-      "bytes": 31499
+      "sha256": "56cb2512f36ebdc88e9c59221ddb3871f15ac0a5adb78a7839630e1ab7015bf1",
+      "bytes": 34245
     },
     {
       "path": "docs/WORKBUDDY_EXECUTOR.md",

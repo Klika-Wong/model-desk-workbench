@@ -2403,8 +2403,18 @@ class Handler(BaseHTTPRequestHandler):
             # The capability-authenticated broker call is the one POST route that
             # does not reuse the panel session token; it carries its own private
             # connection capability and is still loopback/origin guarded.
-            self.guard(mutation=path != '/api/brain/call')
-            length = int(self.headers.get("Content-Length", 0))
+            length = int(self.headers.get("Content-Length", 0) or 0)
+            try:
+                self.guard(mutation=path != '/api/brain/call')
+            except PermissionError:
+                # 提前拒绝时先把请求体读掉再回包：Windows 上带着未读的入站数据关闭连接
+                # 会发 RST，客户端收到的是连接重置，而不是这条 403 说明（提示语等于丢了）。
+                if 0 < length <= 200000:
+                    try:
+                        self.rfile.read(length)
+                    except OSError:
+                        pass
+                raise
             if not 0 < length <= 200000:
                 raise ValueError("请求大小不正确")
             body = json.loads(self.rfile.read(length))
