@@ -1,5 +1,31 @@
 # 更新记录
 
+## Herdr agent 运行时只读观测（2026-11-23）
+
+中台新增一块**只读**的 Herdr 状态面板，显示本机 herdr-core 里正在运行的 agent 状态。
+这不是第五个执行端：herdr 不提供模型 API、不写 task.json/result.json、不走记账 relay，
+把它当模型执行器会破坏 `completed != accepted` 的验收契约。所以这里只观测，不派发。
+
+- 新增 `.local-worker/herdr_observer.py`：只读 `hc server status` / `hc ls --json`，
+  映射到 working/blocked/idle 与 needs_you；分离进程 liveness（live/finished）与 agent 状态，
+  未知状态丢弃不猜；不可达 / 超时 / 格式错误一律 fail-closed，不编造终端。
+  不含任何写命令，不读认证文件，固定 5 秒超时与输出上限。
+- 新增只读路由 `GET /api/herdr/status`；preload 暴露 `herdrStatus()`，
+  main.cjs 用回环 `readJson` 取数；独立模块 `desktop/herdr-ui.js` + `herdr.css`
+  在「项目动态」页以折叠卡片显示，展开时每 5 秒刷新，只读不派发。
+- 新增 `test_herdr_observer.py` 7 项离线回归：状态映射、finished 不冒充 working、
+  未知状态丢弃、未安装 fail-closed、只读命令约束。
+- 真机：本机 herdr-app 0.1.16 + core 0.1.22，端到端请求 `/api/herdr/status`
+  返回真实终端 `t1`（live），不是桩。
+
+**边界**：状态来自 agent 可选的 OSC 7501 上报，未上报的终端只有 liveness、没有 working/blocked；
+herdr 的 done 不等于本工作台的 accepted；本轮**没有**接派发、取消、usage 或模型路由，
+四张执行端卡片与 max_workers=1 的队列都没改。机器重启后 herdr 只恢复布局、原进程不存活。
+
+**验证**：仓库 `npm test` 276/276、smoke、verify:ui 75、verify:pet 25、verify:main 全过，
+console 错误 0；清单 543 文件 findings 空。Python 全量回归的既有失败在干净树上已逐项对比，
+本轮未引入新失败。
+
 ## 多视角准备失败不再留下孤立消息（2026-11-17）
 
 多视角发送在 `composePrompt()`（会打包记忆、可能失败）**之前**就清空输入框、写入历史、

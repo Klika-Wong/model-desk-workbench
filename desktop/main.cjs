@@ -972,6 +972,13 @@ ipcMain.handle('panel:status', async (event, baseUrl) => {
     return result;
   });
 });
+ipcMain.handle('herdr:status', (event) => {
+  assertTrustedSender(event);
+  return asyncReply(async () => {
+    const baseUrl = await requirePanelBase();
+    return readJson(baseUrl + '/api/herdr/status');
+  });
+});
 ipcMain.handle('models:cache',event=>{assertTrustedSender(event);return memoryReply(()=>require('./model-cache.cjs').read(workspaceStore.root));});
 ipcMain.handle('panel:status-all', async (event, baseUrl) => { assertTrustedSender(event); return asyncReply(() => probePanel(baseUrl, null, 'all')); });
 async function openPanelWindow(url) {

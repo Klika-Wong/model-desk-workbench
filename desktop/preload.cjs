@@ -55,4 +55,5 @@ contextBridge.exposeInMainWorld('workbench', Object.freeze({
   petOpen: () => ipcRenderer.invoke('pet:open'),
   petState: () => ipcRenderer.invoke('pet:state'),
   petControl: (action, value) => ipcRenderer.invoke('pet:control', action, value),
+  herdrStatus: () => ipcRenderer.invoke('herdr:status'),
 }));

@@ -1,0 +1,9 @@
+.herdr-card .card-summary-note{font-weight:400;opacity:.72;margin-left:.5em}
+.herdr-agents{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.herdr-agent{display:grid;grid-template-columns:auto 1fr auto;grid-template-areas:"addr name state" "cwd cwd cwd";gap:2px 10px;align-items:center;padding:8px 10px;border:1px solid var(--border,rgba(128,128,128,.25));border-radius:8px;background:var(--surface-2,rgba(128,128,128,.06));font-size:13px}
+.herdr-agent-address{grid-area:addr;font-family:var(--font-mono,monospace);opacity:.7}
+.herdr-agent-name{grid-area:name;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.herdr-agent-state{grid-area:state;font-size:12px;padding:2px 8px;border-radius:999px;background:rgba(128,128,128,.16)}
+.herdr-agent-cwd{grid-area:cwd;font-size:11px;opacity:.6;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.herdr-agent[data-state="blocked"] .herdr-agent-state{background:rgba(230,150,40,.24)}
+.herdr-agent[data-state="working"] .herdr-agent-state{background:rgba(60,160,110,.24)}

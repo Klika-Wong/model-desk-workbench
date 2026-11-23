@@ -2262,6 +2262,9 @@ class Handler(BaseHTTPRequestHandler):
                                       'stages': {'stats': stage_store.stats(), 'recovery': stage_store.pending_recovery()}})
             if path == '/api/executor/capabilities':
                 return self.send_json(subagent_capabilities())
+            if path == '/api/herdr/status':
+                import herdr_observer
+                return self.send_json(herdr_observer.snapshot())
             if path == '/api/tree':
                 return self.send_json(tree_view(self.project_view))
             if path == '/api/observability':

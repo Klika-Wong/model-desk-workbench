@@ -1,7 +1,7 @@
 {
   "project": "Model Desk Workbench",
   "version": "0.1.0-preview",
-  "date": "2026-11-17",
+  "date": "2026-11-23",
   "scope": "Source-only snapshot; excludes runtime data and this manifest itself.",
   "hashing": "sha256 over LF-normalized bytes; files containing NUL bytes are hashed verbatim",
   "files": [
@@ -246,6 +246,11 @@
       "bytes": 4294
     },
     {
+      "path": ".local-worker/herdr_observer.py",
+      "sha256": "39ac0eec4685ae7784045bea851ba07cd3188d1ffbcb8f18dc6ec114fedf9213",
+      "bytes": 6554
+    },
+    {
       "path": ".local-worker/host_balance.py",
       "sha256": "f08ca92752a1324323ba2d012cd5640e48cd94bd06c9b7dcfc207d507ccee90b",
       "bytes": 9894
@@ -332,8 +337,8 @@
     },
     {
       "path": ".local-worker/panel_server.py",
-      "sha256": "7cc808901cc678390a45a08fb721a595e44e586b1856de3d958fcb13b7ecf49d",
-      "bytes": 151817
+      "sha256": "b5e0fc876169f7bebc0f9800c9425b19a9d4ac7b25e658be6a39d5bcbf701406",
+      "bytes": 151964
     },
     {
       "path": ".local-worker/panel_service.py",
@@ -699,6 +704,11 @@
       "path": ".local-worker/tests/test_folder_picker.py",
       "sha256": "5d833ab7f7ac78d4c2151a8b7e9c5ec0e8c384c7bb01ee562e9e5297933400bc",
       "bytes": 4082
+    },
+    {
+      "path": ".local-worker/tests/test_herdr_observer.py",
+      "sha256": "ed8325c18258142a71c0c8337e4d0de6dd034b14b1974d3296ce01b0b93d8354",
+      "bytes": 3631
     },
     {
       "path": ".local-worker/tests/test_host_balance.py",
@@ -1072,8 +1082,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "a7739606fe8759ff32b05ea70dc2ac4fc91b5864d8dfe226b68515b0565358fb",
-      "bytes": 67625
+      "sha256": "78a9daeb4d1ee44eafad94fb107fd8f95bfd180b1fe05f24390a93b131272624",
+      "bytes": 69585
     },
     {
       "path": "LICENSE",
@@ -1986,9 +1996,19 @@
       "bytes": 0
     },
     {
+      "path": "desktop/herdr-ui.js",
+      "sha256": "80d5c9d4cfdd241a958d76460a17c4bb329cfdbb983df9b9e8987bf91c9ca539",
+      "bytes": 3551
+    },
+    {
+      "path": "desktop/herdr.css",
+      "sha256": "5981e9ebc9c1c3f7718461a7cefd3535c748f1af3d31d51902ec3426c3c541e0",
+      "bytes": 1039
+    },
+    {
       "path": "desktop/index.html",
-      "sha256": "24c51c3d51479f49426529eabd6fb64b61826259901b340c8a818ec3b7ef8474",
-      "bytes": 40715
+      "sha256": "78d26a7966a2672643e2866728567878ffbf313a6659d742ad3c3fd034759efe",
+      "bytes": 41343
     },
     {
       "path": "desktop/main-verify-run.cjs",
@@ -2002,8 +2022,8 @@
     },
     {
       "path": "desktop/main.cjs",
-      "sha256": "f9528446fd8d4ee1a9d7c3e5ec0b22979f90543bde13a211f09ce6435ea26ee8",
-      "bytes": 85665
+      "sha256": "59ed44d0a021cb06766160c70177ae9a80cb86da1868ff45aab5dd91f763bbf3",
+      "bytes": 85881
     },
     {
       "path": "desktop/memory-bootstrap.cjs",
@@ -2287,8 +2307,8 @@
     },
     {
       "path": "desktop/preload.cjs",
-      "sha256": "4255740eb6fb883084141d545e19b5085992d08240d8f9b59f2591efc19fa273",
-      "bytes": 4143
+      "sha256": "7864170df3717d4962fd9de6778c213e6e509dceb14714b6d02aa04f53ac7854",
+      "bytes": 4200
     },
     {
       "path": "desktop/renderer.js",
