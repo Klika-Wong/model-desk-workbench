@@ -52,6 +52,7 @@ contextBridge.exposeInMainWorld('workbench', Object.freeze({
   dispatchCancel: (taskId) => ipcRenderer.invoke('dispatch:cancel', taskId),
   dispatchModelActivity: (modelId) => ipcRenderer.invoke('dispatch:model-activity', modelId),
   renderInfo: () => ipcRenderer.invoke('app:render-info'),
+  releaseFeatures: () => ipcRenderer.invoke('app:release-features'),
   petOpen: () => ipcRenderer.invoke('pet:open'),
   petState: () => ipcRenderer.invoke('pet:state'),
   petControl: (action, value) => ipcRenderer.invoke('pet:control', action, value),

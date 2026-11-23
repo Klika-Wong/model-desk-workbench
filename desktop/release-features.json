@@ -1,0 +1,5 @@
+{
+  "schema": 1,
+  "note": "正式版封存的实验功能入口。代码全部保留；删掉某个 key 或设置 MODEL_DESK_EXPERIMENTAL=1 即可恢复。",
+  "sealed": ["multi", "discussion", "pet"]
+}

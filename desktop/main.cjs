@@ -730,6 +730,24 @@ async function runSmoke() {
   }
 }
 
+// 正式版功能封存：只决定哪些实验入口出现在界面上，不删实现。
+// 配置文件 release-features.json 可改；MODEL_DESK_EXPERIMENTAL=1 时全部打开。
+function sealedFeatures() {
+  const all = ['multi', 'discussion', 'pet'];
+  if (String(process.env.MODEL_DESK_EXPERIMENTAL || '') === '1') return { sealed: [], source: 'env-experimental' };
+  try {
+    const raw = JSON.parse(fs.readFileSync(path.join(__dirname, 'release-features.json'), 'utf8'));
+    if (raw && raw.schema === 1 && Array.isArray(raw.sealed)) {
+      return { sealed: raw.sealed.filter((key) => all.includes(key)), source: 'config' };
+    }
+  } catch {}
+  // 读不到配置就按正式版处理：默认封存，不会因为文件缺失把实验功能暴露出去。
+  return { sealed: all, source: 'default' };
+}
+ipcMain.handle('app:release-features', (event) => {
+  assertTrustedSender(event);
+  return { ok: true, data: sealedFeatures() };
+});
 // 渲染诊断：让用户看到自己这台机器到底在走硬件加速还是软件渲染。
 // 软件渲染 + 高 DPI 时，任何持续动画都会明显吃满 CPU，表现为「卡、闪」。
 ipcMain.handle('app:render-info', (event) => {
@@ -1530,6 +1548,17 @@ async function runMainVerify() {
       throw new Error(`app:render-info 返回不符预期：${JSON.stringify(info)}`);
     }
     checks.push('ipc-round-trip');
+
+    // 正式版默认封存：三个实验发送方式必须默认不暴露，除非显式打开实验模式。
+    const sealed = sealedFeatures();
+    if (process.env.MODEL_DESK_EXPERIMENTAL === '1') {
+      if (sealed.sealed.length !== 0) throw new Error(`实验模式下不应封存：${JSON.stringify(sealed)}`);
+    } else {
+      for (const key of ['multi', 'discussion', 'pet']) {
+        if (!sealed.sealed.includes(key)) throw new Error(`正式版默认没有封存 ${key}：${JSON.stringify(sealed)}`);
+      }
+    }
+    checks.push('release-features-sealed-by-default');
 
     stage = 'tray';
     write(stage, false);

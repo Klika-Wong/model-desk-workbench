@@ -435,6 +435,37 @@ async function main() {
   if (!/运行中/.test(resume.running.status)) throw new Error(`非终态没有如实提示状态：${resume.running.status}`);
   result.checks.push('chat-resume-tracked-task-readonly');
 
+  // 正式版封存：三个实验发送方式（多视角 / 讨论=例会 / 桌宠陪聊）在封存后必须
+  // 从界面消失并自动取消勾选；解除封存后必须原样回来。实现代码一律保留。
+  const seal = await js(`(async () => {
+    const labelOf = (id) => { const el = document.getElementById(id); return el.closest('label'); };
+    const visible = () => ['chat-multi', 'chat-discussion', 'chat-pet']
+      .map((id) => Boolean(labelOf(id) && !labelOf(id).hidden));
+    const multi = document.getElementById('chat-multi');
+    multi.checked = true; multi.dispatchEvent(new Event('change'));
+    const before = visible();
+    window.__releaseFeatures.apply(['multi', 'discussion', 'pet']);
+    const sealedHidden = visible();
+    const unchecked = !document.getElementById('chat-multi').checked;
+    const disabled = ['chat-multi', 'chat-discussion', 'chat-pet']
+      .every((id) => document.getElementById(id).disabled === true);
+    const summary = document.getElementById('chat-options-summary').textContent.trim();
+    window.__releaseFeatures.apply([]);
+    const restored = visible();
+    const enabled = ['chat-multi', 'chat-discussion', 'chat-pet']
+      .every((id) => document.getElementById(id).disabled === false);
+    return { before, sealedHidden, unchecked, disabled, summary, restored, enabled,
+             handlers: Boolean(window.__chatPrompt || document.getElementById('chat-send')) };
+  })()`);
+  if (!seal.before.every(Boolean)) throw new Error(`未封存时三个发送方式应可见：${JSON.stringify(seal.before)}`);
+  if (seal.sealedHidden.some(Boolean)) throw new Error(`封存后仍有入口可见：${JSON.stringify(seal.sealedHidden)}`);
+  if (!seal.unchecked) throw new Error('封存后已选中的多视角没有被取消勾选');
+  if (!seal.disabled) throw new Error('封存后开关仍可被程序启用');
+  if (seal.summary !== '普通对话') throw new Error(`封存后发送方式摘要没有回到普通对话：${seal.summary}`);
+  if (!seal.restored.every(Boolean)) throw new Error('解除封存后入口没有恢复');
+  if (!seal.enabled) throw new Error('解除封存后开关仍处于禁用状态');
+  result.checks.push('release-sealed-modes-hidden');
+
   // 协作视图：在线模型、生态分区、右键菜单、交流对话流
   const stage = await js(`(async () => {
    try {

@@ -1,5 +1,45 @@
 # 更新记录
 
+## 正式版封存实验入口，并给出对外接入规范（2026-11-23）
+
+上线前按「代码全留、界面收敛」处理：实验性的三个发送方式从正式版界面收起，
+实现、测试、数据链路一行没删；需要时改一行配置就能回来。
+
+- 新增 `desktop/release-features.json` 与 `desktop/release-features.js`：默认封存
+  `multi`（多视角对比）、`discussion`（讨论/例会）、`pet`（桌宠陪聊）。封存时隐藏开关、
+  自动取消勾选并禁用，发送方式摘要回到「普通对话」；防止留下「看不见却仍被选中」的模式。
+- `main.cjs` 新增 `app:release-features`，配置读不到时**按正式版封存**（不会因为文件缺失
+  把实验功能暴露出去）；`MODEL_DESK_EXPERIMENTAL=1` 时全部打开，供开发与验证使用。
+- 新增 `docs/INTEGRATION_API.md`：第三方 AI 按这份文档就能接入——面板 HTTP 接口
+  （令牌、视图头、任务字段、状态机、日志取值）、文件级契约、以及注册新执行端要改的四类文件；
+  附本机实测的最小示例。
+- 验证：`verify:ui` 77 项（新增 `release-sealed-modes-hidden`，验证封存后三个入口不可见、
+  已选中的被取消并禁用、解除封存后原样恢复）；`verify:main` 16 项（新增
+  `release-features-sealed-by-default`，在真实主进程里确认默认为封存态）。单测 284/284。
+
+**边界**：封存只影响界面入口，`chat-multi.js` / 讨论流程仍在代码里且未删除；如果直接改
+`release-features.json` 又没有重建清单，源码校验会失败。封存不改变已存在任务的历史数据。
+
+## 上线前完整自检：修掉 6 个 Windows 并发与鉴权缺陷（2026-11-23）
+
+首次把中台 Python 套件纳入自检，1402 项里跑出 9 个失败，逐个定位后修掉 6 个真缺陷：
+
+- `model_registry.file_lock` / `project_storage._lock`：重试只包了 `msvcrt.locking`，
+  没包 `open('a+b')`。Windows 上别人持有锁文件时 `open` 自己就抛共享冲突，
+  并发预留、结算、索引注册会直接失败而不是排队。现在把 `open` 也纳入重试。
+- `project_storage.connect`：两个线程同时首次打开同一个新库时，建表阶段偶发
+  `attempt to write a readonly database`。现在对 `locked/readonly` 做有界重试。
+- `panel_server.do_POST` / `budget_relay`：先鉴权、后读请求体，拒绝时未读的请求体让
+  Windows 关闭连接发 RST，调用方拿到「连接重置」而不是那条 403 说明。现在拒绝前先丢弃请求体。
+- `project_architecture`：`ntpath.isabs('/entry.py')` 在 Windows 上返回 `False`，
+  以 `/` 开头的引用被当成合法相对路径、永远匹配不到索引键，静默变成 `unknown` 而不是 `invalid`。
+
+另修两处测试自身问题：面板端口测试硬编码 8765（宿主会注入 `MODEL_DESK_PANEL_PORT`），
+DSH 原生预设测试依赖本机 `~/.dsh/local-bundles`，缺文件时改为明确跳过并新增 fail-closed 断言。
+
+**结果**：Python 1402 通过 / 0 失败 / 13 跳过；桌面单测 284/284、界面 76、桌宠 25、
+主进程 15、冒烟 65、vendor 37、清单 550 / `findings: []`。
+
 ## 重开后能找回上次的任务，但绝不重新派发（2026-11-23）
 
 交付门槛里「重启后恢复原任务跟踪，不自动重发」原来没闭环：`chat-store` 只存

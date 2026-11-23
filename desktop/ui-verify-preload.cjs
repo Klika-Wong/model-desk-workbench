@@ -120,6 +120,9 @@ contextBridge.exposeInMainWorld('workbench', {
   chatSave: async (messages, project, pendingTaskId) => { calls.push({ api: 'chatSave', input: messages, project, pendingTaskId }); return { ok: true, data: { saved: (messages || []).length } }; },
   chatClear: async (project) => { calls.push({ api: 'chatClear', project }); return { ok: !chatClearFails, data: { cleared: !chatClearFails } }; },
   renderInfo: async () => ({ gpuCompositing: 'enabled', gpuRasterization: 'enabled', webgl: 'enabled', scaleFactor: 1, displaySize: [1280, 800], platform: 'win32' }),
+  // 验证默认按「实验版全开」启动，既有断言仍能点到三个发送方式；
+  // 封存行为由 release-sealed-modes-hidden 断言显式调用 __releaseFeatures.apply() 验证。
+  releaseFeatures: async () => ({ ok: true, data: { sealed: [], source: 'verify' } }),
   // 桩环境没有 Electron 主进程，petOpen 不会真的建窗口。harness 标记供断言区分，
   // 真窗口由 npm run verify:pet（pet-verify.cjs）在真机覆盖。
   petOpen: async () => { calls.push({api:'petOpen'}); return {ok:true,data:{harness:'stub',locked:false,alwaysOnTop:true}}; },

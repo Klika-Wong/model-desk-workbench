@@ -1082,8 +1082,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "93afcd860c8e3836478ea61c520b6b660eb7d97e1d91156159046d1e80d3b9e9",
-      "bytes": 72777
+      "sha256": "aa98c1361e9e362acafb8949ef08356a9f2af519787b31014e7b47ca0cd675d1",
+      "bytes": 76011
     },
     {
       "path": "LICENSE",
@@ -2022,8 +2022,8 @@
     },
     {
       "path": "desktop/index.html",
-      "sha256": "69635c91b9baa1b691ec3bedc3dd6b30a78d6ef92453fa4f38222a15475e9cbb",
-      "bytes": 42329
+      "sha256": "003ae296f69316a3597567fa687982835454a645caf1f37d1b3aa6e0bfe0bf69",
+      "bytes": 42372
     },
     {
       "path": "desktop/main-verify-run.cjs",
@@ -2037,8 +2037,8 @@
     },
     {
       "path": "desktop/main.cjs",
-      "sha256": "5a98461e835faa74b099418667b0410f5cda310775c8e0d75771c4f7eed45069",
-      "bytes": 87963
+      "sha256": "1b56ee38f5c9740bf1b66ed2fe26bd8e3ba3984bd504aa2d9d9bb15e25355ae1",
+      "bytes": 89496
     },
     {
       "path": "desktop/memory-bootstrap.cjs",
@@ -2322,8 +2322,18 @@
     },
     {
       "path": "desktop/preload.cjs",
-      "sha256": "3022d5166b919040d27e367cb6642ccd1b2ad29cfea570571b2cf95437606323",
-      "bytes": 4332
+      "sha256": "d9047d3052a028d98c545118dd5392363e4db3d1bab66db8c9f78661b73b8718",
+      "bytes": 4401
+    },
+    {
+      "path": "desktop/release-features.js",
+      "sha256": "2100130693a0989541fa5b3f452f274d8d6be2e3132cb1ab8389b88534c62869",
+      "bytes": 2624
+    },
+    {
+      "path": "desktop/release-features.json",
+      "sha256": "74aa52286ed76bbc71754b2115c38da558032ee2d31df0b81d615d8e5eb22c4b",
+      "bytes": 204
     },
     {
       "path": "desktop/renderer.js",
@@ -2417,8 +2427,8 @@
     },
     {
       "path": "desktop/ui-verify-preload.cjs",
-      "sha256": "230fdb3cc94b1034f638a9d31f308e201f6f2b46398eaa7cce7730101ece22fb",
-      "bytes": 15250
+      "sha256": "cf15f66317d7a746a4a9995e9a66b43e13accda0e5c7974c9e41fb9e494204c2",
+      "bytes": 15537
     },
     {
       "path": "desktop/ui-verify-run.cjs",
@@ -2427,8 +2437,8 @@
     },
     {
       "path": "desktop/ui-verify.cjs",
-      "sha256": "a3c259e38a88aa9c0336ed3031c4b1a43f7da6b9b4687ba4f89d8a3607adf435",
-      "bytes": 108466
+      "sha256": "97605309f654cfbd745e16ee371407c7c90fb1ac0292b9ba2fb72055541060a4",
+      "bytes": 110700
     },
     {
       "path": "desktop/vendor-assets.test.cjs",
@@ -2569,6 +2579,11 @@
       "path": "docs/INSTALL.md",
       "sha256": "ee39209ca6d00265566231d7a3940a88f4ca6242a62de3ca0432ef3f1a221543",
       "bytes": 13319
+    },
+    {
+      "path": "docs/INTEGRATION_API.md",
+      "sha256": "2921b6a33df474dbfc581470affebbb4ee105ffdc5082f58eb2245ef64ad44e7",
+      "bytes": 7166
     },
     {
       "path": "docs/MAIN_BRAIN_CORE.md",
